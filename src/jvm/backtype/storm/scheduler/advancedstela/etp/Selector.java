@@ -9,7 +9,7 @@ import java.util.TreeMap;
 
 public class Selector {
 
-    public ArrayList<ExecutorSummary> selectPair(GlobalState globalState, GlobalStatistics globalStatistics,
+    public ExecutorPair selectPair(GlobalState globalState, GlobalStatistics globalStatistics,
                                                  String targetID, String victimID) {
 
         TopologySchedule targetSchedule = globalState.getTopologySchedules().get(targetID);
@@ -32,10 +32,8 @@ public class Selector {
                     for (ExecutorSummary targetSummary : targetExecutorDetails) {
 
                         if (victimSummary.get_host().equals(targetSummary.get_host())) {
-                            ArrayList<ExecutorSummary> ret = new ArrayList<ExecutorSummary>();
-                            ret.add(victimSummary);
-                            ret.add(targetSummary);
-                            return ret;
+                            ExecutorPair executorPair = new ExecutorPair(targetSummary, victimSummary);
+                            return executorPair;
                         }
 
                     }
