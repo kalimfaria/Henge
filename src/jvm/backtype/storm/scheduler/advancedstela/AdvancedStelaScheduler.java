@@ -46,12 +46,15 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
-        globalState.collect(cluster, topologies);
-        globalStatistics.collect();
-
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else {
+            globalState.collect(cluster, topologies);
+            globalStatistics.collect();
+
+        } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
+            globalState.collect(cluster, topologies);
+            globalStatistics.collect();
+
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
             ArrayList<String> givers = topologiesToBeRescaled.getGivers();

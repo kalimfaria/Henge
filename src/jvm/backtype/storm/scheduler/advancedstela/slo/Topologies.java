@@ -49,8 +49,7 @@ public class Topologies {
     public void constructTopologyGraphs() {
         if (config != null) {
             try {
-                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST),
-                        (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
+                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
 
                 List<TopologySummary> topologies = nimbusClient.getClient().getClusterInfo().get_topologies();
 

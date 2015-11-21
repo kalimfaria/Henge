@@ -29,15 +29,6 @@ public class GlobalState {
         config = conf;
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
-
-        if (config != null) {
-            try {
-                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST),
-                        (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
-            } catch (TTransportException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -49,6 +40,16 @@ public class GlobalState {
     }
 
     public void collect(Cluster cluster, Topologies topologies) {
+        if (config != null) {
+            try {
+                LOG.info("-------- " + (String) config.get(Config.NIMBUS_HOST) + " -- " + (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
+                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
+            } catch (TTransportException e) {
+                e.printStackTrace();
+
+            }
+        }
+
         populateNodeToExecutorMapping(cluster);
         populateAssignmentForTopologies(cluster, topologies);
     }

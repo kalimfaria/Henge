@@ -33,10 +33,10 @@ public class Observer {
     }
 
     public synchronized void run() {
+        LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
         if (config != null) {
             try {
-                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST),
-                        (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
+                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
                 topologies.constructTopologyGraphs();
                 HashMap<String, Topology> allTopologies = topologies.getStelaTopologies();
 

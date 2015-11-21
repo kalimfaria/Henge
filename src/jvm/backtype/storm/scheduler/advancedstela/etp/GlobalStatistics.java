@@ -36,14 +36,6 @@ public class GlobalStatistics {
 
     public GlobalStatistics(Map conf) {
         config = conf;
-        if (config != null) {
-            try {
-                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST),
-                        (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
-            } catch (TTransportException e) {
-                e.printStackTrace();
-            }
-        }
         nodeStatistics = new HashMap<String, NodeStatistics>();
         topologyStatistics = new HashMap<String, TopologyStatistics>();
         transferStatsTable = new HashMap<String, Integer>();
@@ -58,6 +50,14 @@ public class GlobalStatistics {
     }
 
     public void collect() {
+        if (config != null) {
+            try {
+                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
+            } catch (TTransportException e) {
+                e.printStackTrace();
+            }
+        }
+
         nodeStatistics.clear();
         for (TopologyStatistics statistics : topologyStatistics.values()) {
             statistics.clearComponentStatistics();
