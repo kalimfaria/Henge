@@ -4,7 +4,7 @@ import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
-import org.apache.thrift7.transport.TTransportException;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,15 +44,13 @@ public class Observer {
                 calculateSloPerSource(allTopologies);
                 logFinalSourceSLOsPer(allTopologies);
 
-            } catch (TException e) {
-                e.printStackTrace();
             } catch (TTransportException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private void collectStatistics(HashMap<String, Topology> allTopologies) throws TException {
+    private void collectStatistics(HashMap<String, Topology> allTopologies) {
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
             TopologyInfo topologyInfo = null;

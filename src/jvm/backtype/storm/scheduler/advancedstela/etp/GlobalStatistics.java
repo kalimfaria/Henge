@@ -4,7 +4,7 @@ import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
-import org.apache.thrift7.transport.TTransportException;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,25 +200,26 @@ public class GlobalStatistics {
     private void updateThroughputHistory(TopologySummary topologySummary) {
         TopologyStatistics statistics = topologyStatistics.get(topologySummary.get_id());
 
+        if (statistics != null) {
+            HashMap<String, List<Integer>> componentTransferHistory = statistics.getTransferThroughputHistory();
+            HashMap<String, List<Integer>> componentEmitHistory = statistics.getEmitThroughputHistory();
+            HashMap<String, List<Integer>> componentExecuteHistory = statistics.getExecuteThroughputHistory();
 
-        HashMap<String, List<Integer>> componentTransferHistory = statistics.getTransferThroughputHistory();
-        HashMap<String, List<Integer>> componentEmitHistory = statistics.getEmitThroughputHistory();
-        HashMap<String, List<Integer>> componentExecuteHistory = statistics.getExecuteThroughputHistory();
+            for (Map.Entry<String, ComponentStatistics> entry : statistics.getComponentStatistics().entrySet()) {
+                if (componentTransferHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                    componentTransferHistory.get(entry.getKey()).remove(0);
+                }
+                if (componentEmitHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                    componentEmitHistory.get(entry.getKey()).remove(0);
+                }
+                if (componentExecuteHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                    componentExecuteHistory.get(entry.getKey()).remove(0);
+                }
 
-        for (Map.Entry<String, ComponentStatistics> entry : statistics.getComponentStatistics().entrySet()) {
-            if (componentTransferHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
-                componentTransferHistory.get(entry.getKey()).remove(0);
+                componentTransferHistory.get(entry.getKey()).add(entry.getValue().totalTransferThroughput);
+                componentEmitHistory.get(entry.getKey()).add(entry.getValue().totalEmitThroughput);
+                componentExecuteHistory.get(entry.getKey()).add(entry.getValue().totalExecuteThroughput);
             }
-            if (componentEmitHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
-                componentEmitHistory.get(entry.getKey()).remove(0);
-            }
-            if (componentExecuteHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
-                componentExecuteHistory.get(entry.getKey()).remove(0);
-            }
-
-            componentTransferHistory.get(entry.getKey()).add(entry.getValue().totalTransferThroughput);
-            componentEmitHistory.get(entry.getKey()).add(entry.getValue().totalEmitThroughput);
-            componentExecuteHistory.get(entry.getKey()).add(entry.getValue().totalExecuteThroughput);
         }
     }
 

@@ -140,12 +140,12 @@
                         </includes>
                     </artifactSet>
 
-                    <relocations>
-                        <relocation>
-                            <pattern>org.apache.thrift</pattern>
-                            <shadedPattern>org.apache.thrift7</shadedPattern>
-                        </relocation>
-                    </relocations>
+                    <!--<relocations>-->
+                        <!--<relocation>-->
+                            <!--<pattern>org.apache.thrift</pattern>-->
+                            <!--<shadedPattern>org.apache.thrift7</shadedPattern>-->
+                        <!--</relocation>-->
+                    <!--</relocations>-->
                     <transformers>
                         <transformer implementation="org.apache.storm.maven.shade.clojure.ClojureTransformer" />
                     </transformers>

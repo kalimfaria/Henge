@@ -5,7 +5,7 @@ import backtype.storm.generated.*;
 import backtype.storm.scheduler.*;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
-import org.apache.thrift7.transport.TTransportException;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,14 +39,13 @@ public class GlobalState {
         return supervisorToNode;
     }
 
-    public void collect(Cluster cluster, Topologies topologies) {
+    public void collect(Cluster cluster, Topologies topologies){
         if (config != null) {
             try {
                 LOG.info("-------- " + (String) config.get(Config.NIMBUS_HOST) + " -- " + (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
             } catch (TTransportException e) {
                 e.printStackTrace();
-
             }
         }
 
@@ -126,13 +125,17 @@ public class GlobalState {
                 for (Map.Entry<ExecutorDetails, String> executorToComponent :
                         topologyDetails.getExecutorToComponent().entrySet()) {
                     Component component = topologySchedule.getComponents().get(executorToComponent.getValue());
-                    component.addExecutor(executorToComponent.getKey());
-                    topologySchedule.addExecutorToComponent(executorToComponent.getKey(), component.getId());
+                    if (component != null) {
+                        component.addExecutor(executorToComponent.getKey());
+                        topologySchedule.addExecutorToComponent(executorToComponent.getKey(), component.getId());
+                    }
                 }
 
                 for (ExecutorSummary executorSummary: topologyInformation.get_executors()) {
                     Component component = topologySchedule.getComponents().get(executorSummary.get_component_id());
-                    component.addExecutorSummary(executorSummary);
+                    if (component != null) {
+                        component.addExecutorSummary(executorSummary);
+                    }
                 }
             }
         } catch (AuthorizationException e) {

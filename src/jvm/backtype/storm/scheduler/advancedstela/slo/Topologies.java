@@ -4,7 +4,7 @@ import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
-import org.apache.thrift7.transport.TTransportException;
+import org.apache.thrift.transport.TTransportException;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -68,15 +68,19 @@ public class Topologies {
                         stelaTopologies.put(id, topology);
                     }
                 }
-            } catch (TException e) {
+            } catch (NotAliveException e) {
                 e.printStackTrace();
             } catch (TTransportException e) {
+                e.printStackTrace();
+            } catch (AuthorizationException e) {
+                e.printStackTrace();
+            } catch (TException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private Double getUserSpecifiedSLOFromConfig(String id) throws TException {
+    private Double getUserSpecifiedSLOFromConfig(String id){
         Double topologySLO = 1.0;
         JSONParser parser = new JSONParser();
         try {
@@ -88,11 +92,14 @@ public class Topologies {
             e.printStackTrace();
         } catch (NotAliveException e) {
             e.printStackTrace();
+        } catch (TException e) {
+            e.printStackTrace();
         }
+
         return topologySLO;
     }
 
-    private void addSpoutsAndBolts(StormTopology stormTopology, Topology topology) throws TException {
+    private void addSpoutsAndBolts(StormTopology stormTopology, Topology topology) {
         for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
             if (!spout.getKey().matches("(__).*")) {
                 topology.addSpout(spout.getKey(), new Component(spout.getKey(),
