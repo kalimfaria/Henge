@@ -181,9 +181,12 @@ public class GlobalStatistics {
                             }
 
                             ComponentStatistics componentStats = statistics.getComponentStatistics().get(componentId);
-                            componentStats.totalTransferThroughput += transferThroughput;
-                            componentStats.totalEmitThroughput += emitThroughput;
-                            componentStats.totalExecuteThroughput += executeThroughput;
+
+                            if (componentStats != null) {
+                                componentStats.totalTransferThroughput += transferThroughput;
+                                componentStats.totalEmitThroughput += emitThroughput;
+                                componentStats.totalExecuteThroughput += executeThroughput;
+                            }
                         }
                     }
                 }

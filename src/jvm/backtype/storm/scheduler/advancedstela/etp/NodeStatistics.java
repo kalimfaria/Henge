@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class NodeStatistics {
+    private static final String TRANSFER = "transfer";
+    private static final String EMIT = "emit";
+
     private String id;
     private Integer transferThroughput;
     private Integer emitThroughput;
@@ -20,6 +23,14 @@ public class NodeStatistics {
         emitThroughput = 0;
         spouts = new ArrayList<ExecutorSummary>();
         bolts = new ArrayList<ExecutorSummary>();
+
+        throughputForBolts = new HashMap<String, Integer>();
+        throughputForBolts.put(TRANSFER, 0);
+        throughputForBolts.put(EMIT, 0);
+
+        throughputForSpouts = new HashMap<String, Integer>();
+        throughputForSpouts.put(TRANSFER, 0);
+        throughputForSpouts.put(EMIT, 0);
     }
 
     public void addSpout(ExecutorSummary executorSummary) {
