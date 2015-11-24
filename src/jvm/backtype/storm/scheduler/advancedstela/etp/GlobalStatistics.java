@@ -74,6 +74,7 @@ public class GlobalStatistics {
                 } else {
                     statistics = new TopologyStatistics(id);
                     statistics.setStartupTime((System.currentTimeMillis() / 1000));
+                    topologyStatistics.put(id, statistics);
                 }
 
                 TopologyInfo topologyInformation = null;

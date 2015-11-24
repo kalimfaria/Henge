@@ -19,6 +19,7 @@ public class Selector {
 
         Strategy targetStrategy = new Strategy(targetSchedule, targetStatistics);
         Strategy victimStrategy = new Strategy(victimSchedule, victimStatistics);
+
         TreeMap<Component, Double> rankTarget = targetStrategy.topologyETPRankDescending();
         TreeMap<Component, Double> rankVictim = victimStrategy.topologyETPRankAscending();
 
