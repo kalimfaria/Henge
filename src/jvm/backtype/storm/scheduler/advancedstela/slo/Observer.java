@@ -28,11 +28,11 @@ public class Observer {
         topologies = new Topologies(config);
     }
 
-    public synchronized TopologyPairs getTopologiesToBeRescaled() {
+    public TopologyPairs getTopologiesToBeRescaled() {
         return topologies.getTopologyPairScaling();
     }
 
-    public synchronized void run() {
+    public void run() {
         LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
         if (config != null) {
             try {
