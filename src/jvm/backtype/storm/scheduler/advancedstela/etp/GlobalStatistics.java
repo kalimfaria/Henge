@@ -146,6 +146,7 @@ public class GlobalStatistics {
                             if (emitThroughput < 0) {
                                 emitThroughput = 0;
                             }
+
                             emitRatesTable.put(taskId, emitThroughput);
 
                             Integer executeThroughput = 0;

@@ -66,7 +66,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 TopologySchedule victimSchedule = globalState.getTopologySchedules().get(givers.get(givers.size() - 1));
 
                 ExecutorPair executorSummaries =
-                        selector.selectPair(globalState, globalStatistics, receivers.get(0), givers.get(givers.size()));
+                        selector.selectPair(globalState, globalStatistics, receivers.get(0), givers.get(givers.size() - 1));
 
                 if (executorSummaries != null) {
                     rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries);
