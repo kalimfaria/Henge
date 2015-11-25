@@ -159,13 +159,13 @@ public class Observer {
     }
 
     private void logFinalSourceSLOsPer(HashMap<String, Topology> allTopologies) {
-        LOG.info("*************************************************");
+        LOG.info("**************************************************************************************************");
 
         for (String topologyId : allTopologies.keySet()) {
             Double calculatedSLO = 0.0;
             Topology topology = allTopologies.get(topologyId);
 
-            LOG.info("Output SLO for topology {} is {}", topologyId, topology.getUserSpecifiedSLO());
+            LOG.info("User specified SLO for topology {} is {}", topologyId, topology.getUserSpecifiedSLO());
 
             for (Component bolt : topology.getBolts().values()) {
                 if (bolt.getChildren().isEmpty()) {
@@ -177,8 +177,9 @@ public class Observer {
 
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
-            LOG.info("Measure SLO for topology {} is {}", topologyId, calculatedSLO);
-            LOG.info("*************************************************");
+            LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
+                    topology.getMeasuredSLO());
+            LOG.info("**************************************************************************************************");
         }
 
     }
