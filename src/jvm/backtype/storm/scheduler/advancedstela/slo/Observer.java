@@ -177,6 +177,7 @@ public class Observer {
 
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
+            LOG.info("SLO values are [{}].", topology.printSLOs());
             LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
                     topology.getMeasuredSLO());
             LOG.info("**************************************************************************************************");

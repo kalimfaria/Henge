@@ -77,4 +77,13 @@ public class Topology implements Comparable<Topology> {
     public boolean sloViolated() {
         return getMeasuredSLO() < userSpecifiedSLO;
     }
+
+    public String printSLOs() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(" ");
+        for (Double measuredSLO : measuredSLOs) {
+            stringBuilder.append(measuredSLO).append(" ");
+        }
+        return stringBuilder.toString();
+    }
 }
