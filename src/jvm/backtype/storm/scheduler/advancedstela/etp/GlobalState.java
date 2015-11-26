@@ -42,7 +42,6 @@ public class GlobalState {
     public void collect(Cluster cluster, Topologies topologies){
         if (config != null) {
             try {
-                LOG.info("-------- " + (String) config.get(Config.NIMBUS_HOST) + " -- " + (Integer) config.get(Config.NIMBUS_THRIFT_PORT));
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
             } catch (TTransportException e) {
                 e.printStackTrace();

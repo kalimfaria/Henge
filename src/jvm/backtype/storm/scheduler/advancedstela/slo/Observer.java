@@ -34,7 +34,6 @@ public class Observer {
     }
 
     public void run() {
-        LOG.info("********************* OBSERVER LOGGING START *******************************");
         LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
 
         if (config != null) {
@@ -46,7 +45,6 @@ public class Observer {
                 collectStatistics(allTopologies);
                 calculateSloPerSource(allTopologies);
                 logFinalSourceSLOsPer(allTopologies);
-                LOG.info("************************* OBSERVER LOGGING END *******************************");
 
             } catch (TTransportException e) {
                 e.printStackTrace();
@@ -55,7 +53,6 @@ public class Observer {
     }
 
     private void collectStatistics(HashMap<String, Topology> allTopologies) {
-        LOG.info("************************* Collect Statistics Start *******************************");
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
             TopologyInfo topologyInfo = null;
@@ -69,6 +66,9 @@ public class Observer {
 
             List<ExecutorSummary> executorSummaries = topologyInfo.get_executors();
 
+            HashMap<String, Integer> temporaryTransferred = new HashMap<>();
+            HashMap<String, HashMap<String, Integer>> temporaryExecuted = new HashMap<>();
+
             for (ExecutorSummary executor : executorSummaries) {
                 String componentId = executor.get_component_id();
                 Component component = topology.getAllComponents().get(componentId);
@@ -77,7 +77,6 @@ public class Observer {
                     continue;
                 }
 
-                LOG.info("\nComponent: {}", component.getId());
                 ExecutorStats stats = executor.get_stats();
 
                 if (stats == null) {
@@ -91,48 +90,59 @@ public class Observer {
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
                         if (DEFAULT.equals(key)) {
-                            LOG.info("Key = {}, Value = {}", key, statValues.get(key));
-                            LOG.info("Total Transferred: {}", component.getTotalTransferred());
-                            LOG.info("Current Transferred: {}", statValues.get(key).intValue());
-                            component.setCurrentTransferred(statValues.get(key).intValue());
-                            component.setTotalTransferred(statValues.get(key).intValue());
-
-                            LOG.info("Spout value found: {}", statValues.get(key).intValue());
-                            LOG.info("Spout Current Transferred: {}, Total Transferred: {}",
-                                    component.getCurrentTransferred(), component.getTotalTransferred());
+                            if (!temporaryTransferred.containsKey(componentId)) {
+                                temporaryTransferred.put(componentId, 0);
+                            }
+                            temporaryTransferred.put(componentId, temporaryTransferred.get(componentId) +
+                                    statValues.get(key).intValue());
                         }
                     }
                 } else {
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
                         if (DEFAULT.equals(key)) {
-                            component.setCurrentTransferred(statValues.get(key).intValue());
-                            component.setTotalTransferred(statValues.get(key).intValue());
-                            LOG.info("Key = {}, Value = {}", key, statValues.get(key));
-                            LOG.info("Bolt value found: {}", statValues.get(key).intValue());
-                            LOG.info("Bolt Current Transferred: {}, Total Transferred: {}",
-                                    component.getCurrentTransferred(), component.getTotalTransferred());
+                            if (!temporaryTransferred.containsKey(componentId)) {
+                                temporaryTransferred.put(componentId, 0);
+                            }
+                            temporaryTransferred.put(componentId, temporaryTransferred.get(componentId) +
+                                    statValues.get(key).intValue());
                         }
                     }
 
                     Map<String, Map<GlobalStreamId, Long>> executed = specific.get_bolt().get_executed();
                     Map<GlobalStreamId, Long> executedStatValues = executed.get(ALL_TIME);
                     for (GlobalStreamId streamId : executedStatValues.keySet()) {
-                        component.addCurrentExecuted(streamId.get_componentId(),
-                                executedStatValues.get(streamId).intValue());
-                        component.addTotalExecuted(streamId.get_componentId(),
-                                executedStatValues.get(streamId).intValue());
-                        LOG.info("Key = {}, Value = {}", streamId.get_componentId(), executedStatValues.get(streamId).intValue());
-                        LOG.info("Bolt value found: {}", executedStatValues.get(streamId).intValue());
-                        LOG.info("Bolt Current Executed: Parent {}, Current Executed {}, Total Executed {}",
-                                streamId.get_componentId(),
-                                component.getCurrentExecuted().get(streamId.get_componentId()),
-                                component.getTotalExecuted().get(streamId.get_componentId()));
+                        if (!temporaryExecuted.containsKey(componentId)) {
+                            temporaryExecuted.put(componentId, new HashMap<String, Integer>());
+                        }
+
+                        if (!temporaryExecuted.get(componentId).containsKey(streamId.get_componentId())) {
+                            temporaryExecuted.get(componentId).put(streamId.get_componentId(), 0);
+                        }
+
+                        temporaryExecuted.get(componentId).put(streamId.get_componentId(),
+                                temporaryExecuted.get(componentId).get(streamId.get_componentId()) +
+                                        executedStatValues.get(streamId).intValue());
+                    }
+                }
+            }
+
+            for (String componentId : topology.getAllComponents().keySet()) {
+                Component component = topology.getAllComponents().get(componentId);
+                if (temporaryTransferred.containsKey(componentId)) {
+                    component.setCurrentTransferred(temporaryTransferred.get(componentId));
+                    component.setTotalTransferred(temporaryTransferred.get(componentId));
+                }
+
+                if (temporaryExecuted.containsKey(componentId)) {
+                    HashMap<String, Integer> executedValues = temporaryExecuted.get(componentId);
+                    for (String source : executedValues.keySet()) {
+                        component.addCurrentExecuted(source, executedValues.get(source));
+                        component.addTotalExecuted(source, executedValues.get(source));
                     }
                 }
             }
         }
-        LOG.info("************************* Collect Statistics End *******************************");
     }
 
     private void calculateSloPerSource(HashMap<String, Topology> allTopologies) {
