@@ -62,6 +62,14 @@ public class Component {
         return currentExecuted;
     }
 
+    public Integer getTotalTransferred() {
+        return totalTransferred;
+    }
+
+    public HashMap<String, Integer> getTotalExecuted() {
+        return totalExecuted;
+    }
+
     public HashMap<String, Double> getSpoutTransfer() {
         return spoutTransfer;
     }

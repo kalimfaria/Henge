@@ -18,6 +18,7 @@ public class Observer {
     private static final String ALL_TIME = ":all-time";
     private static final String METRICS = "__metrics";
     private static final String SYSTEM = "__system";
+    private static final String DEFAULT = "default";
 
     private Map config;
     private Topologies topologies;
@@ -33,7 +34,9 @@ public class Observer {
     }
 
     public void run() {
+        LOG.info("********************* OBSERVER LOGGING START *******************************");
         LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
+
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
@@ -43,6 +46,7 @@ public class Observer {
                 collectStatistics(allTopologies);
                 calculateSloPerSource(allTopologies);
                 logFinalSourceSLOsPer(allTopologies);
+                LOG.info("************************* OBSERVER LOGGING END *******************************");
 
             } catch (TTransportException e) {
                 e.printStackTrace();
@@ -51,6 +55,7 @@ public class Observer {
     }
 
     private void collectStatistics(HashMap<String, Topology> allTopologies) {
+        LOG.info("************************* Collect Statistics Start *******************************");
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
             TopologyInfo topologyInfo = null;
@@ -68,29 +73,45 @@ public class Observer {
                 String componentId = executor.get_component_id();
                 Component component = topology.getAllComponents().get(componentId);
 
+                if (component == null) {
+                    continue;
+                }
+
+                LOG.info("\nComponent: {}", component.getId());
                 ExecutorStats stats = executor.get_stats();
+
                 if (stats == null) {
                     continue;
                 }
 
                 ExecutorSpecificStats specific = stats.get_specific();
-
                 Map<String, Map<String, Long>> transferred = stats.get_transferred();
 
                 if (specific.is_set_spout()) {
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
-                        if (!(key.equals(METRICS) || key.equals(SYSTEM))) {
+                        if (DEFAULT.equals(key)) {
+                            LOG.info("Key = {}, Value = {}", key, statValues.get(key));
+                            LOG.info("Total Transferred: {}", component.getTotalTransferred());
+                            LOG.info("Current Transferred: {}", statValues.get(key).intValue());
                             component.setCurrentTransferred(statValues.get(key).intValue());
                             component.setTotalTransferred(statValues.get(key).intValue());
+
+                            LOG.info("Spout value found: {}", statValues.get(key).intValue());
+                            LOG.info("Spout Current Transferred: {}, Total Transferred: {}",
+                                    component.getCurrentTransferred(), component.getTotalTransferred());
                         }
                     }
                 } else {
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
-                        if (!(key.equals(METRICS) || key.equals(SYSTEM))) {
+                        if (DEFAULT.equals(key)) {
                             component.setCurrentTransferred(statValues.get(key).intValue());
                             component.setTotalTransferred(statValues.get(key).intValue());
+                            LOG.info("Key = {}, Value = {}", key, statValues.get(key));
+                            LOG.info("Bolt value found: {}", statValues.get(key).intValue());
+                            LOG.info("Bolt Current Transferred: {}, Total Transferred: {}",
+                                    component.getCurrentTransferred(), component.getTotalTransferred());
                         }
                     }
 
@@ -101,10 +122,17 @@ public class Observer {
                                 executedStatValues.get(streamId).intValue());
                         component.addTotalExecuted(streamId.get_componentId(),
                                 executedStatValues.get(streamId).intValue());
+                        LOG.info("Key = {}, Value = {}", streamId.get_componentId(), executedStatValues.get(streamId).intValue());
+                        LOG.info("Bolt value found: {}", executedStatValues.get(streamId).intValue());
+                        LOG.info("Bolt Current Executed: Parent {}, Current Executed {}, Total Executed {}",
+                                streamId.get_componentId(),
+                                component.getCurrentExecuted().get(streamId.get_componentId()),
+                                component.getTotalExecuted().get(streamId.get_componentId()));
                     }
                 }
             }
         }
+        LOG.info("************************* Collect Statistics End *******************************");
     }
 
     private void calculateSloPerSource(HashMap<String, Topology> allTopologies) {
@@ -117,14 +145,21 @@ public class Observer {
                 HashSet<String> children = spout.getChildren();
                 for (String child : children) {
                     Component component = topology.getAllComponents().get(child);
+
                     Integer currentTransferred = spout.getCurrentTransferred();
                     Integer executed = component.getCurrentExecuted().get(spout.getId());
 
-                    if (executed == null) {
+                    if (executed == null || currentTransferred == null) {
                         continue;
                     }
 
-                    Double value = ((double) executed) / (double) currentTransferred;
+                    Double value;
+                    if (currentTransferred == 0) {
+                        value = 1.0;
+                    } else {
+                        value = ((double) executed) / (double) currentTransferred;
+                    }
+
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
                 }
@@ -137,17 +172,24 @@ public class Observer {
 
                     for (String child : boltChildren) {
                         Component stelaComponent = topology.getAllComponents().get(child);
+
                         Integer currentTransferred = bolt.getCurrentTransferred();
                         Integer executed = stelaComponent.getCurrentExecuted().get(bolt.getId());
 
-                        if (executed == null) {
+                        if (executed == null || currentTransferred == null) {
                             continue;
                         }
 
-                        Double value = ((double) executed) / (double) currentTransferred;
-                        for (String component : bolt.getSpoutTransfer().keySet()) {
-                            stelaComponent.addSpoutTransfer(component,
-                                    value * bolt.getSpoutTransfer().get(component));
+                        Double value;
+                        if (currentTransferred == 0) {
+                            value = 1.0;
+                        } else {
+                            value = ((double) executed) / (double) currentTransferred;
+                        }
+
+                        for (String source : bolt.getSpoutTransfer().keySet()) {
+                            stelaComponent.addSpoutTransfer(source,
+                                    value * bolt.getSpoutTransfer().get(source));
                         }
                         children.put(stelaComponent.getId(), stelaComponent);
                     }
@@ -170,11 +212,14 @@ public class Observer {
             for (Component bolt : topology.getBolts().values()) {
                 if (bolt.getChildren().isEmpty()) {
                     for (Double sourceProportion : bolt.getSpoutTransfer().values()) {
+                        LOG.info("{}", sourceProportion);
                         calculatedSLO += sourceProportion;
                     }
                 }
             }
 
+
+            LOG.info("Total spouts number is {}", topology.getSpouts().size());
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
             LOG.info("SLO values are [{}].", topology.printSLOs());

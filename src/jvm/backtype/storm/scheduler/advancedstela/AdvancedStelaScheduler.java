@@ -37,8 +37,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (observerRunDelay == null) {
             observerRunDelay = OBSERVER_RUN_INTERVAL;
         }
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(new Runner(sloObserver), 0, observerRunDelay, TimeUnit.SECONDS);
+//        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+//        executorService.scheduleAtFixedRate(new Runner(sloObserver), 0, observerRunDelay, TimeUnit.SECONDS);
 
         globalState = new GlobalState(config);
         globalStatistics = new GlobalStatistics(config);
@@ -50,7 +50,10 @@ public class AdvancedStelaScheduler implements IScheduler {
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
             globalState.collect(cluster, topologies);
             globalStatistics.collect();
+            sloObserver.run();
+
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
+            sloObserver.run();
             globalState.collect(cluster, topologies);
             globalStatistics.collect();
 
