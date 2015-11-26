@@ -1,6 +1,11 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Strategy {
     private String id;
@@ -16,6 +21,8 @@ public class Strategy {
     private HashMap<Component, Double> topologyETPMap;
     private TreeMap<Component, Double> topologyETPRankDesc;
     private TreeMap<Component, Double> topologyETPRankAsc;
+    ComponentComparatorDesc dvc;
+    ComponentComparatorAsc avc;
 
     public Strategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
@@ -31,6 +38,10 @@ public class Strategy {
         topologyETPMap = new HashMap<Component, Double>();
         topologyETPRankDesc = new TreeMap<Component, Double>();
         topologyETPRankAsc = new TreeMap<Component, Double>();
+        ComponentComparatorDesc bvc =  new ComponentComparatorDesc(this.topologyETPMap);
+		this.topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
+		ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
+		this.topologyETPRankDesc = new TreeMap<Component, Double>(avc);
     }
 
     public TreeMap<Component, Double> topologyETPRankDescending() {
@@ -129,4 +140,38 @@ public class Strategy {
         }
         return sum / (rates.size() * 1.0);
     }
+    
+	private class ComponentComparatorDesc implements Comparator<Component> {
+
+		HashMap<Component, Double> base;
+	    public ComponentComparatorDesc(HashMap<Component, Double> base) {
+	        this.base = base;
+	    }
+
+	    // Note: this comparator imposes orderings that are inconsistent with equals.
+	    public int compare(Component a, Component b) {
+	        if (base.get(a) >= base.get(b)) {
+	            return -1;
+	        } else {
+	            return 1;
+	        } // returning 0 would merge keys
+	    }
+	}
+
+	private class ComponentComparatorAsc implements Comparator<Component> {
+
+		HashMap<Component, Double> base;
+	    public ComponentComparatorAsc(HashMap<Component, Double> base) {
+	        this.base = base;
+	    }
+
+	    // Note: this comparator imposes orderings that are inconsistent with equals.
+	    public int compare(Component a, Component b) {
+	        if (base.get(b) >= base.get(a)) {
+	            return -1;
+	        } else {
+	            return 1;
+	        } // returning 0 would merge keys
+	    }
+	}
 }
