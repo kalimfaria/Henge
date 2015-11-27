@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import backtype.storm.scheduler.Elasticity.GlobalState;
+
 public class Strategy {
     private String id;
     private TopologySchedule topologySchedule;
@@ -23,6 +28,8 @@ public class Strategy {
     private TreeMap<Component, Double> topologyETPRankAsc;
     ComponentComparatorDesc dvc;
     ComponentComparatorAsc avc;
+    private static final Logger LOG = LoggerFactory
+			.getLogger(GlobalState.class);
 
     public Strategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
@@ -92,17 +99,22 @@ public class Strategy {
     }
 
     private Double etpCalculation(Component component) {
+    	LOG.info("******ETP Calculation******");
         Double ret = 0.0;
         if (component.getChildren().size() == 0) {
+        	LOG.info("Reaching component: {} is a sink", component.getId());
             return componentEmitRates.get(component.getId());
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
+        	LOG.info("Reaching component: {} is a sink", component.getId());
             Component child = components.get(c);
-            if (congestionMap.get(child) != null) {
+            if (congestionMap.get(child)!=null) {
+            	LOG.info("Reaching component: {} is congested, give up the branch", component.getId());
                 return 0.0;
             } else {
+            	LOG.info("Reaching component: {} is not congested, keep exploring", component.getId());
                 ret = ret + etpCalculation(child);
             }
         }
