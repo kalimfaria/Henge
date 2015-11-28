@@ -56,6 +56,9 @@ public class Strategy {
         congestionDetection();
 
         //calculate ETP for each component
+        LOG.info("Component Emit Rate: {}", componentEmitRates);
+        LOG.info("Component Execute Rates: {}", componentExecuteRates);
+        LOG.info("Congestion Map: {}", congestionMap);
         for (Component component : topologySchedule.getComponents().values()) {
             Double score = etpCalculation(component);
             topologyETPMap.put(component, score);
@@ -108,7 +111,7 @@ public class Strategy {
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
-        	LOG.info("Reaching component: {} is a sink", component.getId());
+        	LOG.info("Exploring component: {}", component.getId());
             Component child = components.get(c);
             if (congestionMap.get(child)!=null) {
             	LOG.info("Reaching component: {} is congested, give up the branch", component.getId());
