@@ -155,15 +155,27 @@ public class Strategy {
     }
 
     private void collectRates() {
+        LOG.info("********************** collectRates ********************");
         for (Map.Entry<String, List<Integer>> emitThroughput : topologyStatistics.getEmitThroughputHistory().entrySet()) {
             componentEmitRates.put(emitThroughput.getKey(), computeMovingAverage(emitThroughput.getValue()));
         }
+
+        LOG.info("****** Component Emit Rates ******");
+        for (String key: componentEmitRates.keySet()) {
+            LOG.info("Component: {}, Value: {}", key, componentEmitRates.get(key));
+        }
+
         expectedEmitRates.putAll(componentEmitRates);
 
         for (Map.Entry<String, List<Integer>> executeThroughput : topologyStatistics.getExecuteThroughputHistory().entrySet()) {
             componentExecuteRates.put(executeThroughput.getKey(), computeMovingAverage(executeThroughput.getValue()));
         }
         expectedExecutedRates.putAll(componentExecuteRates);
+
+        LOG.info("****** Component Execute Rates ******");
+        for (String key: componentExecuteRates.keySet()) {
+            LOG.info("Component: {}, Value: {}", key, componentEmitRates.get(key));
+        }
 
         for (Map.Entry<String, Component> component : topologySchedule.getComponents().entrySet()) {
             parallelism.put(component.getKey(), component.getValue().getParallelism());

@@ -8,6 +8,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,7 @@ public class GlobalStatistics {
                     String componentId = executorSummary.get_component_id();
                     if (!componentId.matches("(__).*")) {
                         populateNodeStatisticsForExecutor(executorSummary, stormTopology);
+                        populateComponentStatistics(executorSummary, statistics);
 
                         ExecutorStats executorStats = executorSummary.get_stats();
                         if (executorStats == null) {
@@ -204,28 +206,47 @@ public class GlobalStatistics {
 
     private void updateThroughputHistory(TopologySummary topologySummary) {
         TopologyStatistics statistics = topologyStatistics.get(topologySummary.get_id());
-
+        LOG.info("***************** Global Statistics Start ********************");
         if (statistics != null) {
             HashMap<String, List<Integer>> componentTransferHistory = statistics.getTransferThroughputHistory();
             HashMap<String, List<Integer>> componentEmitHistory = statistics.getEmitThroughputHistory();
             HashMap<String, List<Integer>> componentExecuteHistory = statistics.getExecuteThroughputHistory();
 
             for (Map.Entry<String, ComponentStatistics> entry : statistics.getComponentStatistics().entrySet()) {
+                LOG.info("Component: {}", entry.getKey());
+                if (!componentTransferHistory.containsKey(entry.getKey())) {
+                    componentTransferHistory.put(entry.getKey(), new ArrayList<Integer>());
+                }
+
+                if (!componentEmitHistory.containsKey(entry.getKey())) {
+                    componentEmitHistory.put(entry.getKey(), new ArrayList<Integer>());
+                }
+
+                if (!componentExecuteHistory.containsKey(entry.getKey())) {
+                    componentExecuteHistory.put(entry.getKey(), new ArrayList<Integer>());
+                }
+
                 if (componentTransferHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentTransferHistory.get(entry.getKey()).remove(0);
                 }
+
                 if (componentEmitHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentEmitHistory.get(entry.getKey()).remove(0);
                 }
+                
                 if (componentExecuteHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentExecuteHistory.get(entry.getKey()).remove(0);
                 }
 
                 componentTransferHistory.get(entry.getKey()).add(entry.getValue().totalTransferThroughput);
+                LOG.info("Transfer: {}", entry.getValue().totalTransferThroughput);
                 componentEmitHistory.get(entry.getKey()).add(entry.getValue().totalEmitThroughput);
+                LOG.info("Transfer: {}", entry.getValue().totalEmitThroughput);
                 componentExecuteHistory.get(entry.getKey()).add(entry.getValue().totalExecuteThroughput);
+                LOG.info("Transfer: {}", entry.getValue().totalExecuteThroughput);
             }
         }
+        LOG.info("***************** Global Statistics Start ********************");
     }
 
     private String constructTaskHashID(ExecutorSummary executorSummary, TopologySummary topologySummary) {
@@ -248,6 +269,13 @@ public class GlobalStatistics {
             statisticsForNode.addBolt(executorSummary);
         } else if (stormTopology.get_spouts().containsKey(host)) {
             statisticsForNode.addSpout(executorSummary);
+        }
+    }
+
+    private void populateComponentStatistics(ExecutorSummary executorSummary, TopologyStatistics statistics) {
+        String componentId = executorSummary.get_component_id();
+        if (!statistics.getComponentStatistics().containsKey(componentId)) {
+            statistics.addComponentStatistics(componentId, new ComponentStatistics(componentId));
         }
     }
 

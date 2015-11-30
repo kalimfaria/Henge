@@ -47,4 +47,8 @@ public class TopologyStatistics {
     public HashMap<String, List<Integer>> getExecuteThroughputHistory() {
         return executeThroughputHistory;
     }
+
+    public void addComponentStatistics(String componentId, ComponentStatistics statistics) {
+        componentStatistics.put(componentId, statistics);
+    }
 }
