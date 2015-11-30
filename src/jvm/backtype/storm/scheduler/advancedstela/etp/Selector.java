@@ -20,21 +20,20 @@ public class Selector {
         Strategy targetStrategy = new Strategy(targetSchedule, targetStatistics);
         Strategy victimStrategy = new Strategy(victimSchedule, victimStatistics);
 
-        TreeMap<Component, Double> rankTarget = targetStrategy.topologyETPRankDescending();
-        TreeMap<Component, Double> rankVictim = victimStrategy.topologyETPRankAscending();
+        ArrayList<ResultComponent> rankTarget = targetStrategy.topologyETPRankDescending();
+        ArrayList<ResultComponent> rankVictim = victimStrategy.topologyETPRankAscending();
 
-        for (Map.Entry<Component, Double> victimComponent : rankVictim.entrySet()) {
-            List<ExecutorSummary> victimExecutorDetails = victimComponent.getKey().getExecutorSummaries();
+        for (ResultComponent victimComponent : rankVictim) {
+            List<ExecutorSummary> victimExecutorDetails = victimComponent.component.getExecutorSummaries();
 
-            for (Map.Entry<Component, Double> targetComponent : rankTarget.entrySet()) {
-                List<ExecutorSummary> targetExecutorDetails = targetComponent.getKey().getExecutorSummaries();
+            for (ResultComponent targetComponent : rankTarget) {
+                List<ExecutorSummary> targetExecutorDetails = targetComponent.component.getExecutorSummaries();
 
                 for (ExecutorSummary victimSummary : victimExecutorDetails) {
                     for (ExecutorSummary targetSummary : targetExecutorDetails) {
 
                         if (victimSummary.get_host().equals(targetSummary.get_host())) {
-                            ExecutorPair executorPair = new ExecutorPair(targetSummary, victimSummary);
-                            return executorPair;
+                            return new ExecutorPair(targetSummary, victimSummary);
                         }
 
                     }

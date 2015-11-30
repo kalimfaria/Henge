@@ -19,9 +19,7 @@ public class Strategy {
     private ArrayList<Component> sourceList;
     private HashMap<Component, Double> congestionMap;
     private HashMap<Component, Double> topologyETPMap;
-    private TreeMap<Component, Double> topologyETPRankDesc;
 
-    private TreeMap<Component, Double> topologyETPRankAsc;
 
     public Strategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
@@ -35,15 +33,14 @@ public class Strategy {
         expectedExecutedRates = new TreeMap<String, Double>();
         sourceList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
-        topologyETPRankAsc = new TreeMap<Component, Double>();
-        topologyETPRankDesc = new TreeMap<Component, Double>();
-        ComponentComparatorDesc bvc =  new ComponentComparatorDesc(this.topologyETPMap);
-        this.topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
-        ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
-        this.topologyETPRankAsc = new TreeMap<Component, Double>(avc);
+
+//        ComponentComparatorDesc bvc =  new ComponentComparatorDesc(this.topologyETPMap);
+//        this.topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
+//        ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
+//        this.topologyETPRankAsc = new TreeMap<Component, Double>(avc);
     }
 
-    public TreeMap<Component, Double> topologyETPRankDescending() {
+    public ArrayList<ResultComponent> topologyETPRankDescending() {
         collectRates();
         congestionDetection();
 
@@ -76,11 +73,17 @@ public class Strategy {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
-        topologyETPRankDesc.putAll(topologyETPMap);
-        return topologyETPRankDesc;
+
+        ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
+        for (Component component: topologyETPMap.keySet()) {
+            resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+        }
+
+        Collections.sort(resultComponents, Collections.reverseOrder());
+        return resultComponents;
     }
 
-    public TreeMap<Component, Double> topologyETPRankAscending() {
+    public ArrayList<ResultComponent> topologyETPRankAscending() {
         collectRates();
         congestionDetection();
 
@@ -109,8 +112,14 @@ public class Strategy {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
-        topologyETPRankAsc.putAll(topologyETPMap);
-        return topologyETPRankAsc;
+
+        ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
+        for (Component component: topologyETPMap.keySet()) {
+            resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+        }
+
+        Collections.sort(resultComponents);
+        return resultComponents;
     }
 
     private void congestionDetection() {
@@ -196,7 +205,7 @@ public class Strategy {
         }
         return sum / (rates.size() * 1.0);
     }
-    
+
 	private class ComponentComparatorDesc implements Comparator<Component> {
 
 		HashMap<Component, Double> base;

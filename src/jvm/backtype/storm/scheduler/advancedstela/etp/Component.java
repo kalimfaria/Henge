@@ -62,4 +62,20 @@ public class Component {
     public void addExecutorSummary(ExecutorSummary summary) {
         executorSummaries.add(summary);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Component component = (Component) o;
+
+        return !(id != null ? !id.equals(component.id) : component.id != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
+    }
 }
