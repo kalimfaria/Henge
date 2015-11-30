@@ -68,8 +68,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                 ExecutorPair executorSummaries =
                         selector.selectPair(globalState, globalStatistics, receivers.get(0), givers.get(givers.size() - 1));
 
-                if (executorSummaries != null) {
+                if (executorSummaries.bothPopulated()) {
                     rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries);
+                } else {
+                    LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
                 }
             } else if (givers.size() == 0) {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");

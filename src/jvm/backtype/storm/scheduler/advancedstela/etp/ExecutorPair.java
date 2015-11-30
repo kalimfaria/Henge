@@ -18,4 +18,8 @@ public class ExecutorPair {
     public ExecutorSummary getVictimExecutorSummary() {
         return victimExecutorSummary;
     }
+
+    public boolean bothPopulated() {
+        return targetExecutorSummary != null && victimExecutorSummary != null;
+    }
 }
