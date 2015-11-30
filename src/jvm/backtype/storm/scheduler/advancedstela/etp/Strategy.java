@@ -1,18 +1,13 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import backtype.storm.scheduler.Elasticity.GlobalState;
+import java.util.*;
 
 public class Strategy {
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
+
     private String id;
     private TopologySchedule topologySchedule;
     private TopologyStatistics topologyStatistics;
@@ -25,11 +20,8 @@ public class Strategy {
     private HashMap<Component, Double> congestionMap;
     private HashMap<Component, Double> topologyETPMap;
     private TreeMap<Component, Double> topologyETPRankDesc;
+
     private TreeMap<Component, Double> topologyETPRankAsc;
-    ComponentComparatorDesc dvc;
-    ComponentComparatorAsc avc;
-    private static final Logger LOG = LoggerFactory
-			.getLogger(GlobalState.class);
 
     public Strategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
@@ -43,24 +35,44 @@ public class Strategy {
         expectedExecutedRates = new TreeMap<String, Double>();
         sourceList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
-        topologyETPRankDesc = new TreeMap<Component, Double>();
-        topologyETPRankAsc = new TreeMap<Component, Double>();
         ComponentComparatorDesc bvc =  new ComponentComparatorDesc(this.topologyETPMap);
-		this.topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
-		ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
-		this.topologyETPRankDesc = new TreeMap<Component, Double>(avc);
+        topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
+
+        ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
+        topologyETPRankAsc = new TreeMap<Component, Double>(avc);
     }
 
     public TreeMap<Component, Double> topologyETPRankDescending() {
         collectRates();
         congestionDetection();
 
+        Double totalThroughput = 0.0;
+        for (Component component: topologySchedule.getComponents().values()) {
+            if (component.getChildren().size() == 0) {
+                totalThroughput += expectedEmitRates.get(component.getId());
+            }
+        }
+
+        if (totalThroughput == 0.0) {
+            LOG.info("Nothing to do as throughput is 0.");
+            new TreeMap<>();
+        }
+
+        HashMap<String, Double> sinksMap = new HashMap<String, Double>();
+        for (Component component: topologySchedule.getComponents().values()) {
+            if (component.getChildren().size() == 0) {
+                Double throughputOfSink = expectedEmitRates.get(component.getId());
+                sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
+            }
+        }
+
         //calculate ETP for each component
         LOG.info("Component Emit Rate: {}", componentEmitRates);
         LOG.info("Component Execute Rates: {}", componentExecuteRates);
         LOG.info("Congestion Map: {}", congestionMap);
+
         for (Component component : topologySchedule.getComponents().values()) {
-            Double score = etpCalculation(component);
+            Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
         topologyETPRankDesc.putAll(topologyETPMap);
@@ -71,9 +83,29 @@ public class Strategy {
         collectRates();
         congestionDetection();
 
+        Double totalThroughput = 0.0;
+        for (Component component: topologySchedule.getComponents().values()) {
+            if (component.getChildren().size() == 0) {
+                totalThroughput += expectedEmitRates.get(component.getId());
+            }
+        }
+
+        if (totalThroughput == 0.0) {
+            LOG.info("Nothing to do as throughput is 0.");
+            new TreeMap<>();
+        }
+
+        HashMap<String, Double> sinksMap = new HashMap<String, Double>();
+        for (Component component: topologySchedule.getComponents().values()) {
+            if (component.getChildren().size() == 0) {
+                Double throughputOfSink = expectedEmitRates.get(component.getId());
+                sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
+            }
+        }
+
         //calculate ETP for each component
         for (Component component : topologySchedule.getComponents().values()) {
-            Double score = etpCalculation(component);
+            Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
         topologyETPRankAsc.putAll(topologyETPMap);
@@ -82,7 +114,7 @@ public class Strategy {
 
     private void congestionDetection() {
         HashMap<String, Component> components = topologySchedule.getComponents();
-        for (Map.Entry<String, Double> componentRate : componentExecuteRates.entrySet()) {
+        for (Map.Entry<String, Double> componentRate : expectedExecutedRates.entrySet()) {
             Double out = componentRate.getValue();
             Double in = 0.0;
 
@@ -90,7 +122,7 @@ public class Strategy {
 
             if (self.getParents().size() != 0) {
                 for (String parent : self.getParents()) {
-                    in += componentEmitRates.get(parent);
+                    in += expectedEmitRates.get(parent);
                 }
             }
 
@@ -101,24 +133,21 @@ public class Strategy {
         }
     }
 
-    private Double etpCalculation(Component component) {
+    private Double etpCalculation(Component component, HashMap<String, Double> sinksMap) {
     	LOG.info("******ETP Calculation******");
         Double ret = 0.0;
         if (component.getChildren().size() == 0) {
         	LOG.info("Reaching component: {} is a sink", component.getId());
-            return componentEmitRates.get(component.getId());
+            return sinksMap.get(component.getId());
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
         	LOG.info("Exploring component: {}", component.getId());
             Component child = components.get(c);
-            if (congestionMap.get(child)!=null) {
-            	LOG.info("Reaching component: {} is congested, give up the branch", component.getId());
-                return 0.0;
-            } else {
+            if (congestionMap.get(child)==null) {
             	LOG.info("Reaching component: {} is not congested, keep exploring", component.getId());
-                ret = ret + etpCalculation(child);
+                ret = ret + etpCalculation(child, sinksMap);
             }
         }
 
@@ -135,7 +164,6 @@ public class Strategy {
             componentExecuteRates.put(executeThroughput.getKey(), computeMovingAverage(executeThroughput.getValue()));
         }
         expectedExecutedRates.putAll(componentExecuteRates);
-
 
         for (Map.Entry<String, Component> component : topologySchedule.getComponents().entrySet()) {
             parallelism.put(component.getKey(), component.getValue().getParallelism());
