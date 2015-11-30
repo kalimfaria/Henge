@@ -35,11 +35,12 @@ public class Strategy {
         expectedExecutedRates = new TreeMap<String, Double>();
         sourceList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
+        topologyETPRankAsc = new TreeMap<Component, Double>();
+        topologyETPRankDesc = new TreeMap<Component, Double>();
         ComponentComparatorDesc bvc =  new ComponentComparatorDesc(this.topologyETPMap);
-        topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
-
+        this.topologyETPRankDesc = new TreeMap<Component, Double>(bvc);
         ComponentComparatorAsc avc =  new ComponentComparatorAsc(this.topologyETPMap);
-        topologyETPRankAsc = new TreeMap<Component, Double>(avc);
+        this.topologyETPRankAsc = new TreeMap<Component, Double>(avc);
     }
 
     public TreeMap<Component, Double> topologyETPRankDescending() {

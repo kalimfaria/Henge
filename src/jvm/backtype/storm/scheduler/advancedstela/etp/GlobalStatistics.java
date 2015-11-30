@@ -233,7 +233,7 @@ public class GlobalStatistics {
                 if (componentEmitHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentEmitHistory.get(entry.getKey()).remove(0);
                 }
-                
+
                 if (componentExecuteHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentExecuteHistory.get(entry.getKey()).remove(0);
                 }
