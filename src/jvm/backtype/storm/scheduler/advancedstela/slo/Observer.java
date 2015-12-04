@@ -222,17 +222,14 @@ public class Observer {
             for (Component bolt : topology.getBolts().values()) {
                 if (bolt.getChildren().isEmpty()) {
                     for (Double sourceProportion : bolt.getSpoutTransfer().values()) {
-                        LOG.info("{}", sourceProportion);
                         calculatedSLO += sourceProportion;
                     }
                 }
             }
 
 
-            LOG.info("Total spouts number is {}", topology.getSpouts().size());
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
-            LOG.info("SLO values are [{}].", topology.printSLOs());
             LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
                     topology.getMeasuredSLO());
             LOG.info("**************************************************************************************************");

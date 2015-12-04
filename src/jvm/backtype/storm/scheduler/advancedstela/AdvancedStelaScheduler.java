@@ -1,10 +1,8 @@
 package backtype.storm.scheduler.advancedstela;
 
 import backtype.storm.Config;
-import backtype.storm.scheduler.Cluster;
-import backtype.storm.scheduler.IScheduler;
-import backtype.storm.scheduler.Topologies;
-import backtype.storm.scheduler.TopologyDetails;
+import backtype.storm.generated.ExecutorSummary;
+import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Runner;
@@ -12,8 +10,7 @@ import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +25,9 @@ public class AdvancedStelaScheduler implements IScheduler {
     private GlobalState globalState;
     private GlobalStatistics globalStatistics;
     private Selector selector;
+    private HashMap<String, String> targetToVictimMapping;
+    private HashMap<String, ExecutorPair> targetToNodeMapping;
+    private HashMap<String, Long> topologyToRebalancedTime;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         config = conf;
@@ -38,16 +38,30 @@ public class AdvancedStelaScheduler implements IScheduler {
             observerRunDelay = OBSERVER_RUN_INTERVAL;
         }
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(new Runner(sloObserver), 0, observerRunDelay, TimeUnit.SECONDS);
+        executorService.scheduleAtFixedRate(new Runner(sloObserver), 180, observerRunDelay, TimeUnit.SECONDS);
 
         globalState = new GlobalState(config);
         globalStatistics = new GlobalStatistics(config);
         selector = new Selector();
+        targetToVictimMapping = new HashMap<String, String>();
+        targetToNodeMapping = new HashMap<String, ExecutorPair>();
+        topologyToRebalancedTime = new HashMap<String, Long>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
+            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+            logUnassignedExecutors(topologiesScheduled, cluster);
+
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            for (TopologyDetails topologyDetails: topologiesScheduled) {
+                topologyToRebalancedTime.put(topologyDetails.getId(), (Long) System.currentTimeMillis() / 1000);
+            }
+
+//            if (targetToVictimMapping.size() > 0) {
+//                applyRebalancedScheduling(cluster, topologies);
+//            }
+
             globalState.collect(cluster, topologies);
             globalStatistics.collect();
 
@@ -59,7 +73,9 @@ public class AdvancedStelaScheduler implements IScheduler {
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
             ArrayList<String> givers = topologiesToBeRescaled.getGivers();
 
-            if (receivers.size() > 0 && givers.size() > 0) {
+            removeAlreadySelectedPairs(receivers, givers);
+
+            if (receivers.size() > 0 && givers.size() > 0 && runningForMoreThan()) {
                 TopologyDetails target = topologies.getById(receivers.get(0));
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receivers.get(0));
                 TopologyDetails victim = topologies.getById(givers.get(givers.size() - 1));
@@ -73,28 +89,168 @@ public class AdvancedStelaScheduler implements IScheduler {
                 } else {
                     LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
                 }
-            } else if (givers.size() == 0) {
+            } else if (runningForMoreThan() && givers.size() == 0) {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
     }
 
+    private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
+        for (TopologyDetails topologyDetails: topologiesScheduled) {
+            Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
+            LOG.info("******** Topology Assignment {} *********", topologyDetails.getId());
+            LOG.info("Unassigned executors size: {}", unassignedExecutors.size());
+            if (unassignedExecutors.size() > 0) {
+                for (ExecutorDetails executorDetails: unassignedExecutors) {
+                    LOG.info(executorDetails.toString());
+                }
+            }
+        }
+    }
+
+    private boolean runningForMoreThan() {
+        long timeInSeconds = System.currentTimeMillis() / 1000;
+        for (String id: topologyToRebalancedTime.keySet()) {
+            if (!topologyToRebalancedTime.containsKey(id) || (timeInSeconds - topologyToRebalancedTime.get(id)) < 180) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
         String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
-        String targetCommand = "/var/storm/bin/storm rebalance " + targetDetails.getName() + " -e " +
+        String targetCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
+                "rebalance " + targetDetails.getName() + " -e " +
                 targetComponent + "=" + (target.getComponents().get(targetComponent).getParallelism() + 1);
 
         String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
-        String victimCommand = "/var/storm/bin/storm rebalance " + victimDetails.getName() + " -e " +
+        String victimCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
+                "rebalance " + victimDetails.getName() + " -e " +
                 victimComponent + "=" + (victim.getComponents().get(victimComponent).getParallelism() - 1);
 
         try {
+
+            LOG.info("Triggering rebalance for target: {}, victim: {}\n", targetDetails.getId(), victimDetails.getId());
+            LOG.info(targetCommand + "\n");
+            LOG.info(victimCommand + "\n");
+
             Runtime.getRuntime().exec(targetCommand);
             Runtime.getRuntime().exec(victimCommand);
+
+            targetToVictimMapping.put(target.getId(), victim.getId());
+            targetToNodeMapping.put(target.getId(), executorSummaries);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void removeAlreadySelectedPairs(ArrayList<String> receivers, ArrayList<String> givers) {
+        for (String target: targetToVictimMapping.keySet()) {
+            int targetIndex = receivers.indexOf(target);
+            if (targetIndex != -1) {
+                receivers.remove(targetIndex);
+            }
+
+            String victim = targetToVictimMapping.get(target);
+            int victimIndex = givers.indexOf(victim);
+            if (victimIndex != -1) {
+                givers.remove(victimIndex);
+            }
+        }
+    }
+
+    private void applyRebalancedScheduling(Cluster cluster, Topologies topologies) {
+        for (Map.Entry<String, String> targetToVictim: targetToVictimMapping.entrySet()) {
+            TopologyDetails target = topologies.getById(targetToVictim.getKey());
+            TopologyDetails victim = topologies.getById(targetToVictim.getValue());
+            ExecutorPair executorPair = targetToNodeMapping.get(targetToVictim.getKey());
+
+            reassignNewScheduling(target, victim, cluster, executorPair);
+        }
+    }
+
+    private void reassignNewScheduling(TopologyDetails target, TopologyDetails victim, Cluster cluster,
+                                       ExecutorPair executorPair) {
+
+        ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
+        ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
+
+        WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
+        WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
+
+        Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
+
+        LOG.info("\n************** Target Topology **************");
+
+        LOG.info("\n****** Previous Executors ******");
+        for (ExecutorDetails executorDetails: previousTargetExecutors) {
+            LOG.info(executorDetails.toString());
+        }
+
+        SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
+        if (currentTargetAssignment != null) {
+            Set<ExecutorDetails> currentTargetExecutors = currentTargetAssignment.getExecutorToSlot().keySet();
+            currentTargetExecutors.removeAll(previousTargetExecutors);
+
+            LOG.info("\n****** Current Executors ******");
+            for (ExecutorDetails executorDetails: currentTargetExecutors) {
+                LOG.info(executorDetails.toString());
+            }
+
+            LOG.info("\n********************** Found new executor *********************");
+            for (ExecutorDetails newExecutor: currentTargetExecutors) {
+                LOG.info(newExecutor.toString());
+            }
+
+        }
+
+        LOG.info("\n************** Victim Topology **************");
+
+        Set<ExecutorDetails> previousVictimExecutors = globalState.getTopologySchedules().get(victim.getId()).getExecutorToComponent().keySet();
+        SchedulerAssignment currentVictimAssignment = cluster.getAssignmentById(victim.getId());
+
+        LOG.info("\n****** Previous Executors ******");
+        for (ExecutorDetails executorDetails: previousVictimExecutors) {
+            LOG.info(executorDetails.toString());
+        }
+
+        if (currentVictimAssignment != null) {
+            Set<ExecutorDetails> currentVictimExecutors = currentVictimAssignment.getExecutorToSlot().keySet();
+            previousVictimExecutors.removeAll(currentVictimExecutors);
+
+            LOG.info("\n****** Current Executors ******");
+            for (ExecutorDetails executorDetails: currentVictimExecutors) {
+                LOG.info(executorDetails.toString());
+            }
+
+            for (ExecutorDetails newExecutor: previousVictimExecutors) {
+                LOG.info("********************** Removed executor *********************");
+                LOG.info(newExecutor.toString());
+            }
+        }
+
+//        Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(target);
+//        cluster.freeSlot(targetSlot);
+//        targetExecutorDetails.addAll(unassignedExecutors);
+//        cluster.assign(targetSlot, target.getId(), targetExecutorDetails);
+
+//
+//        targetToVictimMapping.remove(target.getId());
+//        targetToNodeMapping.remove(target.getId());
+    }
+
+    private List<ExecutorDetails> difference(Collection<ExecutorDetails> execs1,
+                                             Collection<ExecutorDetails> execs2) {
+        List<ExecutorDetails> result = new ArrayList<ExecutorDetails>();
+        for (ExecutorDetails exec : execs1) {
+            if(!execs2.contains(exec)) {
+                result.add(exec);
+            }
+        }
+        return result;
+
     }
 }

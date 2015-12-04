@@ -39,12 +39,13 @@ public class GlobalState {
         return supervisorToNode;
     }
 
-    public void collect(Cluster cluster, Topologies topologies){
+    public void collect(Cluster cluster, Topologies topologies) {
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
             } catch (TTransportException e) {
                 e.printStackTrace();
+                return;
             }
         }
 
@@ -119,22 +120,28 @@ public class GlobalState {
     private void populateExecutorsForTopologyComponents(Topologies topologies) {
         try {
             for (TopologyDetails topologyDetails : topologies.getTopologies()) {
+
                 TopologyInfo topologyInformation = nimbusClient.getClient().getTopologyInfo(topologyDetails.getId());
                 TopologySchedule topologySchedule = topologySchedules.get(topologyDetails.getId());
+
                 for (Map.Entry<ExecutorDetails, String> executorToComponent :
                         topologyDetails.getExecutorToComponent().entrySet()) {
+
                     Component component = topologySchedule.getComponents().get(executorToComponent.getValue());
+
                     if (component != null) {
                         component.addExecutor(executorToComponent.getKey());
                         topologySchedule.addExecutorToComponent(executorToComponent.getKey(), component.getId());
                     }
                 }
 
-                for (ExecutorSummary executorSummary: topologyInformation.get_executors()) {
+                for (ExecutorSummary executorSummary : topologyInformation.get_executors()) {
+
                     Component component = topologySchedule.getComponents().get(executorSummary.get_component_id());
                     if (component != null) {
                         component.addExecutorSummary(executorSummary);
                     }
+
                 }
             }
         } catch (AuthorizationException e) {

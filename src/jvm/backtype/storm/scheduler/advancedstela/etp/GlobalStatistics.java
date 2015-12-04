@@ -206,14 +206,12 @@ public class GlobalStatistics {
 
     private void updateThroughputHistory(TopologySummary topologySummary) {
         TopologyStatistics statistics = topologyStatistics.get(topologySummary.get_id());
-        LOG.info("***************** Global Statistics Start ********************");
         if (statistics != null) {
             HashMap<String, List<Integer>> componentTransferHistory = statistics.getTransferThroughputHistory();
             HashMap<String, List<Integer>> componentEmitHistory = statistics.getEmitThroughputHistory();
             HashMap<String, List<Integer>> componentExecuteHistory = statistics.getExecuteThroughputHistory();
 
             for (Map.Entry<String, ComponentStatistics> entry : statistics.getComponentStatistics().entrySet()) {
-                LOG.info("Component: {}", entry.getKey());
                 if (!componentTransferHistory.containsKey(entry.getKey())) {
                     componentTransferHistory.put(entry.getKey(), new ArrayList<Integer>());
                 }
@@ -239,14 +237,10 @@ public class GlobalStatistics {
                 }
 
                 componentTransferHistory.get(entry.getKey()).add(entry.getValue().totalTransferThroughput);
-                LOG.info("Transfer: {}", entry.getValue().totalTransferThroughput);
                 componentEmitHistory.get(entry.getKey()).add(entry.getValue().totalEmitThroughput);
-                LOG.info("Transfer: {}", entry.getValue().totalEmitThroughput);
                 componentExecuteHistory.get(entry.getKey()).add(entry.getValue().totalExecuteThroughput);
-                LOG.info("Transfer: {}", entry.getValue().totalExecuteThroughput);
             }
         }
-        LOG.info("***************** Global Statistics Start ********************");
     }
 
     private String constructTaskHashID(ExecutorSummary executorSummary, TopologySummary topologySummary) {
