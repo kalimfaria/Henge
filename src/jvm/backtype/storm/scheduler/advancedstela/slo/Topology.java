@@ -5,6 +5,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 public class Topology implements Comparable<Topology> {
+    private static final Integer SLO_WINDOW = 30;
+
     private String id;
     private Double userSpecifiedSLO;
     private Queue<Double> measuredSLOs;
@@ -28,20 +30,19 @@ public class Topology implements Comparable<Topology> {
     }
 
     public void setMeasuredSLOs(Double value) {
-        if (measuredSLOs.size() == 3) {
+        if (measuredSLOs.size() == SLO_WINDOW) {
             measuredSLOs.remove();
         }
         measuredSLOs.add(value);
     }
 
     public Double getMeasuredSLO() {
-        int count = 0;
         double result = 0.0;
         for (Double value : measuredSLOs) {
             result += value;
-            count++;
         }
-        return (result / count);
+
+        return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
     }
 
     public void addSpout(String id, Component component) {

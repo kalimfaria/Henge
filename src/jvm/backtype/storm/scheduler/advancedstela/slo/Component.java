@@ -97,6 +97,10 @@ public class Component {
         }
     }
 
+    public void updateParallelism(int parallelismHint) {
+        parallelism = parallelismHint;
+    }
+
     public String printSLOValue() {
         StringBuilder sb = new StringBuilder();
         sb.append("{ ");

@@ -25,10 +25,10 @@ public class Topologies {
     }
 
     public TopologyPairs getTopologyPairScaling() {
-        ArrayList<Topology> failingTopologies  = new ArrayList<Topology>();
-        ArrayList<Topology> successfulTopologies  = new ArrayList<Topology>();
+        ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
+        ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
 
-        for (Topology topology: stelaTopologies.values()) {
+        for (Topology topology : stelaTopologies.values()) {
             if (topology.sloViolated()) {
                 failingTopologies.add(topology);
             } else {
@@ -55,17 +55,18 @@ public class Topologies {
 
                 for (TopologySummary topologySummary : topologies) {
                     String id = topologySummary.get_id();
+                    StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
 
                     if (!stelaTopologies.containsKey(id)) {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
 
                         Topology topology = new Topology(id, userSpecifiedSlo);
-                        StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
-
                         addSpoutsAndBolts(stormTopology, topology);
                         constructTopologyGraph(stormTopology, topology);
 
                         stelaTopologies.put(id, topology);
+                    } else {
+                        updateParallelismHintsForTopology(id, stormTopology);
                     }
                 }
             } catch (NotAliveException e) {
@@ -80,7 +81,7 @@ public class Topologies {
         }
     }
 
-    private Double getUserSpecifiedSLOFromConfig(String id){
+    private Double getUserSpecifiedSLOFromConfig(String id) {
         Double topologySLO = 1.0;
         JSONParser parser = new JSONParser();
         try {
@@ -120,8 +121,7 @@ public class Topologies {
             if (!bolt.getKey().matches("(__).*")) {
                 Component component = stelaTopology.getBolts().get(bolt.getKey());
 
-                for (Map.Entry<GlobalStreamId, Grouping> parent : bolt.getValue().get_common().get_inputs().entrySet())
-                {
+                for (Map.Entry<GlobalStreamId, Grouping> parent : bolt.getValue().get_common().get_inputs().entrySet()) {
                     String parentId = parent.getKey().get_componentId();
 
                     if (stelaTopology.getBolts().get(parentId) == null) {
@@ -132,6 +132,24 @@ public class Topologies {
 
                     component.addParent(parentId);
                 }
+            }
+        }
+    }
+
+    private void updateParallelismHintsForTopology(String topologyId, StormTopology stormTopology) {
+        Topology topology = stelaTopologies.get(topologyId);
+        HashMap<String, Component> allComponents = topology.getAllComponents();
+
+        for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
+            if (allComponents.containsKey(spout.getKey())) {
+                allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
+                        get_parallelism_hint());
+            }
+        }
+
+        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+            if (allComponents.containsKey(bolt.getKey())) {
+                allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
             }
         }
     }

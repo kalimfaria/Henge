@@ -1,19 +1,14 @@
 package backtype.storm.scheduler.advancedstela;
 
-import backtype.storm.Config;
 import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
-import backtype.storm.scheduler.advancedstela.slo.Runner;
 import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
@@ -32,43 +27,34 @@ public class AdvancedStelaScheduler implements IScheduler {
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         config = conf;
         sloObserver = new Observer(conf);
-
-        Integer observerRunDelay = (Integer) config.get(Config.STELA_SLO_OBSERVER_INTERVAL);
-        if (observerRunDelay == null) {
-            observerRunDelay = OBSERVER_RUN_INTERVAL;
-        }
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(new Runner(sloObserver), 180, observerRunDelay, TimeUnit.SECONDS);
-
-        globalState = new GlobalState(config);
-        globalStatistics = new GlobalStatistics(config);
+        globalState = new GlobalState(conf);
+        globalStatistics = new GlobalStatistics(conf);
         selector = new Selector();
         targetToVictimMapping = new HashMap<String, String>();
         targetToNodeMapping = new HashMap<String, ExecutorPair>();
         topologyToRebalancedTime = new HashMap<String, Long>();
+
+//  TODO: Code for running the observer as a separate thread.
+//        Integer observerRunDelay = (Integer) config.get(Config.STELA_SLO_OBSERVER_INTERVAL);
+//        if (observerRunDelay == null) {
+//            observerRunDelay = OBSERVER_RUN_INTERVAL;
+//        }
+//
+//        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+//        executorService.scheduleAtFixedRate(new Runner(sloObserver), 180, observerRunDelay, TimeUnit.SECONDS);
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
             List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
 
-            logUnassignedExecutors(topologiesScheduled, cluster);
-
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
             for (TopologyDetails topologyDetails: topologiesScheduled) {
                 topologyToRebalancedTime.put(topologyDetails.getId(), (Long) System.currentTimeMillis() / 1000);
             }
 
-//            if (targetToVictimMapping.size() > 0) {
-//                applyRebalancedScheduling(cluster, topologies);
-//            }
-
-            globalState.collect(cluster, topologies);
-            globalStatistics.collect();
 
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
-            globalState.collect(cluster, topologies);
-            globalStatistics.collect();
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
@@ -94,6 +80,14 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
+
+        runAdvancedStelaComponents(cluster, topologies);
+    }
+
+    private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
+        sloObserver.run();
+        globalState.collect(cluster, topologies);
+        globalStatistics.collect();
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
