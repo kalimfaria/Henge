@@ -11,6 +11,8 @@ import org.json.simple.parser.ParseException;
 import java.util.*;
 
 public class Topologies {
+    private static final Integer UP_TIME = 60;
+
     private Map config;
     private NimbusClient nimbusClient;
     private HashMap<String, Topology> stelaTopologies;
@@ -56,8 +58,9 @@ public class Topologies {
                 for (TopologySummary topologySummary : topologies) {
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
+                    TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
 
-                    if (!stelaTopologies.containsKey(id)) {
+                    if (!stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() > UP_TIME) {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
 
                         Topology topology = new Topology(id, userSpecifiedSlo);
@@ -65,10 +68,13 @@ public class Topologies {
                         constructTopologyGraph(stormTopology, topology);
 
                         stelaTopologies.put(id, topology);
-                    } else {
+                    } else if (stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() < UP_TIME) {
+                        stelaTopologies.remove(id);
+                    } else if (stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() > UP_TIME){
                         updateParallelismHintsForTopology(id, stormTopology);
                     }
                 }
+                
             } catch (NotAliveException e) {
                 e.printStackTrace();
             } catch (TTransportException e) {
