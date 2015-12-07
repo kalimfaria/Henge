@@ -51,6 +51,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
             List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+
             logUnassignedExecutors(topologiesScheduled, cluster);
 
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
@@ -204,7 +205,6 @@ public class AdvancedStelaScheduler implements IScheduler {
             for (ExecutorDetails newExecutor: currentTargetExecutors) {
                 LOG.info(newExecutor.toString());
             }
-
         }
 
         LOG.info("\n************** Victim Topology **************");

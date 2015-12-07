@@ -55,6 +55,9 @@ public class Component {
     }
 
     public void setCurrentTransferred(Integer currentTransferred) {
+        if (currentTransferred < totalTransferred) {
+            totalTransferred = 0;
+        }
         this.currentTransferred = currentTransferred - totalTransferred;
     }
 
@@ -86,7 +89,11 @@ public class Component {
         if (totalExecuted.get(key) == null) {
             currentExecuted.put(key, value);
         } else {
-            currentExecuted.put(key, value - totalExecuted.get(key));
+            if (value < totalExecuted.get(key)) {
+                currentExecuted.put(key, value);
+            } else {
+                currentExecuted.put(key, value - totalExecuted.get(key));
+            }
         }
     }
 
