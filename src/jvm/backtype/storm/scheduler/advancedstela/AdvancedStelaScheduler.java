@@ -50,6 +50,11 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
+
+            if (targetToVictimMapping.size() > 0) {
+                               applyRebalancedScheduling(cluster, topologies);
+                                   }
+
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
 
