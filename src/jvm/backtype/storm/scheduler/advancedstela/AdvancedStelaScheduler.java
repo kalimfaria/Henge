@@ -262,10 +262,26 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
         }
 
+        Map <WorkerSlot, List<ExecutorDetails>> targetScheduling = new HashMap<>();
+        Map <WorkerSlot, List<ExecutorDetails>> victimScheduling = new HashMap<>();
 
-   /*     targetToVictimMapping.remove(target.getId());
+
+
+        writeToFile(advanced_scheduling_log, "Assigning target topology: \n");
+        for (Map.Entry<WorkerSlot, List<ExecutorDetails>> targetscheduling : targetScheduling.entrySet()) {
+            cluster.assign(targetscheduling .getKey(), target.getId(), targetscheduling.getValue());
+            writeToFile(advanced_scheduling_log, "Assigning worker slot: " + targetscheduling.getKey() + " executor details: " + targetscheduling.getValue() + "\n");
+        }
+
+        writeToFile(advanced_scheduling_log, "Assigning victim topology: \n");
+        for (Map.Entry<WorkerSlot, List<ExecutorDetails>> victimscheduling : victimScheduling.entrySet()) {
+            cluster.assign(victimscheduling .getKey(), victim.getId(), victimscheduling.getValue());
+            writeToFile(advanced_scheduling_log, "Assigning worker slot: " + victimscheduling.getKey() + " executor details: " + victimscheduling.getValue() + "\n");
+        }
+
+        targetToVictimMapping.remove(target.getId());
         targetToNodeMapping.remove(target.getId());
-        */
+
     }
 
     private List<ExecutorDetails> difference(Collection<ExecutorDetails> execs1,
