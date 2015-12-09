@@ -51,12 +51,21 @@ public class AdvancedStelaScheduler implements IScheduler {
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
 
-            if (targetToVictimMapping.size() > 0) {
-                               applyRebalancedScheduling(cluster, topologies);
-                                   }
-
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
+            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+            logUnassignedExecutors(topologiesScheduled, cluster);
+            if (targetToVictimMapping.size() > 0) {
+                applyRebalancedScheduling(cluster, topologies);
+            }
+
+            globalState.collect(cluster, topologies);
+            globalStatistics.collect();
+
+
+        } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0) {
+
+            globalState.collect(cluster, topologies);
+            globalStatistics.collect();
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
@@ -93,13 +102,16 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
-        for (TopologyDetails topologyDetails: topologiesScheduled) {
+        for (TopologyDetails topologyDetails : topologiesScheduled) {
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
             LOG.info("******** Topology Assignment {} *********", topologyDetails.getId());
+            System.out.println("******** Topology Assignment " + topologyDetails.getId() + " *********");
             LOG.info("Unassigned executors size: {}", unassignedExecutors.size());
+            System.out.println("Unassigned executors size: "+unassignedExecutors.size()+"");
             if (unassignedExecutors.size() > 0) {
-                for (ExecutorDetails executorDetails: unassignedExecutors) {
+                for (ExecutorDetails executorDetails : unassignedExecutors) {
                     LOG.info(executorDetails.toString());
+                    System.out.println("executorDetails.toString(): " + executorDetails.toString());
                 }
             }
         }
@@ -141,7 +153,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void removeAlreadySelectedPairs(ArrayList<String> receivers, ArrayList<String> givers) {
-        for (String target: targetToVictimMapping.keySet()) {
+        for (String target : targetToVictimMapping.keySet()) {
             int targetIndex = receivers.indexOf(target);
             if (targetIndex != -1) {
                 receivers.remove(targetIndex);
@@ -156,7 +168,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void applyRebalancedScheduling(Cluster cluster, Topologies topologies) {
-        for (Map.Entry<String, String> targetToVictim: targetToVictimMapping.entrySet()) {
+        for (Map.Entry<String, String> targetToVictim : targetToVictimMapping.entrySet()) {
             TopologyDetails target = topologies.getById(targetToVictim.getKey());
             TopologyDetails victim = topologies.getById(targetToVictim.getValue());
             ExecutorPair executorPair = targetToNodeMapping.get(targetToVictim.getKey());
@@ -179,7 +191,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         LOG.info("\n************** Target Topology **************");
 
         LOG.info("\n****** Previous Executors ******");
-        for (ExecutorDetails executorDetails: previousTargetExecutors) {
+        for (ExecutorDetails executorDetails : previousTargetExecutors) {
             LOG.info(executorDetails.toString());
         }
 
@@ -189,12 +201,12 @@ public class AdvancedStelaScheduler implements IScheduler {
             currentTargetExecutors.removeAll(previousTargetExecutors);
 
             LOG.info("\n****** Current Executors ******");
-            for (ExecutorDetails executorDetails: currentTargetExecutors) {
+            for (ExecutorDetails executorDetails : currentTargetExecutors) {
                 LOG.info(executorDetails.toString());
             }
 
             LOG.info("\n********************** Found new executor *********************");
-            for (ExecutorDetails newExecutor: currentTargetExecutors) {
+            for (ExecutorDetails newExecutor : currentTargetExecutors) {
                 LOG.info(newExecutor.toString());
             }
         }
@@ -205,7 +217,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         SchedulerAssignment currentVictimAssignment = cluster.getAssignmentById(victim.getId());
 
         LOG.info("\n****** Previous Executors ******");
-        for (ExecutorDetails executorDetails: previousVictimExecutors) {
+        for (ExecutorDetails executorDetails : previousVictimExecutors) {
             LOG.info(executorDetails.toString());
         }
 
@@ -214,11 +226,11 @@ public class AdvancedStelaScheduler implements IScheduler {
             previousVictimExecutors.removeAll(currentVictimExecutors);
 
             LOG.info("\n****** Current Executors ******");
-            for (ExecutorDetails executorDetails: currentVictimExecutors) {
+            for (ExecutorDetails executorDetails : currentVictimExecutors) {
                 LOG.info(executorDetails.toString());
             }
 
-            for (ExecutorDetails newExecutor: previousVictimExecutors) {
+            for (ExecutorDetails newExecutor : previousVictimExecutors) {
                 LOG.info("********************** Removed executor *********************");
                 LOG.info(newExecutor.toString());
             }
@@ -238,7 +250,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                                              Collection<ExecutorDetails> execs2) {
         List<ExecutorDetails> result = new ArrayList<ExecutorDetails>();
         for (ExecutorDetails exec : execs1) {
-            if(!execs2.contains(exec)) {
+            if (!execs2.contains(exec)) {
                 result.add(exec);
             }
         }
@@ -253,7 +265,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             bufferWritter.append(data);
             bufferWritter.close();
             fileWritter.close();
-            LOG.info("wrote to slo file {}",  data);
+            LOG.info("wrote to slo file {}", data);
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }
