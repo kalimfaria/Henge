@@ -22,7 +22,6 @@ public class Observer {
 
     private Map config;
     private Topologies topologies;
-    private HashMap<String, Long> topologiesUptime;
     private NimbusClient nimbusClient;
 
     public Observer(Map conf) {
@@ -235,5 +234,9 @@ public class Observer {
             LOG.info("**************************************************************************************************");
         }
 
+    }
+
+    public void clearTopologySLOs(String topologyId) {
+        topologies.remove(topologyId);
     }
 }

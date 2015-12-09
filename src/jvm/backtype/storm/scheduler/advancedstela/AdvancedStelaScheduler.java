@@ -22,7 +22,6 @@ public class AdvancedStelaScheduler implements IScheduler {
     private Selector selector;
     private HashMap<String, String> targetToVictimMapping;
     private HashMap<String, ExecutorPair> targetToNodeMapping;
-    private HashMap<String, Long> topologyToRebalancedTime;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         config = conf;
@@ -32,7 +31,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new Selector();
         targetToVictimMapping = new HashMap<String, String>();
         targetToNodeMapping = new HashMap<String, ExecutorPair>();
-        topologyToRebalancedTime = new HashMap<String, Long>();
 
 //  TODO: Code for running the observer as a separate thread.
 //        Integer observerRunDelay = (Integer) config.get(Config.STELA_SLO_OBSERVER_INTERVAL);
@@ -46,14 +44,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     public void schedule(Topologies topologies, Cluster cluster) {
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
-            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
-
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            for (TopologyDetails topologyDetails: topologiesScheduled) {
-                topologyToRebalancedTime.put(topologyDetails.getId(), (Long) System.currentTimeMillis() / 1000);
-            }
-
-
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
@@ -62,7 +53,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             removeAlreadySelectedPairs(receivers, givers);
 
-            if (receivers.size() > 0 && givers.size() > 0 && runningForMoreThan()) {
+            if (receivers.size() > 0 && givers.size() > 0) {
                 TopologyDetails target = topologies.getById(receivers.get(0));
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receivers.get(0));
                 TopologyDetails victim = topologies.getById(givers.get(givers.size() - 1));
@@ -76,7 +67,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 } else {
                     LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
                 }
-            } else if (runningForMoreThan() && givers.size() == 0) {
+            } else if (givers.size() == 0) {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
@@ -103,16 +94,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private boolean runningForMoreThan() {
-        long timeInSeconds = System.currentTimeMillis() / 1000;
-        for (String id: topologyToRebalancedTime.keySet()) {
-            if (!topologyToRebalancedTime.containsKey(id) || (timeInSeconds - topologyToRebalancedTime.get(id)) < 180) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
         String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
@@ -136,7 +117,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             targetToVictimMapping.put(target.getId(), victim.getId());
             targetToNodeMapping.put(target.getId(), executorSummaries);
-
+            sloObserver.clearTopologySLOs(target.getId());
+            sloObserver.clearTopologySLOs(victim.getId());
         } catch (Exception e) {
             e.printStackTrace();
         }

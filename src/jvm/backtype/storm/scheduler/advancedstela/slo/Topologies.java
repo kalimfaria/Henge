@@ -16,10 +16,12 @@ public class Topologies {
     private Map config;
     private NimbusClient nimbusClient;
     private HashMap<String, Topology> stelaTopologies;
+    private HashMap<String, Long> topologiesUptime;
 
     public Topologies(Map conf) {
         config = conf;
         stelaTopologies = new HashMap<String, Topology>();
+        topologiesUptime = new HashMap<String, Long>();
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
@@ -58,9 +60,12 @@ public class Topologies {
                 for (TopologySummary topologySummary : topologies) {
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
-                    TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
 
-                    if (!stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() > UP_TIME) {
+                    if (!topologiesUptime.containsKey(id)) {
+                        topologiesUptime.put(id, System.currentTimeMillis());
+                    }
+
+                    if (!stelaTopologies.containsKey(id) && upForMoreThan(id)) {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
 
                         Topology topology = new Topology(id, userSpecifiedSlo);
@@ -68,13 +73,12 @@ public class Topologies {
                         constructTopologyGraph(stormTopology, topology);
 
                         stelaTopologies.put(id, topology);
-                    } else if (stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() < UP_TIME) {
-                        stelaTopologies.remove(id);
-                    } else if (stelaTopologies.containsKey(id) && topologyInfo.get_uptime_secs() > UP_TIME){
+
+                    } else if (stelaTopologies.containsKey(id)){
                         updateParallelismHintsForTopology(id, stormTopology);
                     }
                 }
-                
+
             } catch (NotAliveException e) {
                 e.printStackTrace();
             } catch (TTransportException e) {
@@ -85,6 +89,13 @@ public class Topologies {
                 e.printStackTrace();
             }
         }
+    }
+
+    private boolean upForMoreThan(String id) {
+        Long time = System.currentTimeMillis();
+        Long topologyUpAt = topologiesUptime.get(id);
+
+        return ((time - topologyUpAt) / 1000) > UP_TIME;
     }
 
     private Double getUserSpecifiedSLOFromConfig(String id) {
@@ -158,5 +169,9 @@ public class Topologies {
                 allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
             }
         }
+    }
+
+    public void remove(String topologyId) {
+        stelaTopologies.remove(topologyId);
     }
 }
