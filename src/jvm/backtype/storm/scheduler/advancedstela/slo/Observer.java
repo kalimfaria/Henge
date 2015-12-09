@@ -8,6 +8,10 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,10 +27,12 @@ public class Observer {
     private Map config;
     private Topologies topologies;
     private NimbusClient nimbusClient;
+    private File slo_log;
 
     public Observer(Map conf) {
         config = conf;
         topologies = new Topologies(config);
+        slo_log = new File("/var/nimbus/storm/slo.log");
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -232,11 +238,30 @@ public class Observer {
             LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
                     topology.getMeasuredSLO());
             LOG.info("**************************************************************************************************");
+            System.out.println("**************************************************************************************************");
+            System.out.println("Measured SLO for topology " + topologyId + " for this run is " + calculatedSLO + " and average slo is " +
+                    topology.getMeasuredSLO());
+            System.out.println("**************************************************************************************************");
+
+            writeToFile(slo_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
         }
 
     }
 
     public void clearTopologySLOs(String topologyId) {
         topologies.remove(topologyId);
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+            LOG.info("wrote to slo file {}",  data);
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
+        }
     }
 }

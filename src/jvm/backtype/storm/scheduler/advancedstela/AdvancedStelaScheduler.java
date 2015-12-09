@@ -29,6 +29,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private File rebalance_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
+        rebalance_log = new File("/var/nimbus/storm/rebalance.log");
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
