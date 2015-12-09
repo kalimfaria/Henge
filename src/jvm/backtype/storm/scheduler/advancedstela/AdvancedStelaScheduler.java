@@ -145,7 +145,9 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             targetToVictimMapping.put(target.getId(), victim.getId());
             targetToNodeMapping.put(target.getId(), executorSummaries);
+            System.out.println("sloObserver.clearTopologySLOs(target.getId());: " + target.getId());
             sloObserver.clearTopologySLOs(target.getId());
+            System.out.println("sloObserver.clearTopologySLOs(victim.getId());: " + victim.getId());
             sloObserver.clearTopologySLOs(victim.getId());
         } catch (Exception e) {
             e.printStackTrace();
@@ -185,7 +187,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
         WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
         WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
-
+        System.out.println("previousTargetExecutors" + target.getId());
         Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
 
         LOG.info("\n************** Target Topology **************");
@@ -205,8 +207,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info(executorDetails.toString());
             }
 
-            LOG.info("\n********************** Found new executor *********************");
             for (ExecutorDetails newExecutor : currentTargetExecutors) {
+                LOG.info("\n********************** Found new executor *********************");
                 LOG.info(newExecutor.toString());
             }
         }
