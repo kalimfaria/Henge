@@ -8,6 +8,10 @@ import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class AdvancedStelaScheduler implements IScheduler {
@@ -22,6 +26,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private Selector selector;
     private HashMap<String, String> targetToVictimMapping;
     private HashMap<String, ExecutorPair> targetToNodeMapping;
+    private File rebalance_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         config = conf;
@@ -97,14 +102,19 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
         String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
-        String targetCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
-                "rebalance " + targetDetails.getName() + " -e " +
+        String targetCommand = "/var/nimbus/storm/bin/storm " +
+                "rebalance " + targetDetails.getName() + " -w 0 -e " +
                 targetComponent + "=" + (target.getComponents().get(targetComponent).getParallelism() + 1);
+        System.out.println(targetCommand);
+
+        writeToFile(rebalance_log, targetDetails.getName() + "," + targetComponent + "," + (target.getComponents().get(targetComponent).getParallelism() + 1 + "," + System.currentTimeMillis() + "\n"));
 
         String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
-        String victimCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
-                "rebalance " + victimDetails.getName() + " -e " +
+        String victimCommand = "/var/nimbus/storm/bin/storm " +
+                "rebalance " + victimDetails.getName() + " -w 0 -e " +
                 victimComponent + "=" + (victim.getComponents().get(victimComponent).getParallelism() - 1);
+        System.out.println(victimCommand);
+        writeToFile(rebalance_log, victimDetails.getName() + "," + victimComponent + "," + (victim.getComponents().get(victimComponent).getParallelism() + 1 + "," + System.currentTimeMillis() + "\n"));
 
         try {
 
@@ -228,5 +238,18 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
         return result;
 
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+            LOG.info("wrote to slo file {}",  data);
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
+        }
     }
 }
