@@ -826,7 +826,28 @@ public class AdvancedStelaScheduler implements IScheduler {
             writeToFile(advanced_scheduling_log, "New Assignment for Target Topology: \n");
             for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
                 writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
-                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+
+                if (cluster.getUsedSlots().contains(topologyEntry.getKey())){
+                    writeToFile(advanced_scheduling_log,"Worker Slot is already occupied \n");
+                    writeToFile(advanced_scheduling_log,"Checking if old schedule matches the new schedule \n");
+                    ArrayList<ExecutorDetails> oldAssignment = globalState.getTopologySchedules().get(target.getId()).getAssignment().get(topologyEntry.getKey()); // getting the executors for the old entry
+                    ArrayList<ExecutorDetails> newAssignment = topologyEntry.getValue();
+                    for ( ExecutorDetails scheduledExecutor : newAssignment)
+                    {
+                        if (!oldAssignment.contains(scheduledExecutor)) {
+                            // do the freeSlot bit and break;
+                            cluster.freeSlot(topologyEntry.getKey());
+                            cluster.assign(topologyEntry.getKey(), target.getId(), newAssignment);
+                            break; // else do nothing
+                        }
+
+                    }
+
+                }
+                else {
+
+                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                }
 
             }
 
@@ -941,12 +962,36 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
 */
             writeToFile(advanced_scheduling_log, "New Assignment for Victim Topology: \n");
-            for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
+        /*    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
                 writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
                 cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
 
             }
+*/
 
+            for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
+                writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
+
+                if (cluster.getUsedSlots().contains(topologyEntry.getKey())){
+                    writeToFile(advanced_scheduling_log,"Worker Slot is already occupied \n");
+                    writeToFile(advanced_scheduling_log,"Checking if old schedule matches the new schedule \n");
+                    ArrayList<ExecutorDetails> oldAssignment = globalState.getTopologySchedules().get(victim.getId()).getAssignment().get(topologyEntry.getKey()); // getting the executors for the old entry
+                    ArrayList<ExecutorDetails> newAssignment = topologyEntry.getValue();
+                    for ( ExecutorDetails previouslyScheduledExecutor : oldAssignment)
+                    {
+                        if (!(newAssignment.contains(previouslyScheduledExecutor))) { // we don't want any extra executors in there.
+                            // do the freeSlot bit and break;
+                            cluster.freeSlot(topologyEntry.getKey());
+                            cluster.assign(topologyEntry.getKey(), target.getId(), newAssignment);
+                            break; // else do nothing
+                        }
+
+                    }
+                }
+                else {
+
+                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                }
 
             victimID = new String();
         }
