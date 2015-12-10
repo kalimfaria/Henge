@@ -536,12 +536,12 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
         String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
-        String targetCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
+        String targetCommand = "/var/nimbus/storm/bin/storm " +
                 "rebalance " + targetDetails.getName() + " -e " +
                 targetComponent + "=" + (target.getComponents().get(targetComponent).getParallelism() + 1);
 
         String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
-        String victimCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
+        String victimCommand = "/var/nimbus/storm/bin/storm " +
                 "rebalance " + victimDetails.getName() + " -e " +
                 victimComponent + "=" + (victim.getComponents().get(victimComponent).getParallelism() - 1);
 
