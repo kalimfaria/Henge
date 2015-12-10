@@ -107,7 +107,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
-        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors");
+        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors\n");
         for (TopologyDetails topologyDetails : topologiesScheduled) {
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
 
@@ -223,6 +223,14 @@ public class AdvancedStelaScheduler implements IScheduler {
         for (ExecutorDetails executorDetails : previousTargetExecutors) {
             writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
         }
+
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> oldTargetAssignment  = globalState.getTopologySchedules().get(target.getId()).getAssignment();
+
+        writeToFile(advanced_scheduling_log, "\n****** Previous Target Assignment ******" + "\n");
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> oldAssignmentEntry : oldTargetAssignment.entrySet()) {
+            writeToFile(advanced_scheduling_log, " workerslot: " + oldAssignmentEntry.getKey().toString() + " executors: " + oldAssignmentEntry.getValue().toString() + "\n");
+        }
+
         SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
 
 
@@ -297,6 +305,13 @@ public class AdvancedStelaScheduler implements IScheduler {
         writeToFile(advanced_scheduling_log, "\n****** currentVictimAssignment ******\n" + currentVictimAssignment.getExecutorToSlot().toString() + "\n");
         writeToFile(advanced_scheduling_log, "\n****** Previous Victim Executors ******" + "\n");
 
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> oldVictimAssignment  = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
+
+
+        writeToFile(advanced_scheduling_log, "\n****** Previous Victim Assignment ******" + "\n");
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> oldAssignmentEntry : oldVictimAssignment.entrySet()) {
+            writeToFile(advanced_scheduling_log, " workerslot: " + oldAssignmentEntry.getKey().toString() + " executors: " + oldAssignmentEntry.getValue().toString() + "\n");
+        }
 
         Map<WorkerSlot, ArrayList<ExecutorDetails>> victimScheduling = new HashMap<>();//globalState.getTopologySchedules().get(target.getId()).getAssignment();
         Map<ExecutorDetails, WorkerSlot> victimExecutorToSlot = currentVictimAssignment.getExecutorToSlot();
