@@ -461,10 +461,11 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+        logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
 
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+//            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
 
 
             if (targetToVictimMapping.size() > 0) {
@@ -624,8 +625,12 @@ public class AdvancedStelaScheduler implements IScheduler {
                 writeToFile(advanced_scheduling_log, newExecutor.toString() + "\n");
             }
 
+            writeToFile(advanced_scheduling_log, "Old target schedule\n");
+
             for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet())
             {
+                writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
+
                 if (topologyEntry.getKey().equals(targetSlot)) // they will not be in the old map
                 {
                     // add the two executors
@@ -660,8 +665,11 @@ public class AdvancedStelaScheduler implements IScheduler {
                 writeToFile(advanced_scheduling_log, newExecutor.toString() + "\n");
             }
 
+            writeToFile(advanced_scheduling_log, "Old victim schedule\n");
             for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet())
             {
+                writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
+
                 if (topologyEntry.getKey().equals(victimSlot)) // they will not be in the old map
                 {
                     // add the two executors
