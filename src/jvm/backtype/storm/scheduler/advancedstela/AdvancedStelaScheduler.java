@@ -51,12 +51,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+        logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
 
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
 
             List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
-            logUnassignedExecutors(topologiesScheduled, cluster);
+
 
             if (targetToVictimMapping.size() > 0) {
                 applyRebalancedScheduling(cluster, topologies);
@@ -106,8 +107,10 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
+        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors");
         for (TopologyDetails topologyDetails : topologiesScheduled) {
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
+
 
             writeToFile(advanced_scheduling_log, "In logUnassignedExecutors \n ******** Topology Assignment " + topologyDetails.getId() + " ********* \n ");
 
@@ -206,8 +209,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
         ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
 
-        Map <WorkerSlot, ArrayList<ExecutorDetails>> targetScheduling = globalState.getTopologySchedules().get(target.getId()).getAssignment();
-        Map <WorkerSlot, ArrayList<ExecutorDetails>> victimScheduling = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
 
         WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
         WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
@@ -216,45 +217,105 @@ public class AdvancedStelaScheduler implements IScheduler {
 
         Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
 
-        writeToFile(advanced_scheduling_log, "\n************** Target Topology **************"+ "\n");
+        writeToFile(advanced_scheduling_log, "\n************** Target Topology **************" + "\n");
 
-        writeToFile(advanced_scheduling_log, "\n****** Previous Target Executors ******"+ "\n");
+        writeToFile(advanced_scheduling_log, "\n****** Previous Target Executors ******" + "\n");
         for (ExecutorDetails executorDetails : previousTargetExecutors) {
-            writeToFile(advanced_scheduling_log, executorDetails.toString()+ "\n");
+            writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
         }
         SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
+
+
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> targetScheduling = new HashMap<>();//globalState.getTopologySchedules().get(target.getId()).getAssignment();
+        Map<ExecutorDetails, WorkerSlot> targetExecutorToSlot = currentTargetAssignment.getExecutorToSlot();
+        for (Map.Entry<ExecutorDetails, WorkerSlot> targetExecutorDetails : targetExecutorToSlot.entrySet()) {
+            if (targetScheduling.containsKey(targetExecutorDetails.getValue())) // if it contains that worker slot
+            {
+                ArrayList<ExecutorDetails> targetExecutors = targetScheduling.get(targetExecutorDetails.getValue());
+                targetExecutors.add(targetExecutorDetails.getKey());
+                targetScheduling.put(targetExecutorDetails.getValue(), targetExecutors);
+            } else {
+                ArrayList<ExecutorDetails> targetExecutors = new ArrayList<ExecutorDetails>();
+                targetExecutors.add(targetExecutorDetails.getKey());
+                targetScheduling.put(targetExecutorDetails.getValue(), targetExecutors);
+
+            }
+
+        }
+
         writeToFile(advanced_scheduling_log, "\n****** currentTargetAssignment ******\n" + currentTargetAssignment.getExecutorToSlot().toString() + "\n");
         if (currentTargetAssignment != null) {
             Set<ExecutorDetails> currentTargetExecutors = currentTargetAssignment.getExecutorToSlot().keySet();
-            writeToFile(advanced_scheduling_log, "\n****** Current Target Executors ******"+ "\n");
+
+            writeToFile(advanced_scheduling_log, "\n****** Current Target Executors ******" + "\n");
             for (ExecutorDetails executorDetails : currentTargetExecutors) {
-                writeToFile(advanced_scheduling_log, executorDetails.toString()+ "\n");
+                writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
             }
             currentTargetExecutors.removeAll(previousTargetExecutors); // contains the new executors
 
             for (ExecutorDetails newExecutor : currentTargetExecutors) {
-                writeToFile(advanced_scheduling_log, "\n********************** Found new Target executor *********************"+ "\n");
-                writeToFile(advanced_scheduling_log, newExecutor.toString()+ "\n");
+                writeToFile(advanced_scheduling_log, "\n********************** Found new Target executor *********************" + "\n");
+                writeToFile(advanced_scheduling_log, newExecutor.toString() + "\n");
             }
 
-            if (currentTargetExecutors != null)
-            {
-                ArrayList <ExecutorDetails> forNewTargetExecutors = targetScheduling.get(targetSlot);
-                for (ExecutorDetails newExecutor : currentTargetExecutors)
-                {
-                    forNewTargetExecutors.add(newExecutor);
+
+            if (currentTargetExecutors != null) {
+                for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> targetScheduleEntry : targetScheduling.entrySet()) {
+
+                    writeToFile(advanced_scheduling_log, "Old scheduling for target: " + targetScheduleEntry.toString() + " \n");
+                    if (targetScheduleEntry.getKey() == targetSlot) // add it to the slot
+                    {
+                        ArrayList<ExecutorDetails> executorDetailsForTargetSlot = targetScheduleEntry.getValue();
+                        executorDetailsForTargetSlot.addAll(currentTargetExecutors);
+                        targetScheduling.put(targetSlot, executorDetailsForTargetSlot);
+                        writeToFile(advanced_scheduling_log, "New scheduling for target slot: " + targetSlot.toString() + " executorDetails: " + executorDetailsForTargetSlot.toString() + " \n");
+                    }
+                    // delete from other places
+                    else {
+                        ArrayList<ExecutorDetails> executorDetailsForTargetSlot = targetScheduleEntry.getValue();
+                        ArrayList<ExecutorDetails> temp = executorDetailsForTargetSlot;
+                        for (ExecutorDetails newExecutor : currentTargetExecutors) {
+                            if (executorDetailsForTargetSlot.contains(newExecutor)) {
+                                temp.remove(newExecutor);
+                            }
+                        }
+                        targetScheduling.put(targetScheduleEntry.getKey(), temp);
+                    }
                 }
-                targetScheduling.put(targetSlot, forNewTargetExecutors);
             }
+
+            if (currentTargetExecutors == null)
+                writeToFile(advanced_scheduling_log, "currentTargetExecutors is null\n");
         }
 
-        writeToFile(advanced_scheduling_log, "\n************** Victim Topology **************"+ "\n");
-        writeToFile(advanced_scheduling_log, "previousTargetExecutors for victim topology: " + victim.getId()+ "\n");
+
+        writeToFile(advanced_scheduling_log, "\n************** Victim Topology **************" + "\n");
+        writeToFile(advanced_scheduling_log, "previousTargetExecutors for victim topology: " + victim.getId() + "\n");
 
         Set<ExecutorDetails> previousVictimExecutors = globalState.getTopologySchedules().get(victim.getId()).getExecutorToComponent().keySet();
         SchedulerAssignment currentVictimAssignment = cluster.getAssignmentById(victim.getId());
         writeToFile(advanced_scheduling_log, "\n****** currentVictimAssignment ******\n" + currentVictimAssignment.getExecutorToSlot().toString() + "\n");
-        writeToFile(advanced_scheduling_log, "\n****** Previous Victim Executors ******"+ "\n");
+        writeToFile(advanced_scheduling_log, "\n****** Previous Victim Executors ******" + "\n");
+
+
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> victimScheduling = new HashMap<>();//globalState.getTopologySchedules().get(target.getId()).getAssignment();
+        Map<ExecutorDetails, WorkerSlot> victimExecutorToSlot = currentVictimAssignment.getExecutorToSlot();
+        for (Map.Entry<ExecutorDetails, WorkerSlot> victimExecutorDetails : victimExecutorToSlot.entrySet()) {
+            if (victimScheduling.containsKey(victimExecutorDetails.getValue())) // if it contains that worker slot
+            {
+                ArrayList<ExecutorDetails> victimExecutors = victimScheduling.get(victimExecutorDetails.getValue());
+                victimExecutors.add(victimExecutorDetails.getKey());
+                victimScheduling.put(victimExecutorDetails.getValue(), victimExecutors);
+            } else {
+                ArrayList<ExecutorDetails> victimExecutors = new ArrayList<ExecutorDetails>();
+                victimExecutors.add(victimExecutorDetails.getKey());
+                victimScheduling.put(victimExecutorDetails.getValue(), victimExecutors);
+
+            }
+
+        }
+
+
         for (ExecutorDetails executorDetails : previousVictimExecutors) {
             writeToFile(advanced_scheduling_log, executorDetails.toString());
         }
@@ -262,41 +323,57 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (currentVictimAssignment != null) {
             Set<ExecutorDetails> currentVictimExecutors = currentVictimAssignment.getExecutorToSlot().keySet();
 
-            writeToFile(advanced_scheduling_log, "\n****** Current Victim Executors ******"+ "\n");
+            writeToFile(advanced_scheduling_log, "\n****** Current Victim Executors ******" + "\n");
             for (ExecutorDetails executorDetails : currentVictimExecutors) {
-                writeToFile(advanced_scheduling_log, executorDetails.toString()+ "\n");
+                writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
             }
             previousVictimExecutors.removeAll(currentVictimExecutors);
 
             for (ExecutorDetails executorToRemove : previousVictimExecutors) {
-                writeToFile(advanced_scheduling_log, "********************** Removed Victim executor *********************"+ "\n");
-                writeToFile(advanced_scheduling_log, executorToRemove.toString()+ "\n");
+                writeToFile(advanced_scheduling_log, "********************** Removed Victim executor *********************" + "\n");
+                writeToFile(advanced_scheduling_log, executorToRemove.toString() + "\n");
             }
 
-            if (previousVictimExecutors != null)
-            {
-                ArrayList <ExecutorDetails> forRemovableVictimExecutors = targetScheduling.get(victimSlot);
-                for (ExecutorDetails executorToRemove : previousVictimExecutors)
-                {
-                    if (forRemovableVictimExecutors.contains(executorToRemove))
-                        forRemovableVictimExecutors.remove(executorToRemove);
+         /*   if (previousVictimExecutors != null ) {
+
+                for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> victimScheduleEntry : victimScheduling.entrySet()) {
+
+                    writeToFile(advanced_scheduling_log, "Old scheduling for victim: " + victimScheduleEntry.toString() + " \n");
+                    if (victimScheduleEntry.getKey() == victimSlot) // add it to the slot
+                    {
+                        ArrayList<ExecutorDetails> executorDetailsForVictimSlot = victimScheduleEntry.getValue();
+                        executorDetailsForVictimSlot.addAll(currentVictimExecutors);
+                        victimScheduling.put(victimSlot, executorDetailsForVictimSlot);
+                        writeToFile(advanced_scheduling_log, "New scheduling for target slot: " + victimSlot.toString() + " executorDetails: " + executorDetailsForVictimSlot.toString() + " \n");
+                    }
+                    // delete from other places
+                    else {
+                        ArrayList<ExecutorDetails> executorDetailsForVictimSlot = victimScheduleEntry.getValue();
+                        for (ExecutorDetails newExecutor : currentVictimExecutors) // there is an assumption here  - that executors to add should be on this slot
+                        {
+                            if (executorDetailsForVictimSlot.contains(newExecutor))
+                                executorDetailsForVictimSlot.remove(newExecutor);
+
+                        }
+                        victimScheduling.put(victimSlot, executorDetailsForVictimSlot);
+                    }
                 }
-                targetScheduling.put(targetSlot, forRemovableVictimExecutors);
-            }
+            } */
+            /*DEBUG*/
+            if (previousVictimExecutors == null)
+                writeToFile(advanced_scheduling_log, "previousVictimExecutors is null\n");
         }
-
-
 
         writeToFile(advanced_scheduling_log, "Assigning target topology: \n");
         for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> targetscheduling : targetScheduling.entrySet()) {
-            cluster.assign(targetscheduling .getKey(), target.getId(), targetscheduling.getValue());
             writeToFile(advanced_scheduling_log, "Assigning worker slot: " + targetscheduling.getKey() + " executor details: " + targetscheduling.getValue() + "\n");
+            cluster.assign(targetscheduling.getKey(), target.getId(), targetscheduling.getValue());
         }
 
         writeToFile(advanced_scheduling_log, "Assigning victim topology: \n");
         for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> victimscheduling : victimScheduling.entrySet()) {
-            cluster.assign(victimscheduling .getKey(), victim.getId(), victimscheduling.getValue());
             writeToFile(advanced_scheduling_log, "Assigning worker slot: " + victimscheduling.getKey() + " executor details: " + victimscheduling.getValue() + "\n");
+            cluster.assign(victimscheduling.getKey(), victim.getId(), victimscheduling.getValue());
         }
 
         targetToVictimMapping.remove(target.getId());
@@ -304,7 +381,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     }
 
-    private List<ExecutorDetails> difference(Collection<ExecutorDetails> execs1,
+  /*  private List<ExecutorDetails> difference(Collection<ExecutorDetails> execs1,
                                              Collection<ExecutorDetails> execs2) {
         List<ExecutorDetails> result = new ArrayList<ExecutorDetails>();
         for (ExecutorDetails exec : execs1) {
@@ -314,7 +391,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
         return result;
 
-    }
+    } */
 
     public void writeToFile(File file, String data) {
         try {
