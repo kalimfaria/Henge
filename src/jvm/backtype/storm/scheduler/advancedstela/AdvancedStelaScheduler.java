@@ -972,13 +972,12 @@ public class AdvancedStelaScheduler implements IScheduler {
             for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
                 writeToFile(advanced_scheduling_log, "Worker: " + topologyEntry.getKey() + " Executors: " + topologyEntry.getValue().toString() + "\n");
 
-                if (cluster.getUsedSlots().contains(topologyEntry.getKey())){
-                    writeToFile(advanced_scheduling_log,"Worker Slot is already occupied \n");
-                    writeToFile(advanced_scheduling_log,"Checking if old schedule matches the new schedule \n");
+                if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
+                    writeToFile(advanced_scheduling_log, "Worker Slot is already occupied \n");
+                    writeToFile(advanced_scheduling_log, "Checking if old schedule matches the new schedule \n");
                     ArrayList<ExecutorDetails> oldAssignment = globalState.getTopologySchedules().get(victim.getId()).getAssignment().get(topologyEntry.getKey()); // getting the executors for the old entry
                     ArrayList<ExecutorDetails> newAssignment = topologyEntry.getValue();
-                    for ( ExecutorDetails previouslyScheduledExecutor : oldAssignment)
-                    {
+                    for (ExecutorDetails previouslyScheduledExecutor : oldAssignment) {
                         if (!(newAssignment.contains(previouslyScheduledExecutor))) { // we don't want any extra executors in there.
                             // do the freeSlot bit and break;
                             cluster.freeSlot(topologyEntry.getKey());
@@ -987,12 +986,11 @@ public class AdvancedStelaScheduler implements IScheduler {
                         }
 
                     }
-                }
-                else {
+                } else {
 
                     cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
                 }
-
+            }
             victimID = new String();
         }
 
