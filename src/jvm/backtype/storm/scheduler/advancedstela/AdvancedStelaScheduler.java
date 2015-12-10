@@ -435,6 +435,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private GlobalStatistics globalStatistics;
     private Selector selector;
     private HashMap<String, String> targetToVictimMapping;
+    private String targetID, victimID;
     private HashMap<String, ExecutorPair> targetToNodeMapping;
     private File rebalance_log;
     private File advanced_scheduling_log;
@@ -449,6 +450,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new Selector();
         targetToVictimMapping = new HashMap<String, String>();
         targetToNodeMapping = new HashMap<String, ExecutorPair>();
+        targetID = new String();
+        victimID = new String();
 
 //  TODO: Code for running the observer as a separate thread.
 //        Integer observerRunDelay = (Integer) config.get(Config.STELA_SLO_OBSERVER_INTERVAL);
@@ -464,9 +467,14 @@ public class AdvancedStelaScheduler implements IScheduler {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
 
-            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-//            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+            writeToFile(advanced_scheduling_log, "Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size()+  "\n" );
 
+            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+            for (TopologyDetails topologyThatNeedsToBeScheduled: topologiesScheduled)
+            {
+                writeToFile(advanced_scheduling_log, "Id of topology: " + topologyThatNeedsToBeScheduled.getId());
+            }
 
             if (targetToVictimMapping.size() > 0) {
                 applyRebalancedScheduling(cluster, topologies);
@@ -505,7 +513,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
-
         runAdvancedStelaComponents(cluster, topologies);
     }
 
@@ -516,7 +523,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
-        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors\n");
+        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors\n Outside the loop: \n");
 
         for (TopologyDetails topologyDetails : topologiesScheduled) {
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
@@ -559,6 +566,13 @@ public class AdvancedStelaScheduler implements IScheduler {
             targetToNodeMapping.put(target.getId(), executorSummaries);
             sloObserver.clearTopologySLOs(target.getId());
             sloObserver.clearTopologySLOs(victim.getId());
+
+            targetID = target.getId();
+            victimID = victim.getId();
+
+            writeToFile(advanced_scheduling_log, "Name of target topology: " + targetID + "\n");
+            writeToFile(advanced_scheduling_log, "Name of victim topology: " + victimID + "\n");
+            writeToFile(advanced_scheduling_log, "End of rebalanceTwoTopologies\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -659,9 +673,11 @@ public class AdvancedStelaScheduler implements IScheduler {
             for (ExecutorDetails executorDetails: currentVictimExecutors) {
                 writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
             }
+
             previousVictimExecutors.removeAll(currentVictimExecutors);
+            writeToFile(advanced_scheduling_log, "********************** Removed executor *********************\n");
             for (ExecutorDetails newExecutor: previousVictimExecutors) {
-                writeToFile(advanced_scheduling_log, "********************** Removed executor *********************\n");
+
                 writeToFile(advanced_scheduling_log, newExecutor.toString() + "\n");
             }
 
@@ -710,9 +726,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
         }
         return result;
-
     }
-
 
     public void writeToFile(File file, String data) {
         try {
