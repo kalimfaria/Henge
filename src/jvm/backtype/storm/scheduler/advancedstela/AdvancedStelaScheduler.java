@@ -70,11 +70,11 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             }
 
-            writeToFile(advanced_scheduling_log, "targetNeedsToBeRebalanced : " + targetNeedsToBeRebalanced  + "\n");
+            writeToFile(advanced_scheduling_log, "targetNeedsToBeRebalanced : " + targetNeedsToBeRebalanced + "\n");
             writeToFile(advanced_scheduling_log, "victimNeedsToBeRebalanced: " + victimNeedsToBeRebalanced + "\n");
-            writeToFile(advanced_scheduling_log, "targetID.length() : " + targetID.length()  + "\n");
+            writeToFile(advanced_scheduling_log, "targetID.length() : " + targetID.length() + "\n");
             writeToFile(advanced_scheduling_log, "victimID.length(): " + victimID.length() + "\n");
-            writeToFile(advanced_scheduling_log, "targetID : " + targetID  + "\n");
+            writeToFile(advanced_scheduling_log, "targetID : " + targetID + "\n");
             writeToFile(advanced_scheduling_log, "victimID: " + victimID + "\n");
 
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
@@ -306,12 +306,11 @@ public class AdvancedStelaScheduler implements IScheduler {
                         victimSchedule.put(victimSlot, executorsOfOldVictim);
                     }
                     */
-                    for (ExecutorDetails exectorsToRemove : previousVictimExecutors)
-                    {
-                        if (topologyEntry.getValue().contains(exectorsToRemove))
-                        {
+                    for (ExecutorDetails exectorsToRemove : previousVictimExecutors) {
+                        if (topologyEntry.getValue().contains(exectorsToRemove)) {
                             ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
                             executorsOfOldVictim.remove(exectorsToRemove);
+                            
                             victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
                         }
                     }
@@ -338,8 +337,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     cluster.freeSlot(topologyEntry.getKey());
                 } //else {
 
-                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-               // }
+                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                // }
             }
 
             writeToFile(advanced_scheduling_log, "New Assignment for Victim Topology: \n");
@@ -365,8 +364,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     cluster.freeSlot(topologyEntry.getKey());
                 } //else {
 
-                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-             //   }
+                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                //   }
             }
             targetID = new String();
             victimID = new String();
@@ -439,8 +438,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     cluster.freeSlot(topologyEntry.getKey());
                 } //else {
 
-                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-              //  }
+                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                //  }
             }
 
             targetID = new String();
@@ -488,10 +487,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                         victimSchedule.put(victimSlot, executorsOfOldVictim);
                     }
                     */
-                    for (ExecutorDetails exectorsToRemove : previousVictimExecutors)
-                    {
-                        if (topologyEntry.getValue().contains(exectorsToRemove))
-                        {
+                    for (ExecutorDetails exectorsToRemove : previousVictimExecutors) {
+                        if (topologyEntry.getValue().contains(exectorsToRemove)) {
                             ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
                             executorsOfOldVictim.remove(exectorsToRemove);
                             victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
@@ -525,8 +522,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 } //else {
 
-                    cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-              //  }
+                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                //  }
             }
             victimID = new String();
         }
