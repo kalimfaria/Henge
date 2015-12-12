@@ -77,7 +77,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             writeToFile(advanced_scheduling_log, "targetID : " + targetID + "\n");
             writeToFile(advanced_scheduling_log, "victimID: " + victimID + "\n");
 
-            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+
 
             writeToFile(advanced_scheduling_log, "After calling EvenScheduler: \n");
             writeToFile(advanced_scheduling_log, "Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
@@ -92,6 +92,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             globalState.collect(cluster, topologies);
             globalStatistics.collect();
+
+            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
 
 
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0) {
@@ -310,7 +312,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                         if (topologyEntry.getValue().contains(exectorsToRemove)) {
                             ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
                             executorsOfOldVictim.remove(exectorsToRemove);
-                            
+
                             victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
                         }
                     }
@@ -364,7 +366,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     cluster.freeSlot(topologyEntry.getKey());
                 } //else {
 
-                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
                 //   }
             }
             targetID = new String();
@@ -522,7 +524,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 } //else {
 
-                cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+                cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
                 //  }
             }
             victimID = new String();
