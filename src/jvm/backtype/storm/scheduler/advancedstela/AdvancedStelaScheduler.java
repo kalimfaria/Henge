@@ -232,27 +232,51 @@ public class AdvancedStelaScheduler implements IScheduler {
         Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
         Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
 
+
         writeToFile(advanced_scheduling_log, "\n************** Target Topology **************" + "\n");
+
+        ArrayList<Integer> previousTargetTasks = new ArrayList<Integer>();
+        ArrayList<Integer> currentTargetTasks = new ArrayList<Integer>();
 
         writeToFile(advanced_scheduling_log, "\n****** Previous Executors ******" + "\n");
         for (ExecutorDetails executorDetails : previousTargetExecutors) {
             writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
+            previousTargetTasks.add(executorDetails.getStartTask());
+            previousTargetTasks.add(executorDetails.getEndTask());
         }
 
+        writeToFile(advanced_scheduling_log, "\n********************** Previous Tasks *********************\n");
+        for (Integer oldTasks  : previousTargetTasks) {
+            writeToFile(advanced_scheduling_log, oldTasks + "\n");
+        }
         SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
         if (currentTargetAssignment != null) {
             Set<ExecutorDetails> currentTargetExecutors = currentTargetAssignment.getExecutorToSlot().keySet();
 
-
             writeToFile(advanced_scheduling_log, "\n****** Current Executors ******\n");
             for (ExecutorDetails executorDetails : currentTargetExecutors) {
                 writeToFile(advanced_scheduling_log, executorDetails.toString() + "\n");
+                currentTargetTasks.add(executorDetails.getStartTask());
+                currentTargetTasks.add(executorDetails.getEndTask());
+
             }
+
+            writeToFile(advanced_scheduling_log, "\n********************** Current Tasks *********************\n");
+            for (Integer newTasks  : currentTargetTasks) {
+                writeToFile(advanced_scheduling_log, newTasks + "\n");
+            }
+
             currentTargetExecutors.removeAll(previousTargetExecutors);
+            currentTargetTasks.removeAll(previousTargetTasks);
 
             writeToFile(advanced_scheduling_log, "\n********************** Found new executor *********************\n");
             for (ExecutorDetails newExecutor : currentTargetExecutors) {
                 writeToFile(advanced_scheduling_log, newExecutor.toString() + "\n");
+            }
+
+            writeToFile(advanced_scheduling_log, "\n********************** Found new tasks *********************\n");
+            for (Integer newTasks  : currentTargetTasks) {
+                writeToFile(advanced_scheduling_log, newTasks + "\n");
             }
 
             writeToFile(advanced_scheduling_log, "Old target schedule\n");
@@ -373,8 +397,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                 for (Integer taskToAddBack : otherTaskofVictimExecutor) {
                     if (taskToAddBack == topologyEntry.getKey().getStartTask() || taskToAddBack == topologyEntry.getKey().getEndTask()) {
                         victimSchedule.get(victimSlot).add(topologyEntry.getKey());
-                        // victimSchedule.put(victimSlot, topologyEntry.getKey());
-
                     }
                 }
             }
