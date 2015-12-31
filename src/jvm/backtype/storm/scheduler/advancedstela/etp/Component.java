@@ -31,6 +31,10 @@ public class Component {
         return parallelism;
     }
 
+    public void setParallelism(Integer newParallelism) {
+        parallelism = newParallelism;
+    }
+
     public List<String> getParents() {
         return parents;
     }

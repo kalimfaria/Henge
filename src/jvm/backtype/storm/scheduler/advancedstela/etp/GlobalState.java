@@ -9,15 +9,19 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class GlobalState {
-    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
-
     private Map config;
     private NimbusClient nimbusClient;
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
+    private File parallelism_hints;
 
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
@@ -29,6 +33,7 @@ public class GlobalState {
         config = conf;
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
+        parallelism_hints = new File("/var/nimbus/storm/parallelism_hints.log");
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -158,6 +163,8 @@ public class GlobalState {
             if (!spout.getKey().matches("(__).*")) {
                 topologySchedule.addComponents(spout.getKey(), new Component(spout.getKey(),
                         spout.getValue().get_common().get_parallelism_hint()));
+                writeToFile(parallelism_hints, "\n Spout Component: " + spout.getKey() + " spout parallelism: " + spout.getValue().get_common().get_parallelism_hint());// + " \n");
+
             }
         }
 
@@ -165,6 +172,7 @@ public class GlobalState {
             if (!bolt.getKey().matches("(__).*")) {
                 topologySchedule.addComponents(bolt.getKey(), new Component(bolt.getKey(),
                         bolt.getValue().get_common().get_parallelism_hint()));
+                writeToFile(parallelism_hints, "\n Bolt Component: " + bolt.getKey() + " bolt parallelism: " + bolt.getValue().get_common().get_parallelism_hint());// + " \n");
             }
         }
     }
@@ -188,4 +196,19 @@ public class GlobalState {
             }
         }
     }
+
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
+            // LOG.info("wrote to slo file {}", data);
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
+        }
+    }
+
 }
