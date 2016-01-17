@@ -9,7 +9,7 @@ import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
-import backtype.storm.utils.NimbusClient;
+//import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +36,12 @@ public class AdvancedStelaScheduler implements IScheduler {
     private HashMap<String, ExecutorPair> targetToNodeMapping;
     private File rebalance_log;
     private File advanced_scheduling_log;
+    private File slo_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         rebalance_log = new File("/var/nimbus/storm/rebalance.log");
         advanced_scheduling_log = new File("/var/nimbus/storm/advanced_scheduling_log.log");
+        slo_log = new File("/var/nimbus/storm/slo.log");
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
@@ -100,12 +102,13 @@ public class AdvancedStelaScheduler implements IScheduler {
             //   globalStatistics.collect();
 
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-
-
+            runAdvancedStelaComponents(cluster, topologies);
         } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0) {
 
             //   globalState.collect(cluster, topologies);
             //   globalStatistics.collect();
+
+            runAdvancedStelaComponents(cluster, topologies);
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
@@ -131,7 +134,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
-        runAdvancedStelaComponents(cluster, topologies);
+
+
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
@@ -162,11 +166,11 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
 
-        NimbusClient nimbusClient;
+      //  NimbusClient nimbusClient;
 
         if (config != null) {
             try {
-                nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
+           //     nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
 
 
                 String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
@@ -196,6 +200,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     Runtime.getRuntime().exec(targetCommand);
                     Runtime.getRuntime().exec(victimCommand);
+                    writeToFile(slo_log, "Rebalance at time:  " + System.currentTimeMillis() + "\n");
 
                     targetToVictimMapping.put(target.getId(), victim.getId());
                     targetToNodeMapping.put(target.getId(), executorSummaries);
@@ -211,9 +216,9 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
                     writeToFile(advanced_scheduling_log, "\n targetComponent  :" + targetComponent + "\n");
-                    StormTopology topology = nimbusClient.getClient().getTopology(target.getId());
+                  //  StormTopology topology = nimbusClient.getClient().getTopology(target.getId());
 
-                    for (Map.Entry<String, SpoutSpec> spout : topology.get_spouts().entrySet()) {
+                 /*   for (Map.Entry<String, SpoutSpec> spout : topology.get_spouts().entrySet()) {
                         writeToFile(advanced_scheduling_log, "\nSpout key: :" + spout.getKey()+ "\n");
                         if (spout.getKey().equals(targetComponent)) {
                             writeToFile(advanced_scheduling_log, "\nThis should be printed only once for target.\n");
@@ -250,7 +255,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                             bolt.getValue().get_common().set_parallelism_hint(victimNewParallelism);
                             writeToFile(advanced_scheduling_log, "\n Victim component's parallelism after rebalance" + bolt.getValue().get_common().get_parallelism_hint() + "\n");
                         }
-                    }
+                    }*/
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -268,20 +273,26 @@ public class AdvancedStelaScheduler implements IScheduler {
         for (String target : targetToVictimMapping.keySet()) {
             int targetIndex = receivers.indexOf(target);
             if (targetIndex != -1) {
+                writeToFile(advanced_scheduling_log, "Receiver topology that is removed after one rebalance:  " + receivers.get(targetIndex) + "\n");
                 receivers.remove(targetIndex);
             }
 
             String victim = targetToVictimMapping.get(target);
             int victimIndex = givers.indexOf(victim);
             if (victimIndex != -1) {
+                writeToFile(advanced_scheduling_log, "Giver topology that is removed after one rebalance:  " + givers.get(victimIndex) + "\n");
                 givers.remove(victimIndex);
             }
+
+            writeToFile(advanced_scheduling_log, "Size of givers:  " + givers.size() + "\n");
+            writeToFile(advanced_scheduling_log, "Size of receivers:  " + receivers.size() + "\n");
+
         }
     }
 
     private void applyRebalancedScheduling(Cluster cluster, Topologies topologies, boolean targetNeedsToBeRebalanced, boolean victimNeedsToBeRebalanced) {
         for (Map.Entry<String, String> targetToVictim : targetToVictimMapping.entrySet()) {
-            TopologyDetails target = topologies.getById(targetToVictim.getKey());
+            final TopologyDetails target = topologies.getById(targetToVictim.getKey());
             TopologyDetails victim = topologies.getById(targetToVictim.getValue());
             ExecutorPair executorPair = targetToNodeMapping.get(targetToVictim.getKey());
 
@@ -297,8 +308,15 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
             if (targetID.length() < 1 && victimID.length() < 1) {
-                targetToVictimMapping.remove(target.getId());
-                targetToNodeMapping.remove(target.getId());
+                Timer timer = new Timer();
+                timer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        targetToVictimMapping.remove(target.getId());
+                        targetToNodeMapping.remove(target.getId());
+                    }
+                }, 3*60*1000); // two minutes
+
             }
         }
     }
@@ -461,19 +479,27 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 for (Integer removedTasks : previousVictimTasks) {
 
-                    for (ExecutorDetails oldExecutors : topologyEntry.getValue()) {
-                        if (removedTasks == oldExecutors.getStartTask()) {
-                            otherTaskofVictimExecutor.add(oldExecutors.getEndTask());
-                            ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
-                            executorsOfOldVictim.remove(oldExecutors);
-                            victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
-                        } else if (removedTasks == oldExecutors.getEndTask()) {
-                            otherTaskofVictimExecutor.add(oldExecutors.getStartTask());
-                            ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
-                            executorsOfOldVictim.remove(oldExecutors);
-                            victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
+                    ArrayList <ExecutorDetails> oldExecutors = topologyEntry.getValue();
+                    Iterator iterator =  oldExecutors.iterator();
+
+                    while (iterator.hasNext())  {// java.util.ConcurrentModificationException
+                        ExecutorDetails oldExecutor =  (ExecutorDetails)iterator.next();
+                        if (removedTasks ==  oldExecutor.getStartTask()) {
+                            otherTaskofVictimExecutor.add(oldExecutor.getEndTask());
+                           // ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
+                           // oldExecutorsTemp .remove(oldExecutor);
+                            iterator.remove();
+                         //   victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
+                        } else if (removedTasks == oldExecutor.getEndTask()) {
+                            otherTaskofVictimExecutor.add(oldExecutor.getStartTask());
+                           // ArrayList<ExecutorDetails> executorsOfOldVictim = topologyEntry.getValue();
+                         //   oldExecutorsTemp .remove(oldExecutor);
+                            iterator.remove();
+                          //  victimSchedule.put(topologyEntry.getKey(), executorsOfOldVictim);
                         }
+
                     }
+                    victimSchedule.put(topologyEntry.getKey(), oldExecutors);
                 }
             }
 
@@ -513,7 +539,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             bufferWriter.append(data);
             bufferWriter.close();
             fileWriter.close();
-            LOG.info("wrote to slo file {}", data);
+            LOG.info("wrote to file {}", data);
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }

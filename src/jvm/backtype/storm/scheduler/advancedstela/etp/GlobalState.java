@@ -22,6 +22,7 @@ public class GlobalState {
     private NimbusClient nimbusClient;
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
     private File parallelism_hints;
+    private File advanced_scheduling_log;
 
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
@@ -34,6 +35,7 @@ public class GlobalState {
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
         parallelism_hints = new File("/var/nimbus/storm/parallelism_hints.log");
+        advanced_scheduling_log = new File("/var/nimbus/storm/advanced_scheduling_log.log");
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -163,7 +165,7 @@ public class GlobalState {
             if (!spout.getKey().matches("(__).*")) {
                 topologySchedule.addComponents(spout.getKey(), new Component(spout.getKey(),
                         spout.getValue().get_common().get_parallelism_hint()));
-                writeToFile(parallelism_hints, "\n Spout Component: " + spout.getKey() + " spout parallelism: " + spout.getValue().get_common().get_parallelism_hint());// + " \n");
+                writeToFile(advanced_scheduling_log, "\n Spout Component: " + spout.getKey() + " spout parallelism: " + spout.getValue().get_common().get_parallelism_hint());// + " \n");
 
             }
         }
@@ -172,7 +174,8 @@ public class GlobalState {
             if (!bolt.getKey().matches("(__).*")) {
                 topologySchedule.addComponents(bolt.getKey(), new Component(bolt.getKey(),
                         bolt.getValue().get_common().get_parallelism_hint()));
-                writeToFile(parallelism_hints, "\n Bolt Component: " + bolt.getKey() + " bolt parallelism: " + bolt.getValue().get_common().get_parallelism_hint());// + " \n");
+                //    writeToFile(parallelism_hints, "\n Bolt Component: " + bolt.getKey() + " bolt parallelism: " + bolt.getValue().get_common().get_parallelism_hint());// + " \n");
+                writeToFile(advanced_scheduling_log, "\n Bolt Component: " + bolt.getKey() + " bolt parallelism: " + bolt.getValue().get_common().get_parallelism_hint());// + " \n");
             }
         }
     }
@@ -205,7 +208,7 @@ public class GlobalState {
             bufferWriter.append(data);
             bufferWriter.close();
             fileWriter.close();
-            // LOG.info("wrote to slo file {}", data);
+            LOG.info("wrote to slo file {}", data);
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }

@@ -12,29 +12,39 @@ import java.util.*;
 
 public class Topologies {
     private static final Integer UP_TIME = 60;
+    private static final Integer REBALANCING_INTERVAL = 180;
 
     private Map config;
     private NimbusClient nimbusClient;
     private HashMap<String, Topology> stelaTopologies;
     private HashMap<String, Long> topologiesUptime;
+    private HashMap<String, Long> lastRebalancedAt;
 
     public Topologies(Map conf) {
         config = conf;
         stelaTopologies = new HashMap<String, Topology>();
         topologiesUptime = new HashMap<String, Long>();
+        lastRebalancedAt = new HashMap<String, Long>();
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
         return stelaTopologies;
     }
 
-    public TopologyPairs getTopologyPairScaling() {
+    public TopologyPairs getTopologyPairScaling() { // when trying to add topologies to either of these
+
+        // when clearing topology SLO, mark the time
+        // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
 
         for (Topology topology : stelaTopologies.values()) {
-            if (topology.sloViolated()) {
+            long lastRebalancedAtTime = 0;
+            if ( lastRebalancedAt.containsKey(topology.getId()) )
+                lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
+            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)  ) {
                 failingTopologies.add(topology);
+                lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
             } else {
                 successfulTopologies.add(topology);
             }
