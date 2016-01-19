@@ -70,7 +70,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             writeToFile(advanced_scheduling_log, "After calling EvenScheduler: \n");
             writeToFile(advanced_scheduling_log, "Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
-           // topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+
             for (TopologyDetails topologyThatNeedsToBeScheduled : topologiesScheduled) {
                 writeToFile(advanced_scheduling_log, "Id of topology: " + topologyThatNeedsToBeScheduled.getId() + "\n");
             }
@@ -134,7 +134,6 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
-
         if (config != null) {
             try {
                 String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
