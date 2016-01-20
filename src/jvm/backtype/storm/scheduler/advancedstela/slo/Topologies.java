@@ -165,22 +165,50 @@ public class Topologies {
     }
 
     private void updateParallelismHintsForTopology(TopologyInfo topologyInfo, String topologyId, StormTopology stormTopology) {
+
+        HashMap<String, Integer> parallelism_hints = new HashMap<>();
+        List<ExecutorSummary> execSummary = topologyInfo.get_executors();
+        for (int i = 0; i < execSummary.size(); i++) {
+            if (parallelism_hints.containsKey(execSummary.get(i).get_component_id()))
+                parallelism_hints.put(execSummary.get(i).get_component_id(), parallelism_hints.get(execSummary.get(i).get_component_id()) + 1);
+            else
+                parallelism_hints.put(execSummary.get(i).get_component_id(), 1);
+        }
+
+
         Topology topology = stelaTopologies.get(topologyId);
         HashMap<String, Component> allComponents = topology.getAllComponents();
 
-        for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
-            if (allComponents.containsKey(spout.getKey())) {
-                allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
-                        get_parallelism_hint());
+        if (topologyInfo.get_executors().size() == 0) {
+
+            for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
+                if (allComponents.containsKey(spout.getKey())) {
+                    allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
+                            get_parallelism_hint());
+                }
+            }
+
+            for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+                if (allComponents.containsKey(bolt.getKey())) {
+                    allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
+                }
             }
         }
+        else {
+            for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
+                if (allComponents.containsKey(spout.getKey())) {
+                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey()));
+                      }
+            }
 
-        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
-            if (allComponents.containsKey(bolt.getKey())) {
-                allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
+            for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+                if (allComponents.containsKey(bolt.getKey())) {
+                    allComponents.get(bolt.getKey()).updateParallelism(parallelism_hints.get(bolt.getKey()));
+                }
             }
         }
     }
+
 
     public void remove(String topologyId) {
         stelaTopologies.remove(topologyId);
