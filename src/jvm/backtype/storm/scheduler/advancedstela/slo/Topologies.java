@@ -85,7 +85,8 @@ public class Topologies {
                         stelaTopologies.put(id, topology);
 
                     } else if (stelaTopologies.containsKey(id)){
-                        updateParallelismHintsForTopology(id, stormTopology);
+                        TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
+                        updateParallelismHintsForTopology(topologyInfo, id, stormTopology);
                     }
                 }
 
@@ -163,7 +164,7 @@ public class Topologies {
         }
     }
 
-    private void updateParallelismHintsForTopology(String topologyId, StormTopology stormTopology) {
+    private void updateParallelismHintsForTopology(TopologyInfo topologyInfo, String topologyId, StormTopology stormTopology) {
         Topology topology = stelaTopologies.get(topologyId);
         HashMap<String, Component> allComponents = topology.getAllComponents();
 
