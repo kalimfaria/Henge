@@ -214,6 +214,13 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     Runtime.getRuntime().exec(targetCommand);
                     Runtime.getRuntime().exec(victimCommand);
+
+                    ///
+
+                    sloObserver.updateLastRebalancedTime(target.getId(),System.currentTimeMillis() / 1000);
+                    sloObserver.updateLastRebalancedTime(victim.getId(),System.currentTimeMillis() / 1000);
+
+
                     writeToFile(slo_log, "Rebalance at time:  " + System.currentTimeMillis() + "\n");
 
                   //  targetToVictimMapping.put(target.getId(), victim.getId());

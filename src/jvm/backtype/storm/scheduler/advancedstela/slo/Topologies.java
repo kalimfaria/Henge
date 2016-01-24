@@ -44,8 +44,8 @@ public class Topologies {
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
             if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)  ) {
                 failingTopologies.add(topology);
-                lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
-            } else {
+               // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
+            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)) { // do the same for the
                 successfulTopologies.add(topology);
             }
         }
@@ -58,6 +58,11 @@ public class Topologies {
         topologyPair.setGivers(successfulTopologies);
 
         return topologyPair;
+    }
+
+    public void updateLastRebalancedTime(String topologyId, Long time)
+    {
+        lastRebalancedAt.put(topologyId, time);
     }
 
     public void constructTopologyGraphs() {

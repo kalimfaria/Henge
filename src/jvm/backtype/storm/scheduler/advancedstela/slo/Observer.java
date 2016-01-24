@@ -264,4 +264,9 @@ public class Observer {
             LOG.info("error! writing to file {}", ex);
         }
     }
+
+    public void updateLastRebalancedTime(String topologyId, Long time)
+    {
+        topologies.updateLastRebalancedTime(topologyId, time);
+    }
 }
