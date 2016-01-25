@@ -102,12 +102,17 @@ public class AdvancedStelaScheduler implements IScheduler {
             removeAlreadySelectedPairs(receivers, givers);
 
             if (receivers.size() > 0 && givers.size() > 0) {
-                TopologyDetails target = topologies.getById(receivers.get(0));
-                TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receivers.get(0));
-                TopologyDetails victim = topologies.getById(givers.get(givers.size() - 1));
-                TopologySchedule victimSchedule = globalState.getTopologySchedules().get(givers.get(givers.size() - 1));
+
+                ArrayList <String> topologyPair = new TopologyPicker().bestTargetWorstVictim(receivers, givers);
+                String receiver = topologyPair.get(0);
+                String giver = topologyPair.get(1);
+                TopologyDetails target = topologies.getById(receiver);
+                TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver);
+                TopologyDetails victim = topologies.getById(giver);
+                TopologySchedule victimSchedule = globalState.getTopologySchedules().get(giver);
                 ExecutorPair executorSummaries =
-                        selector.selectPair(globalState, globalStatistics, receivers.get(0), givers.get(givers.size() - 1));
+                        selector.selectPair(globalState, globalStatistics, receiver, giver);
+
                 if (executorSummaries.bothPopulated()) {
                     rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries);
                 } else {
