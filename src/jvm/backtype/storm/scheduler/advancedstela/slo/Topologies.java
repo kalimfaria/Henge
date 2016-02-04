@@ -12,30 +12,40 @@ import java.util.*;
 
 public class Topologies {
     private static final Integer UP_TIME = 60;
+    private static final Integer REBALANCING_INTERVAL = 180;
 
     private Map config;
     private NimbusClient nimbusClient;
     private HashMap<String, Topology> stelaTopologies;
     private HashMap<String, Long> topologiesUptime;
+    private HashMap<String, Long> lastRebalancedAt;
 
     public Topologies(Map conf) {
         config = conf;
         stelaTopologies = new HashMap<String, Topology>();
         topologiesUptime = new HashMap<String, Long>();
+        lastRebalancedAt = new HashMap<String, Long>();
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
         return stelaTopologies;
     }
 
-    public TopologyPairs getTopologyPairScaling() {
+    public TopologyPairs getTopologyPairScaling() { // when trying to add topologies to either of these
+
+        // when clearing topology SLO, mark the time
+        // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
 
         for (Topology topology : stelaTopologies.values()) {
-            if (topology.sloViolated()) {
+            long lastRebalancedAtTime = 0;
+            if ( lastRebalancedAt.containsKey(topology.getId()) )
+                lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
+            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)  ) {
                 failingTopologies.add(topology);
-            } else {
+               // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
+            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)) { // do the same for the
                 successfulTopologies.add(topology);
             }
         }
@@ -48,6 +58,11 @@ public class Topologies {
         topologyPair.setGivers(successfulTopologies);
 
         return topologyPair;
+    }
+
+    public void updateLastRebalancedTime(String topologyId, Long time)
+    {
+        lastRebalancedAt.put(topologyId, time);
     }
 
     public void constructTopologyGraphs() {
@@ -75,7 +90,8 @@ public class Topologies {
                         stelaTopologies.put(id, topology);
 
                     } else if (stelaTopologies.containsKey(id)){
-                        updateParallelismHintsForTopology(id, stormTopology);
+                        TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
+                        updateParallelismHintsForTopology(topologyInfo, id, stormTopology);
                     }
                 }
 
@@ -153,23 +169,51 @@ public class Topologies {
         }
     }
 
-    private void updateParallelismHintsForTopology(String topologyId, StormTopology stormTopology) {
+    private void updateParallelismHintsForTopology(TopologyInfo topologyInfo, String topologyId, StormTopology stormTopology) {
+
+        HashMap<String, Integer> parallelism_hints = new HashMap<>();
+        List<ExecutorSummary> execSummary = topologyInfo.get_executors();
+        for (int i = 0; i < execSummary.size(); i++) {
+            if (parallelism_hints.containsKey(execSummary.get(i).get_component_id()))
+                parallelism_hints.put(execSummary.get(i).get_component_id(), parallelism_hints.get(execSummary.get(i).get_component_id()) + 1);
+            else
+                parallelism_hints.put(execSummary.get(i).get_component_id(), 1);
+        }
+
+
         Topology topology = stelaTopologies.get(topologyId);
         HashMap<String, Component> allComponents = topology.getAllComponents();
 
-        for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
-            if (allComponents.containsKey(spout.getKey())) {
-                allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
-                        get_parallelism_hint());
+        if (topologyInfo.get_executors().size() == 0) {
+
+            for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
+                if (allComponents.containsKey(spout.getKey())) {
+                    allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
+                            get_parallelism_hint());
+                }
+            }
+
+            for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+                if (allComponents.containsKey(bolt.getKey())) {
+                    allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
+                }
             }
         }
+        else {
+            for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
+                if (allComponents.containsKey(spout.getKey())) {
+                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey()));
+                      }
+            }
 
-        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
-            if (allComponents.containsKey(bolt.getKey())) {
-                allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
+            for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+                if (allComponents.containsKey(bolt.getKey())) {
+                    allComponents.get(bolt.getKey()).updateParallelism(parallelism_hints.get(bolt.getKey()));
+                }
             }
         }
     }
+
 
     public void remove(String topologyId) {
         stelaTopologies.remove(topologyId);

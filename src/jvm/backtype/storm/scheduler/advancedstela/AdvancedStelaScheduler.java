@@ -7,7 +7,10 @@ import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class AdvancedStelaScheduler implements IScheduler {
@@ -15,22 +18,33 @@ public class AdvancedStelaScheduler implements IScheduler {
     private static final Integer OBSERVER_RUN_INTERVAL = 30;
 
     @SuppressWarnings("rawtypes")
+
     private Map config;
     private Observer sloObserver;
     private GlobalState globalState;
     private GlobalStatistics globalStatistics;
     private Selector selector;
-    private HashMap<String, String> targetToVictimMapping;
-    private HashMap<String, ExecutorPair> targetToNodeMapping;
+    //private HashMap<String, String> targetToVictimMapping;
+   // private String targetID, victimID;
+    private HashMap<String, ExecutorPair> targets, victims;//, targetToNodeMapping;
+    private File rebalance_log;
+    private File advanced_scheduling_log;
+    private File slo_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
+        rebalance_log = new File("/var/nimbus/storm/rebalance.log");
+        advanced_scheduling_log = new File("/var/nimbus/storm/advanced_scheduling_log.log");
+        slo_log = new File("/var/nimbus/storm/slo.log");
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
         globalStatistics = new GlobalStatistics(conf);
         selector = new Selector();
-        targetToVictimMapping = new HashMap<String, String>();
-        targetToNodeMapping = new HashMap<String, ExecutorPair>();
+        victims = new HashMap<String, ExecutorPair>();
+        targets = new HashMap<String, ExecutorPair>();
+        //targetToNodeMapping = new HashMap<String, ExecutorPair>();
+        //targetID = new String();
+        //victimID = new String();
 
 //  TODO: Code for running the observer as a separate thread.
 //        Integer observerRunDelay = (Integer) config.get(Config.STELA_SLO_OBSERVER_INTERVAL);
@@ -43,9 +57,43 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+        logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
+
+            writeToFile(advanced_scheduling_log, "Before calling EvenScheduler: \n");
+            writeToFile(advanced_scheduling_log, "Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
+            List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
+
+        //    writeToFile(advanced_scheduling_log, "targetID.length() : " + targetID.length() + "\n");
+        //    writeToFile(advanced_scheduling_log, "victimID.length(): " + victimID.length() + "\n");
+        //    writeToFile(advanced_scheduling_log, "targetID : " + targetID + "\n");
+        //    writeToFile(advanced_scheduling_log, "victimID: " + victimID + "\n");
+
+            writeToFile(advanced_scheduling_log, "After calling EvenScheduler: \n");
+            writeToFile(advanced_scheduling_log, "Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
+
+            for (TopologyDetails topologyThatNeedsToBeScheduled : topologiesScheduled) {
+                writeToFile(advanced_scheduling_log, "Id of topology: " + topologyThatNeedsToBeScheduled.getId() + "\n");
+            }
+
+          /*  if (targetToVictimMapping.size() > 0) {
+                applyRebalancedScheduling(cluster, topologies);
+            }
+*/
+            if (!targets.isEmpty()) {
+                decideAssignmentForTargets(topologies, cluster);
+            }
+
+            if (!victims.isEmpty()) {
+                decideAssignmentForVictims(topologies, cluster);
+
+            }
+
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0){
+            runAdvancedStelaComponents(cluster, topologies);
+        } else if (cluster.needsSchedulingTopologies(topologies).size() == 0 && topologies.getTopologies().size() > 0) {
+
+            runAdvancedStelaComponents(cluster, topologies);
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
@@ -58,10 +106,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receivers.get(0));
                 TopologyDetails victim = topologies.getById(givers.get(givers.size() - 1));
                 TopologySchedule victimSchedule = globalState.getTopologySchedules().get(givers.get(givers.size() - 1));
-
                 ExecutorPair executorSummaries =
                         selector.selectPair(globalState, globalStatistics, receivers.get(0), givers.get(givers.size() - 1));
-
                 if (executorSummaries.bothPopulated()) {
                     rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries);
                 } else {
@@ -71,8 +117,49 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.error("No topology is satisfying its SLO. New nodes need to be added to the cluster");
             }
         }
+    }
 
-        runAdvancedStelaComponents(cluster, topologies);
+    private void decideAssignmentForTargets(Topologies topologies, Cluster cluster) {
+        List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
+
+        System.out.println("*****Printing all the targets: ");
+
+
+        for (TopologyDetails topologyDetails: unscheduledTopologies) {
+            if (targets.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) {
+                findAssignmentForTarget(topologyDetails, cluster, topologyDetails.getId());
+                System.out.println("Targets: " + topologyDetails.getId());
+            }
+        }
+    }
+
+    private void decideAssignmentForVictims(Topologies topologies, Cluster cluster) {
+        List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
+
+        System.out.println("*****Printing all the victims: ");
+
+        for (TopologyDetails topologyDetails: unscheduledTopologies) {
+            if (victims.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) {
+                findAssignmentForVictim(topologyDetails, cluster, topologyDetails.getId());
+                System.out.println("Victims: " + topologyDetails.getId() );
+            }
+        }
+    }
+
+    private void findAssignmentForTarget(TopologyDetails target, Cluster cluster, String topologyId) {
+
+
+        ExecutorPair executorPair = targets.get(topologyId);
+        reassignTargetNewScheduling(target, cluster, executorPair);
+
+
+    }
+
+    private void findAssignmentForVictim(TopologyDetails victim, Cluster cluster, String topologyId) {
+        ExecutorPair executorPair = victims.get(topologyId);
+        reassignVictimNewScheduling(victim, cluster, executorPair);
+
+
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
@@ -82,56 +169,95 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
-        for (TopologyDetails topologyDetails: topologiesScheduled) {
+        writeToFile(advanced_scheduling_log, "In logUnassignedExecutors\n Outside the loop: \n");
+        for (TopologyDetails topologyDetails : topologiesScheduled) {
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
-            LOG.info("******** Topology Assignment {} *********", topologyDetails.getId());
-            LOG.info("Unassigned executors size: {}", unassignedExecutors.size());
+            writeToFile(advanced_scheduling_log, "In logUnassignedExecutors \n ******** Topology Assignment " + topologyDetails.getId() + " ********* \n ");
+            writeToFile(advanced_scheduling_log, "Unassigned executors size: " + unassignedExecutors.size() + "\n");
+            writeToFile(advanced_scheduling_log, "Unassigned executors size: " + unassignedExecutors.size() + "\n");
+            StringBuffer forOutputLog = new StringBuffer();
             if (unassignedExecutors.size() > 0) {
-                for (ExecutorDetails executorDetails: unassignedExecutors) {
-                    LOG.info(executorDetails.toString());
+                for (ExecutorDetails executorDetails : unassignedExecutors) {
+                    forOutputLog.append("executorDetails.toString(): " + executorDetails.toString() + "\n");
                 }
             }
+            writeToFile(advanced_scheduling_log, forOutputLog.toString() + " \n end of logUnassignedExecutors \n " + "\n");
         }
     }
 
     private void rebalanceTwoTopologies(TopologyDetails targetDetails, TopologySchedule target,
                                         TopologyDetails victimDetails, TopologySchedule victim, ExecutorPair executorSummaries) {
-        String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
-        String targetCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
-                "rebalance " + targetDetails.getName() + " -e " +
-                targetComponent + "=" + (target.getComponents().get(targetComponent).getParallelism() + 1);
+        if (config != null) {
+            try {
+                String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
+                Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
+                Integer targetNewParallelism = targetOldParallelism + 1;
+                String targetCommand = "/var/nimbus/storm/bin/storm " +
+                        "rebalance " + targetDetails.getName() + " -e " +
+                        targetComponent + "=" + targetNewParallelism;
+                target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
+                String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
+                Integer victimOldParallelism = victim.getComponents().get(victimComponent).getParallelism();
+                Integer victimNewParallelism = victimOldParallelism - 1;
+                String victimCommand = "/var/nimbus/storm/bin/storm " +
+                        "rebalance " + victimDetails.getName() + " -e " +
+                        victimComponent + "=" + victimNewParallelism;
+               // victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
 
-        String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
-        String victimCommand = "/Users/sharanyabathey/courses/mcs-fall2015/individual-study/multitenant-stela/runs/nimbus/apache-storm-0.10.1-SNAPSHOT/bin/storm " +
-                "rebalance " + victimDetails.getName() + " -e " +
-                victimComponent + "=" + (victim.getComponents().get(victimComponent).getParallelism() - 1);
+                try {
 
-        try {
+                    writeToFile(advanced_scheduling_log, "Triggering rebalance for target: " + targetDetails.getId() + ", victim: " + victimDetails.getId() + "\n");
+                    writeToFile(advanced_scheduling_log, targetCommand + "\n");
+                    writeToFile(advanced_scheduling_log, victimCommand + "\n");
+                    writeToFile(advanced_scheduling_log, "New parallelism hint for target: " + target.getComponents().get(targetComponent).getParallelism() + "\n");
+                    writeToFile(advanced_scheduling_log, "New parallelism hint for victim: " + victim.getComponents().get(victimComponent).getParallelism() + "\n");
 
-            LOG.info("Triggering rebalance for target: {}, victim: {}\n", targetDetails.getId(), victimDetails.getId());
-            LOG.info(targetCommand + "\n");
-            LOG.info(victimCommand + "\n");
+                    Runtime.getRuntime().exec(targetCommand);
+                    Runtime.getRuntime().exec(victimCommand);
 
-            Runtime.getRuntime().exec(targetCommand);
-            Runtime.getRuntime().exec(victimCommand);
+                    ///
 
-            targetToVictimMapping.put(target.getId(), victim.getId());
-            targetToNodeMapping.put(target.getId(), executorSummaries);
-            sloObserver.clearTopologySLOs(target.getId());
-            sloObserver.clearTopologySLOs(victim.getId());
-        } catch (Exception e) {
-            e.printStackTrace();
+                    sloObserver.updateLastRebalancedTime(target.getId(),System.currentTimeMillis() / 1000);
+                    sloObserver.updateLastRebalancedTime(victim.getId(),System.currentTimeMillis() / 1000);
+
+
+                    writeToFile(slo_log, "Rebalance at time:  " + System.currentTimeMillis() + "\n");
+
+                  //  targetToVictimMapping.put(target.getId(), victim.getId());
+                  //  targetToNodeMapping.put(target.getId(), executorSummaries);
+
+                    targets.put(target.getId(), executorSummaries);
+                    victims.put(victim.getId(), executorSummaries);
+                    sloObserver.clearTopologySLOs(target.getId());
+                    sloObserver.clearTopologySLOs(victim.getId());
+
+//                    targetID = target.getId();
+//                    victimID = victim.getId();
+
+                 //   writeToFile(advanced_scheduling_log, "Name of target topology: " + targetID + "\n");
+                 //   writeToFile(advanced_scheduling_log, "Name of victim topology: " + victimID + "\n");
+                    writeToFile(advanced_scheduling_log, "End of rebalanceTwoTopologies\n");
+                    writeToFile(advanced_scheduling_log, "\n targetComponent  :" + targetComponent + "\n");
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
         }
     }
 
     private void removeAlreadySelectedPairs(ArrayList<String> receivers, ArrayList<String> givers) {
-        for (String target: targetToVictimMapping.keySet()) {
+        for (String target : targets.keySet()) {
             int targetIndex = receivers.indexOf(target);
             if (targetIndex != -1) {
                 receivers.remove(targetIndex);
             }
+        }
 
-            String victim = targetToVictimMapping.get(target);
+        for (String victim : victims.keySet()) {
             int victimIndex = givers.indexOf(victim);
             if (victimIndex != -1) {
                 givers.remove(victimIndex);
@@ -139,94 +265,155 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void applyRebalancedScheduling(Cluster cluster, Topologies topologies) {
-        for (Map.Entry<String, String> targetToVictim: targetToVictimMapping.entrySet()) {
-            TopologyDetails target = topologies.getById(targetToVictim.getKey());
+ /*   private void applyRebalancedScheduling(Cluster cluster, Topologies topologies) {
+        for (Map.Entry<String, String> targetToVictim : targetToVictimMapping.entrySet()) {
+            final TopologyDetails target = topologies.getById(targetToVictim.getKey());
             TopologyDetails victim = topologies.getById(targetToVictim.getValue());
             ExecutorPair executorPair = targetToNodeMapping.get(targetToVictim.getKey());
-
-            reassignNewScheduling(target, victim, cluster, executorPair);
+            writeToFile(advanced_scheduling_log, "\n New schedule for the target is created: " + (cluster.getAssignmentById(target.getId()) != null) + "\n");
+            if (cluster.getAssignmentById(target.getId()) != null)
+                reassignTargetNewScheduling(target, cluster, executorPair);
+            writeToFile(advanced_scheduling_log, "\n New schedule for the victim is created: " + (cluster.getAssignmentById(victim.getId()) != null) + "\n");
+            if (cluster.getAssignmentById(victim.getId()) != null)
+                reassignVictimNewScheduling(victim, cluster, executorPair);
+            if (targetID.length() < 1 && victimID.length() < 1) {
+                targetToVictimMapping.remove(target.getId());
+                targetToNodeMapping.remove(target.getId());
+            }
         }
     }
+    */
 
-    private void reassignNewScheduling(TopologyDetails target, TopologyDetails victim, Cluster cluster,
-                                       ExecutorPair executorPair) {
 
+
+    private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
+                                             ExecutorPair executorPair) {
+
+        writeToFile(advanced_scheduling_log, "Only the target topology needs to be rescheduled. That's more normal :D ");
         ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
-        ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
 
         WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
-        WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
 
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
         Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
 
-        LOG.info("\n************** Target Topology **************");
+        writeToFile(advanced_scheduling_log, "\n************** Target Topology **************" + "\n");
 
-        LOG.info("\n****** Previous Executors ******");
-        for (ExecutorDetails executorDetails: previousTargetExecutors) {
-            LOG.info(executorDetails.toString());
-        }
-
+        ArrayList<Integer> previousTargetTasks = new ArrayList<Integer>();
+        ArrayList<Integer> currentTargetTasks = new ArrayList<Integer>();
         SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
+
         if (currentTargetAssignment != null) {
             Set<ExecutorDetails> currentTargetExecutors = currentTargetAssignment.getExecutorToSlot().keySet();
-            currentTargetExecutors.removeAll(previousTargetExecutors);
 
-            LOG.info("\n****** Current Executors ******");
-            for (ExecutorDetails executorDetails: currentTargetExecutors) {
-                LOG.info(executorDetails.toString());
+            writeToFile(advanced_scheduling_log, "\n****** Current Executors ******\n");
+            for (ExecutorDetails executorDetails : currentTargetExecutors) {
+                currentTargetTasks.add(executorDetails.getStartTask());
+                currentTargetTasks.add(executorDetails.getEndTask());
             }
 
-            LOG.info("\n********************** Found new executor *********************");
-            for (ExecutorDetails newExecutor: currentTargetExecutors) {
-                LOG.info(newExecutor.toString());
+            currentTargetExecutors.removeAll(previousTargetExecutors);
+            currentTargetTasks.removeAll(previousTargetTasks);
+
+            for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
+                if (topologyEntry.getKey().equals(targetSlot)) {
+                    ArrayList<ExecutorDetails> executorsOfOldTarget = topologyEntry.getValue();
+                    executorsOfOldTarget.addAll(currentTargetExecutors);
+                    targetSchedule.put(targetSlot, executorsOfOldTarget);
+                }
             }
         }
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
+            if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
+                cluster.freeSlot(topologyEntry.getKey());
+            }
+            cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
+        }
 
-        LOG.info("\n************** Victim Topology **************");
+        targets.remove(target.getId());
+      //  targetID = new String();
+    }
 
+
+    private void reassignVictimNewScheduling(TopologyDetails victim, Cluster cluster,
+                                             ExecutorPair executorPair) {
+
+        writeToFile(advanced_scheduling_log, "Only the victim topology needs to be rescheduled. Woot, we made it to stage II");
+
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
+        ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
+        WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
+        writeToFile(advanced_scheduling_log, "\n************** Victim Topology **************\n");
         Set<ExecutorDetails> previousVictimExecutors = globalState.getTopologySchedules().get(victim.getId()).getExecutorToComponent().keySet();
         SchedulerAssignment currentVictimAssignment = cluster.getAssignmentById(victim.getId());
-
-        LOG.info("\n****** Previous Executors ******");
-        for (ExecutorDetails executorDetails: previousVictimExecutors) {
-            LOG.info(executorDetails.toString());
+        ArrayList<Integer> previousVictimTasks = new ArrayList<Integer>();
+        ArrayList<Integer> otherTaskofVictimExecutor = new ArrayList<Integer>();
+        for (ExecutorDetails executorDetails : previousVictimExecutors) {
+            previousVictimTasks.add(executorDetails.getStartTask());
+            previousVictimTasks.add(executorDetails.getEndTask());
         }
 
         if (currentVictimAssignment != null) {
             Set<ExecutorDetails> currentVictimExecutors = currentVictimAssignment.getExecutorToSlot().keySet();
-            previousVictimExecutors.removeAll(currentVictimExecutors);
-
-            LOG.info("\n****** Current Executors ******");
-            for (ExecutorDetails executorDetails: currentVictimExecutors) {
-                LOG.info(executorDetails.toString());
+            ArrayList<Integer> currentVictimTasks = new ArrayList<Integer>();
+            for (ExecutorDetails executorDetails : currentVictimExecutors) {
+                currentVictimTasks.add(executorDetails.getStartTask());
+                currentVictimTasks.add(executorDetails.getEndTask());
             }
 
-            for (ExecutorDetails newExecutor: previousVictimExecutors) {
-                LOG.info("********************** Removed executor *********************");
-                LOG.info(newExecutor.toString());
+            previousVictimExecutors.removeAll(currentVictimExecutors);
+            previousVictimTasks.removeAll(currentVictimTasks);
+
+            for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
+
+                for (Integer removedTasks : previousVictimTasks) {
+
+                    ArrayList<ExecutorDetails> oldExecutors = topologyEntry.getValue();
+                    Iterator iterator = oldExecutors.iterator();
+
+                    while (iterator.hasNext()) {
+                        ExecutorDetails oldExecutor = (ExecutorDetails) iterator.next();
+                        if (removedTasks == oldExecutor.getStartTask()) {
+                            otherTaskofVictimExecutor.add(oldExecutor.getEndTask());
+                            iterator.remove();
+                        } else if (removedTasks == oldExecutor.getEndTask()) {
+                            otherTaskofVictimExecutor.add(oldExecutor.getStartTask());
+                            iterator.remove();
+                        }
+                    }
+                    victimSchedule.put(topologyEntry.getKey(), oldExecutors);
+                }
+            }
+
+            for (Map.Entry<ExecutorDetails, WorkerSlot> topologyEntry : currentVictimAssignment.getExecutorToSlot().entrySet()) {
+                for (Integer taskToAddBack : otherTaskofVictimExecutor) {
+                    if (taskToAddBack == topologyEntry.getKey().getStartTask() || taskToAddBack == topologyEntry.getKey().getEndTask()) {
+                        victimSchedule.get(victimSlot).add(topologyEntry.getKey());
+                    }
+                }
             }
         }
 
-//        Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(target);
-//        cluster.freeSlot(targetSlot);
-//        targetExecutorDetails.addAll(unassignedExecutors);
-//        cluster.assign(targetSlot, target.getId(), targetExecutorDetails);
-
-//
-//        targetToVictimMapping.remove(target.getId());
-//        targetToNodeMapping.remove(target.getId());
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
+            if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
+                cluster.freeSlot(topologyEntry.getKey());
+            }
+            cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
+        }
+       // victimID = new String();
+        victims.remove((victim.getId()));
     }
 
-    private List<ExecutorDetails> difference(Collection<ExecutorDetails> execs1,
-                                             Collection<ExecutorDetails> execs2) {
-        List<ExecutorDetails> result = new ArrayList<ExecutorDetails>();
-        for (ExecutorDetails exec : execs1) {
-            if(!execs2.contains(exec)) {
-                result.add(exec);
-            }
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
+            LOG.info("wrote to file {}", data);
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
         }
-        return result;
-
     }
 }
