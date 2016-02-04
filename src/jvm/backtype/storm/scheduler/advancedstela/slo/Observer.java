@@ -32,7 +32,7 @@ public class Observer {
     public Observer(Map conf) {
         config = conf;
         topologies = new Topologies(config);
-        juice_log = new File("/var/nimbus/storm/juice.log");
+        juice_log = new File("/var/nimbus/storm/output.log");
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -152,6 +152,8 @@ public class Observer {
     }
 
     private void calculateJuicePerSource(HashMap<String, Topology> allTopologies) {
+      //  System.out.println("Printing out Juice stuff per topology");
+
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
             HashMap<String, Component> spouts = topology.getSpouts();
@@ -160,10 +162,17 @@ public class Observer {
             for (Component spout : spouts.values()) {
                 HashSet<String> children = spout.getChildren();
                 for (String child : children) {
+
+//                    System.out.println("child: "+ child);
+
                     Component component = topology.getAllComponents().get(child);
 
                     Integer currentTransferred = spout.getCurrentTransferred();
                     Integer executed = component.getCurrentExecuted().get(spout.getId());
+//
+  //                  System.out.println("currentTransferred : "+ currentTransferred);
+           //         System.out.println("spout : "+ spout.getId());
+    //                System.out.println("executed : " + executed);
 
                     if (executed == null || currentTransferred == null) {
                         continue;
@@ -175,11 +184,13 @@ public class Observer {
                     } else {
                         value = ((double) executed) / (double) currentTransferred;
                     }
-
+               //     System.out.println("value : " + value);
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
                 }
+
             }
+//            System.out.println("End of spouts ");
 
             while (!parents.isEmpty()) {
                 HashMap<String, Component> children = new HashMap<String, Component>();
@@ -188,9 +199,15 @@ public class Observer {
 
                     for (String child : boltChildren) {
                         Component stelaComponent = topology.getAllComponents().get(child);
+//                        System.out.println("child: "+ child);
 
                         Integer currentTransferred = bolt.getCurrentTransferred();
                         Integer executed = stelaComponent.getCurrentExecuted().get(bolt.getId());
+
+  //                      System.out.println("currentTransferred : "+ currentTransferred);
+   //                     System.out.println("spout : "+ bolt.getId());
+   //                     System.out.println("executed : " + executed);
+
 
                         if (executed == null || currentTransferred == null) {
                             continue;
@@ -202,10 +219,15 @@ public class Observer {
                         } else {
                             value = ((double) executed) / (double) currentTransferred;
                         }
-
+                        //System.out.println("value : " + value);
                         for (String source : bolt.getSpoutTransfer().keySet()) {
                             stelaComponent.addSpoutTransfer(source,
                                     value * bolt.getSpoutTransfer().get(source));
+
+                  //          System.out.println("stelaComponent.getSpoutTransfer(source) : " + stelaComponent.getSpoutTransfer().get(source));
+
+                    //        System.out.println("source : " + source);
+
                         }
                         children.put(stelaComponent.getId(), stelaComponent);
                     }
@@ -214,6 +236,9 @@ public class Observer {
                 parents = children;
             }
         }
+      //  System.out.println("End of bolts ");
+      //  System.out.println("\n\n\n\n\n");
+
     }
 
     private void logFinalSourceJuicesPer(HashMap<String, Topology> allTopologies) {
@@ -238,11 +263,12 @@ public class Observer {
             LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
                     topology.getMeasuredSLO());
             LOG.info("**************************************************************************************************");
-            System.out.println("**************************************************************************************************");
-            System.out.println("Measured SLO for topology " + topologyId + " for this run is " + calculatedSLO + " and average slo is " +
-                    topology.getMeasuredSLO());
-            System.out.println("**************************************************************************************************");
+            //System.out.println("**************************************************************************************************");
+            //System.out.println("Measured SLO for topology " + topologyId + " for this run is " + calculatedSLO + " and average slo is " +
+            //        topology.getMeasuredSLO());
+            //System.out.println("**************************************************************************************************");
 
+          //  writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
             writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
         }
 

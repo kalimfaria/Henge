@@ -27,14 +27,15 @@ public class AdvancedStelaScheduler implements IScheduler {
     //private HashMap<String, String> targetToVictimMapping;
    // private String targetID, victimID;
     private HashMap<String, ExecutorPair> targets, victims;//, targetToNodeMapping;
-    private File rebalance_log;
+    private File juice_log;
     private File advanced_scheduling_log;
     private File slo_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
-        rebalance_log = new File("/var/nimbus/storm/rebalance.log");
+        juice_log = new File("/var/nimbus/storm/output.log");
         advanced_scheduling_log = new File("/var/nimbus/storm/advanced_scheduling_log.log");
         slo_log = new File("/var/nimbus/storm/slo.log");
+
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
@@ -127,13 +128,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void decideAssignmentForTargets(Topologies topologies, Cluster cluster) {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
 
-        System.out.println("*****Printing all the targets: ");
+       // System.out.println("*****Printing all the targets: ");
 
 
         for (TopologyDetails topologyDetails: unscheduledTopologies) {
             if (targets.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) {
                 findAssignmentForTarget(topologyDetails, cluster, topologyDetails.getId());
-                System.out.println("Targets: " + topologyDetails.getId());
+                //System.out.println("Targets: " + topologyDetails.getId());
             }
         }
     }
@@ -141,12 +142,12 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void decideAssignmentForVictims(Topologies topologies, Cluster cluster) {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
 
-        System.out.println("*****Printing all the victims: ");
+      //  System.out.println("*****Printing all the victims: ");
 
         for (TopologyDetails topologyDetails: unscheduledTopologies) {
             if (victims.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) {
                 findAssignmentForVictim(topologyDetails, cluster, topologyDetails.getId());
-                System.out.println("Victims: " + topologyDetails.getId() );
+               // System.out.println("Victims: " + topologyDetails.getId() );
             }
         }
     }
@@ -212,8 +213,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 try {
 
                     writeToFile(advanced_scheduling_log, "Triggering rebalance for target: " + targetDetails.getId() + ", victim: " + victimDetails.getId() + "\n");
-                    writeToFile(advanced_scheduling_log, targetCommand + "\n");
-                    writeToFile(advanced_scheduling_log, victimCommand + "\n");
+                    writeToFile(juice_log, targetCommand + "\n");
+                    writeToFile(juice_log, victimCommand + "\n");
                     writeToFile(advanced_scheduling_log, "New parallelism hint for target: " + target.getComponents().get(targetComponent).getParallelism() + "\n");
                     writeToFile(advanced_scheduling_log, "New parallelism hint for victim: " + victim.getComponents().get(victimComponent).getParallelism() + "\n");
 
