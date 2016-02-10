@@ -32,9 +32,9 @@ public class AdvancedStelaScheduler implements IScheduler {
     private File slo_log;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
-        juice_log = new File("/var/nimbus/storm/output.log");
-        advanced_scheduling_log = new File("/var/nimbus/storm/advanced_scheduling_log.log");
-        slo_log = new File("/var/nimbus/storm/slo.log");
+        juice_log = new File("/tmp/output.log");
+        advanced_scheduling_log = new File("/tmp/advanced_scheduling_log.log");
+        slo_log = new File("/tmp/slo.log");
 
         config = conf;
         sloObserver = new Observer(conf);
