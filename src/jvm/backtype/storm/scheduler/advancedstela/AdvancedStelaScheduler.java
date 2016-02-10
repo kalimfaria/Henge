@@ -214,6 +214,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     writeToFile(advanced_scheduling_log, "Triggering rebalance for target: " + targetDetails.getId() + ", victim: " + victimDetails.getId() + "\n");
                     writeToFile(juice_log, targetCommand + "\n");
+                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
                     writeToFile(juice_log, victimCommand + "\n");
                     writeToFile(advanced_scheduling_log, "New parallelism hint for target: " + target.getComponents().get(targetComponent).getParallelism() + "\n");
                     writeToFile(advanced_scheduling_log, "New parallelism hint for victim: " + victim.getComponents().get(victimComponent).getParallelism() + "\n");
