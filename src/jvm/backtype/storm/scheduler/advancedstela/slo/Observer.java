@@ -32,7 +32,7 @@ public class Observer {
     public Observer(Map conf) {
         config = conf;
         topologies = new Topologies(config);
-        juice_log = new File("/var/nimbus/storm/output.log");
+        juice_log = new File("/tmp/output.log");
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -40,8 +40,8 @@ public class Observer {
     }
 
     public void run() {
-        LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
-
+       // LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
+        writeToFile(juice_log, "Running observer at: " + System.currentTimeMillis() + "\n");
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
@@ -152,7 +152,6 @@ public class Observer {
     }
 
     private void calculateJuicePerSource(HashMap<String, Topology> allTopologies) {
-      //  System.out.println("Printing out Juice stuff per topology");
 
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
@@ -163,16 +162,11 @@ public class Observer {
                 HashSet<String> children = spout.getChildren();
                 for (String child : children) {
 
-//                    System.out.println("child: "+ child);
 
                     Component component = topology.getAllComponents().get(child);
 
                     Integer currentTransferred = spout.getCurrentTransferred();
                     Integer executed = component.getCurrentExecuted().get(spout.getId());
-//
-  //                  System.out.println("currentTransferred : "+ currentTransferred);
-           //         System.out.println("spout : "+ spout.getId());
-    //                System.out.println("executed : " + executed);
 
                     if (executed == null || currentTransferred == null) {
                         continue;
@@ -184,13 +178,13 @@ public class Observer {
                     } else {
                         value = ((double) executed) / (double) currentTransferred;
                     }
-               //     System.out.println("value : " + value);
+                    writeToFile(juice_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
                 }
 
             }
-//            System.out.println("End of spouts ");
 
             while (!parents.isEmpty()) {
                 HashMap<String, Component> children = new HashMap<String, Component>();
@@ -199,14 +193,9 @@ public class Observer {
 
                     for (String child : boltChildren) {
                         Component stelaComponent = topology.getAllComponents().get(child);
-//                        System.out.println("child: "+ child);
 
-                        Integer currentTransferred = bolt.getCurrentTransferred();
+                     Integer currentTransferred = bolt.getCurrentTransferred();
                         Integer executed = stelaComponent.getCurrentExecuted().get(bolt.getId());
-
-  //                      System.out.println("currentTransferred : "+ currentTransferred);
-   //                     System.out.println("spout : "+ bolt.getId());
-   //                     System.out.println("executed : " + executed);
 
 
                         if (executed == null || currentTransferred == null) {
@@ -219,14 +208,13 @@ public class Observer {
                         } else {
                             value = ((double) executed) / (double) currentTransferred;
                         }
-                        //System.out.println("value : " + value);
+
+
                         for (String source : bolt.getSpoutTransfer().keySet()) {
                             stelaComponent.addSpoutTransfer(source,
                                     value * bolt.getSpoutTransfer().get(source));
 
-                  //          System.out.println("stelaComponent.getSpoutTransfer(source) : " + stelaComponent.getSpoutTransfer().get(source));
-
-                    //        System.out.println("source : " + source);
+                            writeToFile(juice_log, topologyId + "," +  bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                         }
                         children.put(stelaComponent.getId(), stelaComponent);

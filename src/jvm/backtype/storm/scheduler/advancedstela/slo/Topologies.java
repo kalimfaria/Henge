@@ -11,7 +11,7 @@ import org.json.simple.parser.ParseException;
 import java.util.*;
 
 public class Topologies {
-    private static final Integer UP_TIME = 60;
+    private static final Integer UP_TIME = 5*60;
     private static final Integer REBALANCING_INTERVAL = 180;
 
     private Map config;
@@ -42,10 +42,10 @@ public class Topologies {
             long lastRebalancedAtTime = 0;
             if ( lastRebalancedAt.containsKey(topology.getId()) )
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
-            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)  ) {
+            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL)  ) {
                 failingTopologies.add(topology);
                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
-            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + 180)) { // do the same for the
+            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL)) { // do the same for the
                 successfulTopologies.add(topology);
             }
         }
