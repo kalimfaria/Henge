@@ -42,10 +42,10 @@ public class Topologies {
             long lastRebalancedAtTime = 0;
             if ( lastRebalancedAt.containsKey(topology.getId()) )
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
-            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL)  ) {
+            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) {
                 failingTopologies.add(topology);
                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
-            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL)) { // do the same for the
+            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) { // do the same for the
                 successfulTopologies.add(topology);
             }
         }
@@ -80,7 +80,7 @@ public class Topologies {
                         topologiesUptime.put(id, System.currentTimeMillis());
                     }
 
-                    if (!stelaTopologies.containsKey(id) && upForMoreThan(id)) {
+                    if (!stelaTopologies.containsKey(id) /*&& upForMoreThan(id)*/) {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
 
                         Topology topology = new Topology(id, userSpecifiedSlo);

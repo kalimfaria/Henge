@@ -1,5 +1,9 @@
 package backtype.storm.scheduler.advancedstela.slo;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -24,6 +28,7 @@ public class Component {
         totalExecuted = new HashMap<String, Integer>();
         currentExecuted = new HashMap<String, Integer>();
         spoutTransfer = new HashMap<String, Double>();
+
     }
 
     public HashSet<String> getParents() {
@@ -87,10 +92,12 @@ public class Component {
 
     public void addCurrentExecuted(String key, Integer value) {
         if (totalExecuted.get(key) == null) {
+
             currentExecuted.put(key, value);
         } else {
             if (value < totalExecuted.get(key)) {
                 currentExecuted.put(key, value);
+
             } else {
                 currentExecuted.put(key, value - totalExecuted.get(key));
             }
@@ -153,4 +160,5 @@ public class Component {
                 ", sloValue=" + printSLOValue() +
                 '}';
     }
+
 }

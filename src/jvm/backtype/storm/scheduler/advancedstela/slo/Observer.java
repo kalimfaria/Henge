@@ -27,12 +27,13 @@ public class Observer {
     private Map config;
     private Topologies topologies;
     private NimbusClient nimbusClient;
-    private File juice_log;
+    private File juice_log, outlier_log;
 
     public Observer(Map conf) {
         config = conf;
         topologies = new Topologies(config);
         juice_log = new File("/tmp/output.log");
+        outlier_log = new File("/tmp/outlier.log");
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -129,6 +130,8 @@ public class Observer {
                         temporaryExecuted.get(componentId).put(streamId.get_componentId(),
                                 temporaryExecuted.get(componentId).get(streamId.get_componentId()) +
                                         executedStatValues.get(streamId).intValue());
+
+                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "\n");
                     }
                 }
             }
@@ -178,7 +181,7 @@ public class Observer {
                     } else {
                         value = ((double) executed) / (double) currentTransferred;
                     }
-                    writeToFile(juice_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+                    writeToFile(outlier_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
@@ -214,7 +217,7 @@ public class Observer {
                             stelaComponent.addSpoutTransfer(source,
                                     value * bolt.getSpoutTransfer().get(source));
 
-                            writeToFile(juice_log, topologyId + "," +  bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+                            writeToFile(outlier_log, topologyId + "," +  bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                         }
                         children.put(stelaComponent.getId(), stelaComponent);
@@ -248,9 +251,9 @@ public class Observer {
 
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
-            LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
-                    topology.getMeasuredSLO());
-            LOG.info("**************************************************************************************************");
+            //LOG.info("Measured SLO for topology {} for this run is {} and average slo is {}.", topologyId, calculatedSLO,
+              //      topology.getMeasuredSLO());
+            //LOG.info("**************************************************************************************************");
             //System.out.println("**************************************************************************************************");
             //System.out.println("Measured SLO for topology " + topologyId + " for this run is " + calculatedSLO + " and average slo is " +
             //        topology.getMeasuredSLO());
@@ -258,6 +261,7 @@ public class Observer {
 
           //  writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
             writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
+            writeToFile(outlier_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
         }
 
     }
@@ -273,9 +277,10 @@ public class Observer {
             bufferWritter.append(data);
             bufferWritter.close();
             fileWritter.close();
-            LOG.info("wrote to slo file {}",  data);
+            //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
-            LOG.info("error! writing to file {}", ex);
+           // LOG.info("error! writing to file {}", ex);
+          System.out.println(ex.toString());
         }
     }
 
