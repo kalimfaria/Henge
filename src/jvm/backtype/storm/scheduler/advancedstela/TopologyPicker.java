@@ -2,13 +2,12 @@ package backtype.storm.scheduler.advancedstela;
 
 import java.util.ArrayList;
 
-/**
- * Created by fariakalim on 1/25/16.
- */
+
+
 public class TopologyPicker {
 
-    public ArrayList<String> bestTargetWorstVictim (ArrayList <String> receivers, ArrayList <String> givers)
-// first index should be receiver. // second index should be giver
+    public ArrayList<String> bestTargetWorstVictim (ArrayList<String> receivers, ArrayList<String>  givers)
+
     {
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(0));
@@ -16,7 +15,7 @@ public class TopologyPicker {
         return topologyPair;
     }
 
-    public ArrayList<String> bestTargetBestVictim (ArrayList <String> receivers, ArrayList <String> givers)
+    public ArrayList<String> bestTargetBestVictim (ArrayList<String>  receivers, ArrayList<String>  givers)
 
     {
         ArrayList<String> topologyPair = new ArrayList<>();
@@ -25,7 +24,7 @@ public class TopologyPicker {
         return topologyPair;
     }
 
-    public ArrayList<String> worstTargetBestVictim (ArrayList <String> receivers, ArrayList <String> givers)
+    public ArrayList<String> worstTargetBestVictim (ArrayList<String>  receivers, ArrayList<String>  givers)
 
     {
         ArrayList<String> topologyPair = new ArrayList<>();
@@ -35,7 +34,7 @@ public class TopologyPicker {
 
     }
 
-    public ArrayList<String> worstTargetWorstVictim (ArrayList <String> receivers, ArrayList <String> givers)
+    public ArrayList<String> worstTargetWorstVictim (ArrayList<String>  receivers, ArrayList<String>  givers)
 
     {
         ArrayList<String> topologyPair = new ArrayList<>();

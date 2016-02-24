@@ -8,6 +8,10 @@ import org.apache.thrift.transport.TTransportException;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class Topologies {
@@ -19,12 +23,14 @@ public class Topologies {
     private HashMap<String, Topology> stelaTopologies;
     private HashMap<String, Long> topologiesUptime;
     private HashMap<String, Long> lastRebalancedAt;
+    private File flatline_log;
 
     public Topologies(Map conf) {
         config = conf;
         stelaTopologies = new HashMap<String, Topology>();
         topologiesUptime = new HashMap<String, Long>();
         lastRebalancedAt = new HashMap<String, Long>();
+        flatline_log = new File("/tmp/flat_line.log");
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
@@ -36,6 +42,8 @@ public class Topologies {
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
+        // ADDED BY FARIA
+
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
 
         for (Topology topology : stelaTopologies.values()) {
@@ -50,8 +58,8 @@ public class Topologies {
             }
         }
 
-        Collections.sort(failingTopologies);
-        Collections.sort(successfulTopologies);
+        //Collections.sort(failingTopologies);
+        //Collections.sort(successfulTopologies);
 
         TopologyPairs topologyPair = new TopologyPairs();
         topologyPair.setReceivers(failingTopologies);
@@ -71,8 +79,15 @@ public class Topologies {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
 
                 List<TopologySummary> topologies = nimbusClient.getClient().getClusterInfo().get_topologies();
-
+                StringBuffer log = new StringBuffer();
+                log.append("TOPOLOGY INFO \n");
                 for (TopologySummary topologySummary : topologies) {
+
+                log.append(topologySummary.get_id() + "\n");
+                log.append("Topology Uptime: " +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
+                log.append("Topology Status: "  +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
+                log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
+
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
 
@@ -94,6 +109,9 @@ public class Topologies {
                         updateParallelismHintsForTopology(topologyInfo, id, stormTopology);
                     }
                 }
+
+                log.append("********* END CLUSTER INFO **********\n");
+                writeToFile(flatline_log, log.toString());
 
             } catch (NotAliveException e) {
                 e.printStackTrace();
@@ -217,5 +235,19 @@ public class Topologies {
 
     public void remove(String topologyId) {
         stelaTopologies.remove(topologyId);
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+            //LOG.info("wrote to slo file {}",  data);
+        } catch (IOException ex) {
+            // LOG.info("error! writing to file {}", ex);
+            System.out.println(ex.toString());
+        }
     }
 }
