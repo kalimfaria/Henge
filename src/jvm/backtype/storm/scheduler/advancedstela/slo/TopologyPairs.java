@@ -32,6 +32,7 @@ public class TopologyPairs {
 
 
         List list = new LinkedList(givers_temp.entrySet());
+
         Collections.sort(list, new Comparator() {
             public int compare(Object o1, Object o2) {
 
@@ -43,12 +44,12 @@ public class TopologyPairs {
 
         StringBuffer log = new StringBuffer();
         log.append("The sorted order of givers: \n");
-        for (HashMap.Entry giver : givers_temp.entrySet())
+        for (int i = 0; i < list.size(); i++)
         {
-            givers.add((String)giver.getKey());
-            log.append(giver.getKey() + " " + giver.getValue() + "\n");
-
+            givers.add((String) ((HashMap.Entry)list.get(i)).getKey());
+            log.append((String) ((HashMap.Entry)list.get(i)).getKey() + " " + (Double) ((HashMap.Entry)list.get(i)).getValue()+ "\n");
         }
+
         log.append("***");
         writeToFile(flatline_log,log.toString());
     }
@@ -72,8 +73,20 @@ public class TopologyPairs {
             }
         });
 
+
         StringBuffer log = new StringBuffer();
         log.append("The sorted order of receivers: \n");
+        for (int i = 0; i < list.size(); i++)
+        {
+            givers.add((String) ((HashMap.Entry)list.get(i)).getKey());
+            log.append((String) ((HashMap.Entry)list.get(i)).getKey() + " " + (Double) ((HashMap.Entry)list.get(i)).getValue() + "\n");
+        }
+
+        log.append("***");
+        writeToFile(flatline_log, log.toString());
+
+
+
         for (HashMap.Entry receiver : receivers_temp.entrySet())
         {
             receivers.add((String)receiver.getKey());
