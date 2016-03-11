@@ -11,7 +11,8 @@ public class TopologyPicker {
     {
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(0));
-        topologyPair.add(givers.get(givers.size() - 1));
+        //topologyPair.add(givers.get(givers.size() - 1));
+        topologyPair.add(givers.get(0));
         return topologyPair;
     }
 
@@ -20,7 +21,8 @@ public class TopologyPicker {
     {
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(0));
-        topologyPair.add(givers.get(0));
+        //topologyPair.add(givers.get(0));
+        topologyPair.add(givers.get(givers.size() - 1));
         return topologyPair;
     }
 
@@ -29,7 +31,8 @@ public class TopologyPicker {
     {
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(receivers.size() - 1));
-        topologyPair.add(givers.get(0));
+        //topologyPair.add(givers.get(0));
+        topologyPair.add(givers.get(givers.size() - 1));
         return topologyPair;
 
     }
@@ -39,7 +42,7 @@ public class TopologyPicker {
     {
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(receivers.size() - 1));
-        topologyPair.add(givers.get(givers.size() - 1));
+        topologyPair.add(givers.get(0));
         return topologyPair;
 
     }

@@ -15,8 +15,8 @@ import java.io.IOException;
 import java.util.*;
 
 public class Topologies {
-    private static final Integer UP_TIME = 5*60;
-    private static final Integer REBALANCING_INTERVAL = 180;
+    private static final Integer UP_TIME = 10*60;
+    private static final Integer REBALANCING_INTERVAL = 60*5;
 
     private Map config;
     private NimbusClient nimbusClient;
@@ -87,6 +87,7 @@ public class Topologies {
                 log.append("Topology Uptime: " +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
                 log.append("Topology Status: "  +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
                 log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
+                log.append("Topology Num Workers: " +  topologySummary.get_num_workers() + "\n");
 
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);

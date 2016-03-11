@@ -68,6 +68,8 @@ public class Observer {
                             + "SUPERVISOR GET UPTIME SECS" + ss.get_uptime_secs() + "\n");
                 }
 
+
+
                 collectStatistics(allTopologies);
                 calculateJuicePerSource(allTopologies);
                 logFinalSourceJuicesPer(allTopologies);
@@ -269,13 +271,15 @@ public class Observer {
                     for (Double sourceProportion : bolt.getSpoutTransfer().values()) {
                         calculatedSLO += sourceProportion;
                     }
-                    sink_executed += bolt.getCurrentTransferred();
+                    for (Integer boltExecuted : bolt.getCurrentExecuted().values()) {
+                        sink_executed += boltExecuted;
+                    }
                 }
             }
 
             calculatedSLO = calculatedSLO / topology.getSpouts().size();
             topology.setMeasuredSLOs(calculatedSLO);
-            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + spouts_transferred + ","  + sink_executed + "," +  System.currentTimeMillis() + "\n");
+            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + spouts_transferred + "," + sink_executed + "," + System.currentTimeMillis() + "\n");
             writeToFile(outlier_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
             writeToFile(flatline_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
         }
