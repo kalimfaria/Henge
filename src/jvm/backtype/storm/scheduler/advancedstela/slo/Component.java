@@ -79,9 +79,18 @@ public class Component {
     }
 
     public void addSpoutTransfer(String key, Double value) {
-        spoutTransfer.put(key, value);
-    }
+     //   spoutTransfer.put(key, value);
 
+        if(spoutTransfer.get(key) == null){
+            spoutTransfer.put(key, value);
+        }
+        else if(spoutTransfer.get(key) > 0.0){
+            spoutTransfer.put(key, spoutTransfer.get(key) + value);
+        }
+    }
+    public void resetSpoutTransfer() {
+        spoutTransfer = new HashMap<String, Double>();
+    }
     public void addTotalExecuted(String key, Integer value) {
         totalExecuted.put(key, value);
     }

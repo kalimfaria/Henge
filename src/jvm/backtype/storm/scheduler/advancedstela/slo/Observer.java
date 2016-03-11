@@ -69,6 +69,7 @@ public class Observer {
                 }
 
 
+                cleanUpSLOMap(allTopologies); // To remove old spout values :D
 
                 collectStatistics(allTopologies);
                 calculateJuicePerSource(allTopologies);
@@ -76,6 +77,21 @@ public class Observer {
 
             } catch (Exception e) {
                 e.printStackTrace();
+            }
+        }
+    }
+
+    private void cleanUpSLOMap(HashMap<String, Topology> allTopologies) {
+        // TODO Auto-generated method stub
+        for (String topologyId : allTopologies.keySet()) {
+            Topology topology = allTopologies.get(topologyId);
+            HashMap<String, Component> spouts = topology.getSpouts();
+            for (Component spout : spouts.values()) {
+                spout.resetSpoutTransfer();
+            }
+            HashMap<String, Component> bolts = topology.getBolts();
+            for (Component bolt : bolts.values()) {
+                bolt.resetSpoutTransfer();
             }
         }
     }
