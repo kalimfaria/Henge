@@ -102,7 +102,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             if (receivers.size() > 0 && givers.size() > 0) {
 
-                ArrayList <String> topologyPair = new TopologyPicker().bestTargetBestVictim(receivers, givers);
+                ArrayList <String> topologyPair = new TopologyPicker().worstTargetBestVictim(receivers, givers);
                 String receiver = topologyPair.get(0);
                 String giver = topologyPair.get(1);
                 TopologyDetails target = topologies.getById(receiver);
@@ -212,6 +212,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 String victimCommand = "/var/nimbus/storm/bin/storm " +
                         "rebalance " + victimDetails.getName() + " -e " +
                         victimComponent + "=" + victimNewParallelism;
+
+                // FORMAT /var/nimbus/storm/bin/storm henge-rebalance  production-topology1 -e bolt_output_sink=13 xyz production-topology2 -e spout_head=12 xyz  production-topology3 -e bolt_output_sink=13 xyz production-topology4 -e spout_head=12
                // victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
                // LOG.info("Victim Command: {}", victimCommand);
                 try {
@@ -226,8 +228,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                    // writeToFile(advanced_scheduling_log, "New parallelism hint for target: " + target.getComponents().get(targetComponent).getParallelism() + "\n");
                    // writeToFile(advanced_scheduling_log, "New parallelism hint for victim: " + victim.getComponents().get(victimComponent).getParallelism() + "\n");
 
-                    Runtime.getRuntime().exec(targetCommand);
-                    Runtime.getRuntime().exec(victimCommand);
+                    Runtime.getRuntime().exec(targetCommand + victimCommand);
+                  //  Runtime.getRuntime().exec(victimCommand);
 
                     ///
 

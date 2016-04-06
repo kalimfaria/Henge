@@ -10,6 +10,14 @@ public class Component {
     private HashSet<String> children;
     private Integer totalTransferred;
     private Integer currentTransferred;
+
+    private Long currentFailed;
+    private Long prevFailed;
+    private Long totalFailed;
+    private Long currentAcked;
+    private Long prevAcked;
+    private Long totalAcked;
+
     private HashMap<String, Integer> totalExecuted;
     private HashMap<String, Integer> currentExecuted;
     private HashMap<String, Double> spoutTransfer;
@@ -21,6 +29,8 @@ public class Component {
         children = new HashSet<String>();
         totalTransferred = 0;
         currentTransferred = 0;
+        currentFailed = prevFailed = totalFailed = 0L;
+        currentAcked = prevAcked = totalAcked = 0L;
         totalExecuted = new HashMap<String, Integer>();
         currentExecuted = new HashMap<String, Integer>();
         spoutTransfer = new HashMap<String, Double>();
@@ -51,9 +61,49 @@ public class Component {
         this.totalTransferred = totalTransferred;
     }
 
+    public void setTotalFailed (Long totalFailed) {this.totalFailed = totalFailed; }
+
     public Integer getCurrentTransferred() {
         return currentTransferred;
     }
+
+    public Long getCurrentFailed () {return this.currentFailed; }
+
+    public Long getPrevFailed () {return this.prevFailed; }
+
+    public Long getTotalFailed () {return this.totalFailed; }
+
+    public void setCurrentFailed(Long currentFailed)  // send it total transferred
+    {
+        if (currentFailed < this.totalFailed) {
+            this.totalFailed = 0L;
+        }
+        setPrevFailed(this.currentFailed);
+        this.currentFailed = currentFailed - totalFailed;
+    }
+
+    public void setPrevFailed (Long prevFailed) {this.prevFailed = prevFailed; }
+
+    public void setTotalAcked (Long totalAcked) {this.totalAcked = totalAcked; }
+
+    public Long getCurrentAcked () {return this.currentAcked; }
+
+    public Long getPrevAcked () {return this.prevAcked; }
+
+    public Long getTotalAcked () {return this.totalAcked; }
+
+    public void setCurrentAcked(Long currentAcked)  // send it total transferred
+    {
+        if (currentAcked < this.totalAcked) {
+            this.totalAcked = 0L;
+        }
+        setPrevAcked(this.currentAcked);
+
+        this.currentAcked = currentAcked - totalAcked;
+    }
+
+   public void setPrevAcked (Long prevAcked) {this.prevAcked = prevAcked; }
+
 
     public void setCurrentTransferred(Integer currentTransferred) {
         if (currentTransferred < totalTransferred) {
@@ -61,6 +111,7 @@ public class Component {
         }
         this.currentTransferred = currentTransferred - totalTransferred;
     }
+
 
     public HashMap<String, Integer> getCurrentExecuted() {
         return currentExecuted;

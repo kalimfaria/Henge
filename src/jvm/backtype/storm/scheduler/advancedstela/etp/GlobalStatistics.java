@@ -35,6 +35,7 @@ public class GlobalStatistics {
     public HashMap<String, Integer> executeRatesTable;
 
 
+
     public GlobalStatistics(Map conf) {
         config = conf;
         nodeStatistics = new HashMap<String, NodeStatistics>();
@@ -106,6 +107,7 @@ public class GlobalStatistics {
                         BoltStats boltStats = null;
                         if (execSpecStats.is_set_bolt()) {
                             boltStats = execSpecStats.get_bolt();
+
                         }
 
                         Map<String, Long> transferred = executorStats.get_transferred().get(ALL_TIME);
