@@ -116,7 +116,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     writeToFile(flatline_log, "Trying to rebalance\n");
                     writeToFile(flatline_log, "victim: "+victim.getId()+"\n");
-                    writeToFile(flatline_log, "target: "+target.getId() + "\n");
+                    writeToFile(flatline_log, "target: "+target.getId() + "\n"); ;;; /// WHAT?
                     rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries);
                 } else {
                     writeToFile(flatline_log, "Cannot find 2 pairs of executor summaries - BOO\n");
@@ -204,8 +204,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 String targetCommand = "/var/nimbus/storm/bin/storm " +
                         "rebalance " + targetDetails.getName() + " -e " +
                         targetComponent + "=" + targetNewParallelism;
-                //LOG.info("Target Command: {}", targetCommand);
                 target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
+
                 String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
                 Integer victimOldParallelism = victim.getComponents().get(victimComponent).getParallelism();
                 Integer victimNewParallelism = victimOldParallelism - 1;
@@ -213,42 +213,29 @@ public class AdvancedStelaScheduler implements IScheduler {
                         "rebalance " + victimDetails.getName() + " -e " +
                         victimComponent + "=" + victimNewParallelism;
 
+                victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
                 // FORMAT /var/nimbus/storm/bin/storm henge-rebalance  production-topology1 -e bolt_output_sink=13 xyz production-topology2 -e spout_head=12 xyz  production-topology3 -e bolt_output_sink=13 xyz production-topology4 -e spout_head=12
-               // victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
-               // LOG.info("Victim Command: {}", victimCommand);
                 try {
 
-                   // writeToFile(advanced_scheduling_log, "Triggering rebalance for target: " + targetDetails.getId() + ", victim: " + victimDetails.getId() + "\n");
+
                     writeToFile(outlier_log, targetCommand + "\n");
                     writeToFile(outlier_log, System.currentTimeMillis() + "\n");
                     writeToFile(outlier_log, victimCommand + "\n");
                     writeToFile(juice_log, targetCommand + "\n");
                     writeToFile(juice_log, System.currentTimeMillis() + "\n");
                     writeToFile(juice_log, victimCommand + "\n");
-                   // writeToFile(advanced_scheduling_log, "New parallelism hint for target: " + target.getComponents().get(targetComponent).getParallelism() + "\n");
-                   // writeToFile(advanced_scheduling_log, "New parallelism hint for victim: " + victim.getComponents().get(victimComponent).getParallelism() + "\n");
 
-                    Runtime.getRuntime().exec(targetCommand + victimCommand);
-                  //  Runtime.getRuntime().exec(victimCommand);
-
-                    ///
+                    Runtime.getRuntime().exec(targetCommand);
+                    Runtime.getRuntime().exec(victimCommand);
 
                     sloObserver.updateLastRebalancedTime(target.getId(),System.currentTimeMillis() / 1000);
                     sloObserver.updateLastRebalancedTime(victim.getId(),System.currentTimeMillis() / 1000);
-
-                    
-                   // writeToFile(slo_log, "Rebalance at time:  " + System.currentTimeMillis() + "\n");
-
-                  //  targetToVictimMapping.put(target.getId(), victim.getId());
-                  //  targetToNodeMapping.put(target.getId(), executorSummaries);
 
                     targets.put(target.getId(), executorSummaries);
                     victims.put(victim.getId(), executorSummaries);
                     sloObserver.clearTopologySLOs(target.getId());
                     sloObserver.clearTopologySLOs(victim.getId());
 
-//                    targetID = target.getId();
-//                    victimID = victim.getId();
 
                  //   writeToFile(advanced_scheduling_log, "Name of target topology: " + targetID + "\n");
                  //   writeToFile(advanced_scheduling_log, "Name of victim topology: " + victimID + "\n");
@@ -303,8 +290,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
     */
-
-
 
     private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
                                              ExecutorPair executorPair) {
@@ -446,7 +431,6 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
             cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
         }
-        // victimID = new String();
         victims.remove((victim.getId()));
         writeToFile(flatline_log, "Removed " + victim.getId() + "from victim \n");
     }

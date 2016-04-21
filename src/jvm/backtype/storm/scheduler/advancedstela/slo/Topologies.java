@@ -50,6 +50,7 @@ public class Topologies {
             long lastRebalancedAtTime = 0;
             if ( lastRebalancedAt.containsKey(topology.getId()) )
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
+
             if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) {
                 failingTopologies.add(topology);
                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
@@ -138,7 +139,11 @@ public class Topologies {
         JSONParser parser = new JSONParser();
         try {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
+
             topologySLO = (Double) conf.get(Config.TOPOLOGY_SLO);
+            System.out.println("In the function: getUserSpecifiedSLOFromConfig");
+            System.out.println("Topology name: " + id);
+            System.out.println("Topology SLO: " + topologySLO);
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -221,7 +226,7 @@ public class Topologies {
         else {
             for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
                 if (allComponents.containsKey(spout.getKey())) {
-                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey()));
+                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey())); ;; /// WHAT?
                       }
             }
 

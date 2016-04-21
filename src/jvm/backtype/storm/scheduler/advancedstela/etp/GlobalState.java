@@ -203,7 +203,7 @@ public class GlobalState {
             for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
                 if (!spout.getKey().matches("(__).*")) {
                     topologySchedule.addComponents(spout.getKey(), new Component(spout.getKey(),
-                            parallelism_hints.get(spout.getKey())));
+                            parallelism_hints.get(spout.getKey()))); ;; /// WHAT?
                     writeToFile(advanced_scheduling_log, "\n Spout Component: " + spout.getKey() + " spout parallelism: " + parallelism_hints.get(spout.getKey()));
 
                 }

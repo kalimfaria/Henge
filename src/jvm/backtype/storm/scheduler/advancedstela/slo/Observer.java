@@ -384,8 +384,9 @@ public class Observer {
             System.out.println("Total: " + total);
             if (all_failed > 0){ // we've got to account for replays
                 System.out.println("We saw failures. WOO");
-                System.out.println("Factor of multiplication: " + (all_acked / (total)));
-                calculatedSLO *= (all_acked / (total)); // MULTIPLY SLO BY acked
+                Double factor_of_multiplication = (double) all_acked / (double) total;
+                System.out.println("Factor of multiplication: " + factor_of_multiplication);
+                calculatedSLO *= factor_of_multiplication; // MULTIPLY SLO BY acked
             }
             System.out.println("After the failure calc ");
             System.out.println("SLO after failure calc : " + calculatedSLO);

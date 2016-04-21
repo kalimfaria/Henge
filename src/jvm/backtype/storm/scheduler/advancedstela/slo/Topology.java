@@ -76,8 +76,11 @@ public class Topology implements Comparable<Topology> {
     }
 
     public boolean sloViolated() {
+        System.out.println("In the function: sloViolated()");
+        System.out.println("Topology name: " + id);
+        System.out.println("Topology SLO: " + userSpecifiedSLO);
         return getMeasuredSLO() < userSpecifiedSLO;
-    }
+    } ;; // WHAT?? NULL POINTER EXCEPTION
 
     public String printSLOs() {
         StringBuilder stringBuilder = new StringBuilder();
