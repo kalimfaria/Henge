@@ -34,8 +34,7 @@ public class Observer {
     private NimbusClient nimbusClient;
     private File juice_log;
     private File flatline_log, outlier_log;
-   // public HashMap<String, Integer> failedStatsTable;
-   // public HashMap<String, Integer> ackedStatsTable;
+
 
     public Observer(Map conf) {
         config = conf;
@@ -143,9 +142,10 @@ public class Observer {
                     // GETTING SPOUT ACKED + FAILED --- > the loop will run again and we'll get more values.
                     SpoutStats spout = specific.get_spout();
                     if (spout.is_set_acked()) {
-                        System.out.println("WHAT TOPOLOGY IS THIS? :" + topologyId);
-                        spout.get_acked().get(ALL_TIME);
                         /*DEBUG PRINTING*/
+                       /* System.out.println("WHAT TOPOLOGY IS THIS? :" + topologyId);
+                        spout.get_acked().get(ALL_TIME);
+
                         System.out.println("In spout.is_set_acked() ");
                         Map<String, Map<String, Long>> acked = spout.get_acked();
                         System.out.println("Printing Keys: for acked spouts");
@@ -156,23 +156,23 @@ public class Observer {
                                 System.out.println("The inner key : " + inner_key);
                                 System.out.println("The inner value : " + acked.get(key).get(inner_key).toString());
                             }
-                        } ////
+                        } *////
 
-                        System.out.println("Hopefully this is the spout ID:  " + executor.get_component_id());
+                      //  System.out.println("Hopefully this is the spout ID:  " + executor.get_component_id());
 
                         if (spout.get_acked().get(ALL_TIME).containsKey(DEFAULT)) {
                             if (!temporaryAcked.containsKey(componentId)) {
                                 temporaryAcked.put(componentId, 0L);
                             }
 
-                            System.out.println("DEBUGGING THE NULLPOINTEREXCEPTION: " + spout.get_acked().get(ALL_TIME).get(DEFAULT));
+                           // System.out.println("DEBUGGING THE NULLPOINTEREXCEPTION: " + spout.get_acked().get(ALL_TIME).get(DEFAULT));
                             temporaryAcked.put(componentId, temporaryAcked.get(componentId) +
                                     spout.get_acked().get(ALL_TIME).get(DEFAULT));
-                            System.out.println("Value put in the acked map:  " + temporaryAcked.get(componentId));
+                           // System.out.println("Value put in the acked map:  " + temporaryAcked.get(componentId));
                         }
                     }
                     if (spout.is_set_failed()) {
-                        System.out.println("In spout.is_set_failed() ");
+                        /*System.out.println("In spout.is_set_failed() ");
                         Map<String, Map<String, Long>> failed = spout.get_failed();
                         System.out.println("Printing Keys: for failed spouts");
                         for (String key : failed.keySet()) {
@@ -182,11 +182,9 @@ public class Observer {
                             for (String inner_key : failed.get(key).keySet()) {
                                 System.out.println("The inner key : " + inner_key);
                                 System.out.println("The inner value : " + failed.get(key).get(inner_key).toString());
-
                             }
-
-                        }
-                        System.out.println("Hopefully this is the spout ID:  " + executor.get_component_id());
+                        }*/
+                        //System.out.println("Hopefully this is the spout ID:  " + executor.get_component_id());
 
                         if (spout.get_failed().get(ALL_TIME).containsKey(DEFAULT)) {
                             if (!temporaryFailed.containsKey(componentId)) {
@@ -194,7 +192,7 @@ public class Observer {
                             }
                             temporaryFailed.put(componentId, temporaryFailed.get(componentId) +
                                     spout.get_failed().get(ALL_TIME).get(DEFAULT));
-                            System.out.println("Value put in the failed map:  " + temporaryFailed.get(componentId));
+                         //   System.out.println("Value put in the failed map:  " + temporaryFailed.get(componentId));
                         }
                     }
                 } else {
@@ -243,22 +241,22 @@ public class Observer {
                 }
 // SO THIS SHOULD ALREADY BE A SPOUT
                 if (temporaryAcked.containsKey(componentId)) { // first iteration could be a problem but it won't be because every
-                    System.out.println("KEY for getting final acked: "+ componentId);
+                   // System.out.println("KEY for getting final acked: "+ componentId);
 
                     component.setCurrentAcked(temporaryAcked.get(componentId));
                     component.setTotalAcked(temporaryAcked.get(componentId));
 
-                    System.out.println("component current acked: " + component.getCurrentAcked());
-                    System.out.println("component total acked: "+ component.getTotalAcked());
+                    //System.out.println("component current acked: " + component.getCurrentAcked());
+                   // System.out.println("component total acked: "+ component.getTotalAcked());
                 }
 
                 if (temporaryFailed.containsKey(componentId)) {
-                    System.out.println("KEY for getting final failed: "+ componentId);
+                  //  System.out.println("KEY for getting final failed: "+ componentId);
                     component.setCurrentFailed(temporaryFailed.get(componentId));
                     component.setTotalFailed(temporaryFailed.get(componentId));
 
-                    System.out.println("component current failed: " + component.getCurrentFailed());
-                    System.out.println("component total failed: " + component.getTotalFailed());
+                  //  System.out.println("component current failed: " + component.getCurrentFailed());
+                  //  System.out.println("component total failed: " + component.getTotalFailed());
                 }
             }
         }
@@ -360,8 +358,8 @@ public class Observer {
                 all_failed += spout.getValue().getCurrentFailed();
 
 
-                System.out.println("Curr Acked: " + spout.getValue().getCurrentAcked());
-                System.out.println("Curr Failed: " + spout.getValue().getCurrentFailed());
+              //  System.out.println("Curr Acked: " + spout.getValue().getCurrentAcked());
+              //  System.out.println("Curr Failed: " + spout.getValue().getCurrentFailed());
             }
             total = all_acked + all_failed;
 
@@ -377,20 +375,20 @@ public class Observer {
             }
 
             calculatedSLO = calculatedSLO / topology.getSpouts().size(); // DO NOT ACCOUNT FOR FAILURES
-            System.out.println("Topology name: " +topologyId);
-            System.out.println("Before the failure calc - SLO: " + calculatedSLO);
-            System.out.println("Failed: " + all_failed);
-            System.out.println("Acked: " + all_acked);
-            System.out.println("Total: " + total);
+        //    System.out.println("Topology name: " +topologyId);
+        //    System.out.println("Before the failure calc - SLO: " + calculatedSLO);
+        //    System.out.println("Failed: " + all_failed);
+        //    System.out.println("Acked: " + all_acked);
+        //    System.out.println("Total: " + total);
             if (all_failed > 0){ // we've got to account for replays
-                System.out.println("We saw failures. WOO");
+        //        System.out.println("We saw failures. WOO");
                 Double factor_of_multiplication = (double) all_acked / (double) total;
-                System.out.println("Factor of multiplication: " + factor_of_multiplication);
+        //        System.out.println("Factor of multiplication: " + factor_of_multiplication);
                 calculatedSLO *= factor_of_multiplication; // MULTIPLY SLO BY acked
             }
-            System.out.println("After the failure calc ");
-            System.out.println("SLO after failure calc : " + calculatedSLO);
-           // calculatedSLO = calculatedSLO / topology.getSpouts().size();
+        //    System.out.println("After the failure calc ");
+        //    System.out.println("SLO after failure calc : " + calculatedSLO);
+
             topology.setMeasuredSLOs(calculatedSLO);
             writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + spouts_transferred + "," + sink_executed + "," + System.currentTimeMillis() + "\n");
             writeToFile(outlier_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");

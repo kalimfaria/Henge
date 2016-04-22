@@ -8,6 +8,10 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,8 +37,6 @@ public class GlobalStatistics {
     public HashMap<String, Integer> emitRatesTable;
     public HashMap<String, Integer> executeStatsTable;
     public HashMap<String, Integer> executeRatesTable;
-
-
 
     public GlobalStatistics(Map conf) {
         config = conf;
@@ -282,5 +284,17 @@ public class GlobalStatistics {
             value += val;
         }
         return value;
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+        } catch (IOException ex) {
+            System.out.println(ex.toString());
+        }
     }
 }

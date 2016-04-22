@@ -24,6 +24,7 @@ public class Topologies {
     private HashMap<String, Long> topologiesUptime;
     private HashMap<String, Long> lastRebalancedAt;
     private File flatline_log;
+    private File same_top;
 
     public Topologies(Map conf) {
         config = conf;
@@ -31,6 +32,7 @@ public class Topologies {
         topologiesUptime = new HashMap<String, Long>();
         lastRebalancedAt = new HashMap<String, Long>();
         flatline_log = new File("/tmp/flat_line.log");
+        same_top = new File("/tmp/same_top.log");
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
@@ -42,7 +44,6 @@ public class Topologies {
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
-        // ADDED BY FARIA
 
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
 
@@ -51,12 +52,35 @@ public class Topologies {
             if ( lastRebalancedAt.containsKey(topology.getId()) )
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
 
-            if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) {
+
+            if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()))
+            {
+                writeToFile(same_top, "The topology can be successful or failed \n");
+                writeToFile(same_top, "Topology name: " + topology.getId() + "\n");
+
+                boolean violated = topology.sloViolated();
+
+                if (violated)
+                {
+                    writeToFile(same_top, topology.getId() + " violated the SLO \n");
+                    failingTopologies.add(topology);
+                }
+                else if (!violated)
+                {
+                    writeToFile(same_top, topology.getId() + " did not violate the SLO \n");
+                    successfulTopologies.add(topology);
+                }
+                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
+            } /*else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) { // do the same for the
+
+            }*/
+
+          /*  if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) {
                 failingTopologies.add(topology);
                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
             } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) { // do the same for the
                 successfulTopologies.add(topology);
-            }
+            } */
         }
 
         //Collections.sort(failingTopologies);

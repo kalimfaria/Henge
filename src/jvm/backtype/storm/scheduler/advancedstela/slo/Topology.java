@@ -1,5 +1,9 @@
 package backtype.storm.scheduler.advancedstela.slo;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -13,12 +17,16 @@ public class Topology implements Comparable<Topology> {
     private HashMap<String, Component> spouts;
     private HashMap<String, Component> bolts;
 
+    private File same_top;
+
     public Topology(String topologyId, Double slo) {
         id = topologyId;
         userSpecifiedSLO = slo;
         measuredSLOs = new LinkedList<Double>();
         spouts = new HashMap<String, Component>();
         bolts = new HashMap<String, Component>();
+
+        same_top = new File("/tmp/same_top.log");
     }
 
     public String getId() {
@@ -76,11 +84,12 @@ public class Topology implements Comparable<Topology> {
     }
 
     public boolean sloViolated() {
-        System.out.println("In the function: sloViolated()");
-        System.out.println("Topology name: " + id);
-        System.out.println("Topology SLO: " + userSpecifiedSLO);
+        writeToFile(same_top, "In the function: sloViolated() \n");
+        writeToFile(same_top, "Topology name: " + id + "\n");
+        writeToFile(same_top, "Topology SLO: " + userSpecifiedSLO + "\n");
+        writeToFile(same_top, "Topology Measured SLO: " + getMeasuredSLO() + "\n");
         return getMeasuredSLO() < userSpecifiedSLO;
-    } ;; // WHAT?? NULL POINTER EXCEPTION
+    }
 
     public String printSLOs() {
         StringBuilder stringBuilder = new StringBuilder();
@@ -89,5 +98,19 @@ public class Topology implements Comparable<Topology> {
             stringBuilder.append(measuredSLO).append(" ");
         }
         return stringBuilder.toString();
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+            //LOG.info("wrote to slo file {}",  data);
+        } catch (IOException ex) {
+            // LOG.info("error! writing to file {}", ex);
+            System.out.println(ex.toString());
+        }
     }
 }
