@@ -76,17 +76,6 @@ public class TopologyPairs {
 
         StringBuffer log = new StringBuffer();
         log.append("The sorted order of receivers: \n");
-        for (int i = 0; i < list.size(); i++)
-        {
-            givers.add((String) ((HashMap.Entry)list.get(i)).getKey());
-            log.append((String) ((HashMap.Entry)list.get(i)).getKey() + " " + (Double) ((HashMap.Entry)list.get(i)).getValue() + "\n");
-        }
-
-        log.append("***");
-        writeToFile(flatline_log, log.toString());
-
-
-
         for (HashMap.Entry receiver : receivers_temp.entrySet())
         {
             receivers.add((String)receiver.getKey());
@@ -99,11 +88,11 @@ public class TopologyPairs {
 
     private void writeToFile(File file, String data) {
         try {
-            FileWriter fileWritter = new FileWriter(file, true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.append(data);
-            bufferWritter.close();
-            fileWritter.close();
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
         } catch (IOException ex) {
             System.out.println(ex.toString());
         }

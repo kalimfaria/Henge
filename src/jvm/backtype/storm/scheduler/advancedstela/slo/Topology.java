@@ -102,11 +102,11 @@ public class Topology implements Comparable<Topology> {
 
     public void writeToFile(File file, String data) {
         try {
-            FileWriter fileWritter = new FileWriter(file, true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.append(data);
-            bufferWritter.close();
-            fileWritter.close();
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
             //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
             // LOG.info("error! writing to file {}", ex);

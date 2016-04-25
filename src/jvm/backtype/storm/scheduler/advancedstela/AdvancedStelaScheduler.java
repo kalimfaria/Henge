@@ -29,11 +29,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     private File juice_log;
     private File flatline_log;
     private File outlier_log;
+    private File same_top;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
         outlier_log = new File("/tmp/outlier.log");
         flatline_log = new File("/tmp/flat_line.log");
+        same_top = new File("/tmp/same_top.log");
 
         config = conf;
         sloObserver = new Observer(conf);
@@ -54,6 +56,8 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+        writeToFile(same_top, "In AdvancedStelaScheduler *");
+        writeToFile(same_top, "In schedule function");
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         if (cluster.needsSchedulingTopologies(topologies).size() > 0) {
 
@@ -97,6 +101,15 @@ public class AdvancedStelaScheduler implements IScheduler {
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList <String> receivers = topologiesToBeRescaled.getReceivers();
             ArrayList <String> givers = topologiesToBeRescaled.getGivers();
+
+            writeToFile(same_top, "Got the topology pairs in schedule()");
+            writeToFile(same_top, "Checking after topologies are set into the variables");
+            writeToFile(same_top, "Givers:");
+            for (String t: givers)
+                writeToFile(same_top, "topology: " + t);
+            writeToFile(same_top, "Receivers:");
+            for (String t: receivers)
+                writeToFile(same_top, "topology: " + t);
 
             removeAlreadySelectedPairs(receivers, givers);
 
@@ -172,6 +185,8 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
+        writeToFile(same_top, "In AdvancedStelaScheduler **");
+        writeToFile(same_top, "In schedule function");
         sloObserver.run();
         globalState.collect(cluster, topologies);
         globalStatistics.collect();
@@ -259,15 +274,16 @@ public class AdvancedStelaScheduler implements IScheduler {
             int targetIndex = receivers.indexOf(target);
             if (targetIndex != -1) {
                 receivers.remove(targetIndex);
-
-                writeToFile(flatline_log, target + " removed from receivers \n");
+                writeToFile(same_top, "Removed " + target + "from receivers as it was already chosen previously");
+                //writeToFile(flatline_log, target + " removed from receivers \n");
             }
         }
         for (String victim : victims.keySet()) {
             int victimIndex = givers.indexOf(victim);
             if (victimIndex != -1) {
                 givers.remove(victimIndex);
-                writeToFile(flatline_log, victim + " removed from receivers \n");
+                writeToFile(same_top, "Removed " + victim + "from receivers as it was already chosen previously");
+                //writeToFile(flatline_log, victim + " removed from receivers \n");
             }
         }
     }

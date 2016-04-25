@@ -33,7 +33,7 @@ public class Observer {
     private Topologies topologies;
     private NimbusClient nimbusClient;
     private File juice_log;
-    private File flatline_log, outlier_log;
+    private File flatline_log, outlier_log, same_top;
 
 
     public Observer(Map conf) {
@@ -42,6 +42,7 @@ public class Observer {
         juice_log = new File("/tmp/output.log");
         outlier_log = new File("/tmp/outlier.log");
         flatline_log = new File("/tmp/flat_line.log");
+        same_top = new File("/tmp/same_top.log");
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -49,6 +50,8 @@ public class Observer {
     }
 
     public void run() {
+        writeToFile(same_top, "In Observer *");
+        writeToFile(same_top, "In Run");
        // LOG.info("Running observer at: " + System.currentTimeMillis() / 1000);
         writeToFile(juice_log, "Running observer at: " + System.currentTimeMillis() + "\n");
 
@@ -136,7 +139,7 @@ public class Observer {
                                 temporaryTransferred.put(componentId, 0);
                             }
                             temporaryTransferred.put(componentId, temporaryTransferred.get(componentId) +
-                                    statValues.get(key).intValue()); // WHY IS SHARANYA ADDING? -->Qs // BECAUSE THEY'RE DIFFERENT EXECUTORS AND WE NEED TO ADD THEM UP
+                                    statValues.get(key).intValue());
                         }
                     }
                     // GETTING SPOUT ACKED + FAILED --- > the loop will run again and we'll get more values.
@@ -391,8 +394,9 @@ public class Observer {
 
             topology.setMeasuredSLOs(calculatedSLO);
             writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + spouts_transferred + "," + sink_executed + "," + System.currentTimeMillis() + "\n");
-            writeToFile(outlier_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
-            writeToFile(flatline_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
+            writeToFile(same_top, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + spouts_transferred + "," + sink_executed + "," + System.currentTimeMillis() + "\n");
+            //writeToFile(outlier_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
+            //writeToFile(flatline_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + System.currentTimeMillis() + "\n");
         }
 
     }
@@ -403,11 +407,11 @@ public class Observer {
 
     public void writeToFile(File file, String data) {
         try {
-            FileWriter fileWritter = new FileWriter(file, true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.append(data);
-            bufferWritter.close();
-            fileWritter.close();
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
         } catch (IOException ex) {
           System.out.println(ex.toString());
         }

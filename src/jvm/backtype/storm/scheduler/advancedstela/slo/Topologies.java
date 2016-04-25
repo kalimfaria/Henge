@@ -41,6 +41,9 @@ public class Topologies {
 
     public TopologyPairs getTopologyPairScaling() { // when trying to add topologies to either of these
 
+        writeToFile(same_top, "In topologies:  getTopologyPairScaling");
+        writeToFile(same_top, "Do you even realize we need to rebalance?!!");
+
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
@@ -57,7 +60,6 @@ public class Topologies {
             {
                 writeToFile(same_top, "The topology can be successful or failed \n");
                 writeToFile(same_top, "Topology name: " + topology.getId() + "\n");
-
                 boolean violated = topology.sloViolated();
 
                 if (violated)
@@ -70,25 +72,27 @@ public class Topologies {
                     writeToFile(same_top, topology.getId() + " did not violate the SLO \n");
                     successfulTopologies.add(topology);
                 }
-                // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
-            } /*else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) { // do the same for the
-
-            }*/
-
-          /*  if (topology.sloViolated() && (System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) {
-                failingTopologies.add(topology);
-               // lastRebalancedAt.put(topology.getId(), System.currentTimeMillis() / 1000);
-            } else if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()) ) { // do the same for the
-                successfulTopologies.add(topology);
-            } */
+            }
         }
 
-        //Collections.sort(failingTopologies);
-        //Collections.sort(successfulTopologies);
+        writeToFile(same_top, "Failing Topologies: ");
+        for (Topology t : failingTopologies)
+            writeToFile(same_top, "Failing : " + t.getId());
+        writeToFile(same_top, "Successful Topologies: ");
+        for (Topology t : successfulTopologies)
+            writeToFile(same_top, "Successful : " + t.getId());
 
         TopologyPairs topologyPair = new TopologyPairs();
         topologyPair.setReceivers(failingTopologies);
         topologyPair.setGivers(successfulTopologies);
+
+        writeToFile(same_top, "Checking after topologies are set into the variables");
+        writeToFile(same_top, "Givers:");
+        for (String t: topologyPair.getGivers())
+            writeToFile(same_top, "topology: " + t);
+        writeToFile(same_top, "Receivers:");
+        for (String t: topologyPair.getReceivers())
+        writeToFile(same_top, "topology: " + t);
 
         return topologyPair;
     }
@@ -165,9 +169,9 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologySLO = (Double) conf.get(Config.TOPOLOGY_SLO);
-            System.out.println("In the function: getUserSpecifiedSLOFromConfig");
-            System.out.println("Topology name: " + id);
-            System.out.println("Topology SLO: " + topologySLO);
+            writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig");
+            writeToFile(same_top, "Topology name: " + id);
+            writeToFile(same_top, "Topology SLO: " + topologySLO);
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -269,11 +273,11 @@ public class Topologies {
 
     public void writeToFile(File file, String data) {
         try {
-            FileWriter fileWritter = new FileWriter(file, true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.append(data);
-            bufferWritter.close();
-            fileWritter.close();
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
             //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
             // LOG.info("error! writing to file {}", ex);
