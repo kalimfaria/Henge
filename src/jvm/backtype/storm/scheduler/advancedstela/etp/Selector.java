@@ -17,8 +17,8 @@ public class Selector {
         TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetID);
         TopologyStatistics victimStatistics = globalStatistics.getTopologyStatistics().get(victimID);
 
-        Strategy targetStrategy = new Strategy(targetSchedule, targetStatistics);
-        Strategy victimStrategy = new Strategy(victimSchedule, victimStatistics);
+        ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+        ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
 
         ArrayList<ResultComponent> rankTarget = targetStrategy.topologyETPRankDescending();
         ArrayList<ResultComponent> rankVictim = victimStrategy.topologyETPRankAscending();

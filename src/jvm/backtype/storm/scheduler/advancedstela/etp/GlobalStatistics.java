@@ -1,13 +1,5 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
-import backtype.storm.Config;
-import backtype.storm.generated.*;
-import backtype.storm.utils.NimbusClient;
-import org.apache.thrift.TException;
-import org.apache.thrift.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -16,6 +8,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.thrift.TException;
+import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import backtype.storm.Config;
+import backtype.storm.generated.BoltStats;
+import backtype.storm.generated.ExecutorSpecificStats;
+import backtype.storm.generated.ExecutorStats;
+import backtype.storm.generated.ExecutorSummary;
+import backtype.storm.generated.GlobalStreamId;
+import backtype.storm.generated.SpoutStats;
+import backtype.storm.generated.StormTopology;
+import backtype.storm.generated.TopologyInfo;
+import backtype.storm.generated.TopologySummary;
+import backtype.storm.utils.NimbusClient;
 
 public class GlobalStatistics {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalStatistics.class);
@@ -37,6 +46,9 @@ public class GlobalStatistics {
     public HashMap<String, Integer> emitRatesTable;
     public HashMap<String, Integer> executeStatsTable;
     public HashMap<String, Integer> executeRatesTable;
+    
+    //logs
+    private File latency_log;
 
     public GlobalStatistics(Map conf) {
         config = conf;
@@ -47,6 +59,7 @@ public class GlobalStatistics {
         emitRatesTable = new HashMap<String, Integer>();
         executeStatsTable = new HashMap<String, Integer>();
         executeRatesTable = new HashMap<String, Integer>();
+        latency_log = new File("/tmp/latency.log");
     }
 
     public HashMap<String, TopologyStatistics> getTopologyStatistics() {
@@ -93,6 +106,9 @@ public class GlobalStatistics {
                 }
 
                 List<ExecutorSummary> executors = topologyInformation.get_executors();
+                Map<String, Double> tempExecLatency = new HashMap<String, Double>();
+                Map<String, Double> tempProcLatency = new HashMap<String, Double>();
+                Map<String, Double> tempCompLatency = new HashMap<String, Double>();
                 for (ExecutorSummary executorSummary : executors) {
                     String componentId = executorSummary.get_component_id();
                     if (!componentId.matches("(__).*")) {
@@ -107,13 +123,18 @@ public class GlobalStatistics {
                         ExecutorSpecificStats execSpecStats = executorStats.get_specific();
 
                         BoltStats boltStats = null;
+                        SpoutStats spoutStats = null;
                         if (execSpecStats.is_set_bolt()) {
                             boltStats = execSpecStats.get_bolt();
 
                         }
+                        if(execSpecStats.is_set_spout()){
+                        	spoutStats = execSpecStats.get_spout();
+                        }
 
                         Map<String, Long> transferred = executorStats.get_transferred().get(ALL_TIME);
                         Map<String, Long> emitted = executorStats.get_emitted().get(ALL_TIME);
+                        
 
                         if (transferred.get(DEFAULT) != null && emitted.get(DEFAULT) != null) {
                             String taskId = constructTaskHashID(executorSummary, topologySummary);
@@ -133,6 +154,43 @@ public class GlobalStatistics {
                                         executeRatesTable.put(taskId, 0);
                                     }
                                 }
+                                
+                                if(boltStats.is_set_execute_ms_avg()){
+                                	//set execute ms avg
+                                	Map<GlobalStreamId, Double> execLatencyStat = boltStats.get_execute_ms_avg().get(ALL_TIME);
+                                	for (GlobalStreamId key : execLatencyStat.keySet()){
+                                		if(DEFAULT.equals(key.get_streamId())){
+                                			if(!tempExecLatency.containsKey(key)){
+                                				tempExecLatency.put(componentId, 0.0);
+                                			}
+                                			tempExecLatency.put(componentId, tempExecLatency.get(componentId)+execLatencyStat.get(key));
+                                		}
+                                	}
+                                	
+                                	Map<GlobalStreamId, Double> procLatencyStat = boltStats.get_process_ms_avg().get(ALL_TIME);
+                                	for (GlobalStreamId key : procLatencyStat.keySet()){
+                                		if(DEFAULT.equals(key.get_streamId())){
+                                			if(!tempProcLatency.containsKey(key)){
+                                				tempProcLatency.put(componentId, 0.0);
+                                			}
+                                			tempProcLatency.put(componentId, tempProcLatency.get(componentId)+procLatencyStat.get(key));
+                                		}
+                                	}
+                                }
+                            }
+                            
+                            if(spoutStats != null){
+                            	//make sure spout has both transfer and emit
+
+                            	Map<String, Double> compLatencyStat = spoutStats.get_complete_ms_avg().get(ALL_TIME);
+                            	for (String key : compLatencyStat.keySet()){
+                            		if(DEFAULT.equals(key)){
+                            			if(!tempCompLatency.containsKey(key)){
+                            				tempCompLatency.put(componentId, 0.0);
+                            			}
+                            			tempCompLatency.put(componentId, tempCompLatency.get(componentId)+compLatencyStat.get(key)); 			
+                            		}
+                            	}
                             }
 
                             if (!transferStatsTable.containsKey(taskId)) {
@@ -188,6 +246,7 @@ public class GlobalStatistics {
                                                 + emitThroughput);
                             }
 
+                            
                             ComponentStatistics componentStats = statistics.getComponentStatistics().get(componentId);
 
                             if (componentStats != null) {
@@ -198,9 +257,19 @@ public class GlobalStatistics {
                         }
                     }
                 }
-
+                
+                /*
+                 *  Map<String, Double> tempExecLatency = new HashMap<String, Double>();
+            		Map<String, Double> tempProcLatency = new HashMap<String, Double>();
+            		Map<String, Double> tempCompLatency = new HashMap<String, Double>();
+                 */
+                // Even out per component latency
+                for(String compId:tempExecLatency.keySet()){
+                	Component comp = topologySummary.
+                }
+                
                 if(executors.size()>0) {
-                    updateThroughputHistory(topologySummary);
+                    updateThroughputHistory(topologySummary, tempExecLatency, tempProcLatency, tempCompLatency);
                 }
             }
         } catch (TException e) {
@@ -208,15 +277,20 @@ public class GlobalStatistics {
         }
     }
 
-    private void updateThroughputHistory(TopologySummary topologySummary) {
+    private void updateThroughputHistory(TopologySummary topologySummary, Map<String, Double> tempExecLatency, Map<String, Double> tempProcLatency, Map<String, Double> tempCompLatency) {
         TopologyStatistics statistics = topologyStatistics.get(topologySummary.get_id());
         if (statistics != null) {
             HashMap<String, List<Integer>> componentTransferHistory = statistics.getTransferThroughputHistory();
             HashMap<String, List<Integer>> componentEmitHistory = statistics.getEmitThroughputHistory();
             HashMap<String, List<Integer>> componentExecuteHistory = statistics.getExecuteThroughputHistory();
+            
+            HashMap<String, List<Double>> executeLatencyHistory = statistics.getExecuteLatencyHistory();
+            HashMap<String, List<Double>> processLatencyHistory = statistics.getProcessLatencyHistory();
+            HashMap<String, List<Double>> completeLatencyHistory = statistics.getCompleteLatencyHistory();
 
             for (Map.Entry<String, ComponentStatistics> entry : statistics.getComponentStatistics().entrySet()) {
-                if (!componentTransferHistory.containsKey(entry.getKey())) {
+                //initialization
+            	if (!componentTransferHistory.containsKey(entry.getKey())) {
                     componentTransferHistory.put(entry.getKey(), new ArrayList<Integer>());
                 }
 
@@ -228,6 +302,19 @@ public class GlobalStatistics {
                     componentExecuteHistory.put(entry.getKey(), new ArrayList<Integer>());
                 }
 
+                if (!executeLatencyHistory.containsKey(entry.getKey())) {
+                	executeLatencyHistory.put(entry.getKey(), new ArrayList<Double>());
+                }
+                
+                if (!processLatencyHistory.containsKey(entry.getKey())) {
+                	processLatencyHistory.put(entry.getKey(), new ArrayList<Double>());
+                }
+                
+                if (!completeLatencyHistory.containsKey(entry.getKey())) {
+                	completeLatencyHistory.put(entry.getKey(), new ArrayList<Double>());
+                }
+                
+                //removing history entry that is way too old
                 if (componentTransferHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
                     componentTransferHistory.get(entry.getKey()).remove(0);
                 }
@@ -240,9 +327,28 @@ public class GlobalStatistics {
                     componentExecuteHistory.get(entry.getKey()).remove(0);
                 }
 
+                if (executeLatencyHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                	executeLatencyHistory.get(entry.getKey()).remove(0);
+                }
+                
+                if (processLatencyHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                	processLatencyHistory.get(entry.getKey()).remove(0);
+                }
+                
+                if (completeLatencyHistory.get(entry.getKey()).size() >= MOVING_AVG_WINDOW) {
+                	completeLatencyHistory.get(entry.getKey()).remove(0);
+                }
+                
+                //adding new entry
                 componentTransferHistory.get(entry.getKey()).add(entry.getValue().totalTransferThroughput);
                 componentEmitHistory.get(entry.getKey()).add(entry.getValue().totalEmitThroughput);
                 componentExecuteHistory.get(entry.getKey()).add(entry.getValue().totalExecuteThroughput);
+                if(tempExecLatency.containsKey(entry.getKey()))
+                	executeLatencyHistory.get(entry.getKey()).add(tempExecLatency.get(entry.getKey()));
+                if(tempProcLatency.containsKey(entry.getKey()))
+                	processLatencyHistory.get(entry.getKey()).add(tempProcLatency.get(entry.getKey()));
+                if(tempCompLatency.containsKey(entry.getKey()))
+                	completeLatencyHistory.get(entry.getKey()).add(tempCompLatency.get(entry.getKey()));
             }
         }
     }

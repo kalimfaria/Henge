@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-public class ETPStrategy {
+public class LatencyStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
 
     private String id;
@@ -20,10 +20,12 @@ public class ETPStrategy {
     private ArrayList<Component> sinkList;
     private HashMap<Component, Double> congestionMap;
     private HashMap<Component, Double> topologyETPMap;
+    private HashMap<Component, HashMap<ArrayList<Component>, Double>> uncongestedPaths;
+    private HashMap<Component, Double> etpLatencyMap;
 
 
 
-    public ETPStrategy(TopologySchedule tS, TopologyStatistics tStats) {
+    public LatencyStrategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
         topologySchedule = tS;
         topologyStatistics = tStats;
@@ -36,6 +38,8 @@ public class ETPStrategy {
         sourceList = new ArrayList<Component>();
         sinkList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
+        uncongestedPaths = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
+        etpLatencyMap = new HashMap<Component, Double>();
     }
 
     public ArrayList<ResultComponent> topologyETPRankDescending() { //used by targets
@@ -66,17 +70,62 @@ public class ETPStrategy {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
+        
+      //calculate uncongestedPath for each component
+        for (Component component : topologySchedule.getComponents().values()) {
+        	//populate uncongestedPathMap 
+        	ArrayList<ArrayList<Component>> compUncongestedPaths = uncongestedPathCalculation(component, sinksMap);
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
+        	//populate compLatencyMap
+        	for(ArrayList<Component> path : compUncongestedPaths){
+        		Double totalLatency =0.0;
+        		for(Component member : path){
+        			totalLatency+=member.getProcessLatency();
+        		}
+        		compLatencyMap.put(path, totalLatency);
+        	}
+        	this.uncongestedPaths.put(component, compLatencyMap);
+        }
+        
+        //populate etpLatencyMap
+        for (Component component : topologySchedule.getComponents().values()) {
+        	HashMap<Component, Integer>  uncongestedSinkCount = new HashMap<Component, Integer>();
+        	HashMap<Component, Double> uncongestedSinkTotalLatency = new HashMap<Component, Double>();
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.uncongestedPaths.get(component);
+        	for(ArrayList<Component> path : compLatencyMap.keySet()){
+        		Component sink = path.get(0);
+        		if(!uncongestedSinkCount.containsKey(sink)){
+        			uncongestedSinkCount.put(sink, 1);
+        			uncongestedSinkTotalLatency.put(sink, compLatencyMap.get(path));
+        		}
+        		else{
+        			uncongestedSinkCount.put(sink, uncongestedSinkCount.get(sink)+1);
+        			uncongestedSinkTotalLatency.put(sink, uncongestedSinkTotalLatency.get(sink)+compLatencyMap.get(path));
+        		}
+        	}
+        	
+        	Double etpLatencyScore =0.0;
+        	for(Component sink: uncongestedSinkCount.keySet()){
+        		//take an average 
+        		etpLatencyScore += uncongestedSinkTotalLatency.get(sink)/uncongestedSinkCount.get(sink)*topologyETPMap.get(sink);
+        	}
+        	this.etpLatencyMap.put(component, etpLatencyScore);
+        }
+        
+
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: topologyETPMap.keySet()) {
+        for (Component component: etpLatencyMap.keySet()) {
         	if(this.congestionMap.containsKey(component)){
         		//only benefiting congested component
         		Long curTime = System.currentTimeMillis();
         		if(curTime-component.getLastRebalancedAt()>300000){
-        			resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+        			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
         			component.setLastRebalancedAt(curTime);
         		}
+        		
         	}
+            
         }
 
         Collections.sort(resultComponents, Collections.reverseOrder());
@@ -112,16 +161,58 @@ public class ETPStrategy {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
+        
+        //calculate uncongestedPath for each component
+        for (Component component : topologySchedule.getComponents().values()) {
+        	//populate uncongestedPathMap 
+        	ArrayList<ArrayList<Component>> compUncongestedPaths = uncongestedPathCalculation(component, sinksMap);
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
+        	//populate compLatencyMap
+        	for(ArrayList<Component> path : compUncongestedPaths){
+        		Double totalLatency =0.0;
+        		for(Component member : path){
+        			totalLatency+=member.getProcessLatency();
+        		}
+        		compLatencyMap.put(path, totalLatency);
+        	}
+        	this.uncongestedPaths.put(component, compLatencyMap);
+        }
+        
+        //populate etpLatencyMap
+        for (Component component : topologySchedule.getComponents().values()) {
+        	HashMap<Component, Integer>  uncongestedSinkCount = new HashMap<Component, Integer>();
+        	HashMap<Component, Double> uncongestedSinkTotalLatency = new HashMap<Component, Double>();
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.uncongestedPaths.get(component);
+        	for(ArrayList<Component> path : compLatencyMap.keySet()){
+        		Component sink = path.get(0);
+        		if(!uncongestedSinkCount.containsKey(sink)){
+        			uncongestedSinkCount.put(sink, 1);
+        			uncongestedSinkTotalLatency.put(sink, compLatencyMap.get(path));
+        		}
+        		else{
+        			uncongestedSinkCount.put(sink, uncongestedSinkCount.get(sink)+1);
+        			uncongestedSinkTotalLatency.put(sink, uncongestedSinkTotalLatency.get(sink)+compLatencyMap.get(path));
+        		}
+        	}
+        	
+        	Double etpLatencyScore =0.0;
+        	for(Component sink: uncongestedSinkCount.keySet()){
+        		//take an average 
+        		etpLatencyScore += uncongestedSinkTotalLatency.get(sink)/uncongestedSinkCount.get(sink)*topologyETPMap.get(sink);
+        	}
+        	this.etpLatencyMap.put(component, etpLatencyScore);
+        }
+        
+
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: topologyETPMap.keySet()) {
+        for (Component component: etpLatencyMap.keySet()) {
         	Long curTime = System.currentTimeMillis();
     		if(curTime-component.getLastRebalancedAt()>300000){
-    			resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+    			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
     			component.setLastRebalancedAt(curTime);
     		}
         }
-        
 
         Collections.sort(resultComponents);
         return resultComponents;
@@ -151,14 +242,39 @@ public class ETPStrategy {
     private Double etpCalculation(Component component, HashMap<String, Double> sinksMap) {
         Double ret = 0.0;
         if (component.getChildren().size() == 0) {
+        	//add an entry to the uncongested path
             return sinksMap.get(component.getId());
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
             Component child = components.get(c);
-            if (!congestionMap.containsKey(child)) {
+            if (congestionMap.get(child)==null) {
                 ret = ret + etpCalculation(child, sinksMap);
+            }
+        }
+
+        return ret;
+    }
+    
+    private ArrayList<ArrayList<Component>> uncongestedPathCalculation(Component component, HashMap<String, Double> sinksMap) {
+        //int ret = -1;
+    	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
+        if (component.getChildren().size() == 0) {
+        	//add an entry to the uncongested path
+        	
+        	ret.add(new ArrayList<Component>());
+        	ret.get(ret.size()-1).add(component);
+            return ret;
+        }
+
+        HashMap<String, Component> components = topologySchedule.getComponents();
+        for (String c : component.getChildren()) {
+            Component child = components.get(c);
+            if (congestionMap.get(child)==null) {
+                ret = uncongestedPathCalculation(child, sinksMap); 
+                ret.get(ret.size()-1).add(component);
+                //uncongestedPathCalculation(child, sinksMap);
             }
         }
 

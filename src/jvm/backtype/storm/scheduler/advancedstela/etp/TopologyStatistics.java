@@ -10,6 +10,9 @@ public class TopologyStatistics {
     public HashMap<String, List<Integer>> transferThroughputHistory;
     public HashMap<String, List<Integer>> emitThroughputHistory;
     public HashMap<String, List<Integer>> executeThroughputHistory;
+    public HashMap<String, List<Double>> executeLatencyHistory;
+    public HashMap<String, List<Double>> processLatencyHistory;
+    public HashMap<String, List<Double>> completeLatencyHistory;
 
     public TopologyStatistics(String identifier) {
         id = identifier;
@@ -18,6 +21,9 @@ public class TopologyStatistics {
         transferThroughputHistory = new HashMap<String, List<Integer>>();
         emitThroughputHistory = new HashMap<String, List<Integer>>();
         executeThroughputHistory = new HashMap<String, List<Integer>>();
+        executeLatencyHistory = new HashMap<String, List<Double>>();
+        processLatencyHistory = new HashMap<String, List<Double>>();
+        completeLatencyHistory = new HashMap<String, List<Double>>();
     }
 
     public Long getStartupTime() {
@@ -51,4 +57,17 @@ public class TopologyStatistics {
     public void addComponentStatistics(String componentId, ComponentStatistics statistics) {
         componentStatistics.put(componentId, statistics);
     }
+
+	public HashMap<String, List<Double>> getExecuteLatencyHistory() {
+		return executeLatencyHistory;
+	}
+
+	public HashMap<String, List<Double>> getProcessLatencyHistory() {
+		return processLatencyHistory;
+	}
+
+	public HashMap<String, List<Double>> getCompleteLatencyHistory() {
+		return completeLatencyHistory;
+	}
+
 }
