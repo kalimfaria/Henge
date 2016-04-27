@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class TopologyPairs {
-    private ArrayList<String> givers; // the first index is for the topology ID and the second one is for the SLO-juice :D
+    private ArrayList<String> givers;
     private ArrayList<String> receivers;
     private HashMap<String, Double> givers_temp;
     private HashMap<String, Double> receivers_temp;
@@ -50,7 +50,7 @@ public class TopologyPairs {
             log.append((String) ((HashMap.Entry)list.get(i)).getKey() + " " + (Double) ((HashMap.Entry)list.get(i)).getValue()+ "\n");
         }
 
-        log.append("***");
+        log.append("***\n");
         writeToFile(flatline_log,log.toString());
     }
 
@@ -82,7 +82,7 @@ public class TopologyPairs {
             log.append(receiver.getKey() + " " + receiver.getValue() + "\n");
 
         }
-        log.append("***");
+        log.append("***\n");
         writeToFile(flatline_log, log.toString());
     }
 

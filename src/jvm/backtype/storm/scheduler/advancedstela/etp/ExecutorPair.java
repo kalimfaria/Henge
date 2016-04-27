@@ -29,8 +29,8 @@ public class ExecutorPair {
 
     public boolean bothPopulated() {
 
-        writeToFile(flatline_log, "Is target executor summary not null? : " +  ( targetExecutorSummary != null ));
-        writeToFile(flatline_log, "Is target victim summary not null? : " +  ( victimExecutorSummary != null ));
+        writeToFile(flatline_log, "Is target executor summary not null? : " +  ( targetExecutorSummary != null ) + "\n");
+        writeToFile(flatline_log, "Is target victim summary not null? : " +  ( victimExecutorSummary != null ) + "\n");
         return targetExecutorSummary != null && victimExecutorSummary != null;
     }
 

@@ -13,7 +13,9 @@ public class Topology implements Comparable<Topology> {
 
     private String id;
     private Double userSpecifiedSLO;
+    private Double userSpecifiedLatencySLO;
     private Queue<Double> measuredSLOs;
+    private Queue<Double> measuredLatency;
     private HashMap<String, Component> spouts;
     private HashMap<String, Component> bolts;
 
@@ -25,7 +27,8 @@ public class Topology implements Comparable<Topology> {
         measuredSLOs = new LinkedList<Double>();
         spouts = new HashMap<String, Component>();
         bolts = new HashMap<String, Component>();
-
+        userSpecifiedLatencySLO = 0.0;
+        measuredLatency = new LinkedList<Double>();
         same_top = new File("/tmp/same_top.log");
     }
 
@@ -35,6 +38,23 @@ public class Topology implements Comparable<Topology> {
 
     public Double getUserSpecifiedSLO() {
         return userSpecifiedSLO;
+    }
+
+    public void setMeasuredLatency(Double value) {
+        if (measuredLatency.size() == SLO_WINDOW) {
+            measuredLatency.remove();
+        }
+        writeToFile(same_top, "Setting topology's average complete latency (per 30 values)\n");
+        writeToFile(same_top, "Topology ID: "+id +" latency: "+ value+"\n");
+        measuredLatency.add(value);
+    }
+
+    public Double getMeasuredLatency() {
+        double result = 0.0;
+        for (Double value : measuredLatency) {
+            result += value;
+        }
+        return measuredLatency.size() == 0 ? 0.0 : (result / measuredLatency.size());
     }
 
     public void setMeasuredSLOs(Double value) {
@@ -49,7 +69,6 @@ public class Topology implements Comparable<Topology> {
         for (Double value : measuredSLOs) {
             result += value;
         }
-
         return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
     }
 
@@ -107,9 +126,8 @@ public class Topology implements Comparable<Topology> {
             bufferWriter.append(data);
             bufferWriter.close();
             fileWriter.close();
-            //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
-            // LOG.info("error! writing to file {}", ex);
+
             System.out.println(ex.toString());
         }
     }

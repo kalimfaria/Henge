@@ -61,17 +61,25 @@ public class Component {
         this.totalTransferred = totalTransferred;
     }
 
-    public void setTotalFailed (Long totalFailed) {this.totalFailed = totalFailed; }
+    public void setTotalFailed(Long totalFailed) {
+        this.totalFailed = totalFailed;
+    }
 
     public Integer getCurrentTransferred() {
         return currentTransferred;
     }
 
-    public Long getCurrentFailed () {return this.currentFailed; }
+    public Long getCurrentFailed() {
+        return this.currentFailed;
+    }
 
-    public Long getPrevFailed () {return this.prevFailed; }
+    public Long getPrevFailed() {
+        return this.prevFailed;
+    }
 
-    public Long getTotalFailed () {return this.totalFailed; }
+    public Long getTotalFailed() {
+        return this.totalFailed;
+    }
 
     public void setCurrentFailed(Long currentFailed)  // send it total transferred
     {
@@ -82,15 +90,25 @@ public class Component {
         this.currentFailed = currentFailed - totalFailed;
     }
 
-    public void setPrevFailed (Long prevFailed) {this.prevFailed = prevFailed; }
+    public void setPrevFailed(Long prevFailed) {
+        this.prevFailed = prevFailed;
+    }
 
-    public void setTotalAcked (Long totalAcked) {this.totalAcked = totalAcked; }
+    public void setTotalAcked(Long totalAcked) {
+        this.totalAcked = totalAcked;
+    }
 
-    public Long getCurrentAcked () {return this.currentAcked; }
+    public Long getCurrentAcked() {
+        return this.currentAcked;
+    }
 
-    public Long getPrevAcked () {return this.prevAcked; }
+    public Long getPrevAcked() {
+        return this.prevAcked;
+    }
 
-    public Long getTotalAcked () {return this.totalAcked; }
+    public Long getTotalAcked() {
+        return this.totalAcked;
+    }
 
     public void setCurrentAcked(Long currentAcked)  // send it total transferred
     {
@@ -102,7 +120,9 @@ public class Component {
         this.currentAcked = currentAcked - totalAcked;
     }
 
-   public void setPrevAcked (Long prevAcked) {this.prevAcked = prevAcked; }
+    public void setPrevAcked(Long prevAcked) {
+        this.prevAcked = prevAcked;
+    }
 
 
     public void setCurrentTransferred(Integer currentTransferred) {
@@ -111,7 +131,6 @@ public class Component {
         }
         this.currentTransferred = currentTransferred - totalTransferred;
     }
-
 
     public HashMap<String, Integer> getCurrentExecuted() {
         return currentExecuted;
@@ -130,18 +149,19 @@ public class Component {
     }
 
     public void addSpoutTransfer(String key, Double value) {
-     //   spoutTransfer.put(key, value);
+        //   spoutTransfer.put(key, value);
 
-        if(spoutTransfer.get(key) == null){
+        if (spoutTransfer.get(key) == null) {
             spoutTransfer.put(key, value);
-        }
-        else if(spoutTransfer.get(key) > 0.0){
+        } else if (spoutTransfer.get(key) > 0.0) {
             spoutTransfer.put(key, spoutTransfer.get(key) + value);
         }
     }
+
     public void resetSpoutTransfer() {
         spoutTransfer = new HashMap<String, Double>();
     }
+
     public void addTotalExecuted(String key, Integer value) {
         totalExecuted.put(key, value);
     }

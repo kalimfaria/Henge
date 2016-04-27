@@ -158,9 +158,9 @@ public class GlobalState {
                 // End of old implementation
                 //// From Observer -- why are we doing things twice?
 
-                for (ExecutorSummary executorSummary : topologyInformation.get_executors()) { // SHALL WE PUT THESE TWO LOOPS TOGETHER?
+                for (ExecutorSummary executorSummary : topologyInformation.get_executors()) {
                     String componentId = executorSummary.get_component_id();
-                 //   System.out.println("Component Id: " + componentId);
+
                     Component component = topologySchedule.getComponents().get(componentId);
 
                     if (component == null) {
@@ -175,16 +175,6 @@ public class GlobalState {
                         SpoutStats spoutStats = stats.get_specific().get_spout();
                         if (spoutStats.is_set_complete_ms_avg()) {
                             Map<String, Map<String, Double>> complete_msg_avg = spoutStats.get_complete_ms_avg();
-                         /*   for (String key : complete_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the complete_msg_avg.keySet() map?");
-                                for (String inner_key : complete_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key : " + inner_key);
-                                    System.out.println("The inner value : " + complete_msg_avg.get(key).get(inner_key).toString());
-                                      }
-                            } */
-                            // been through the loop
-
                             Map<String, Double> statValues = complete_msg_avg.get(ALL_TIME);
 
                             for (String key : statValues.keySet()) {
@@ -196,21 +186,12 @@ public class GlobalState {
                                             statValues.get(key).doubleValue());
                                 }
                             }
-                          //  System.out.println("In temporaryCompleteLatency.get("+ componentId+ "):  "  + temporaryCompleteLatency.get(componentId));
+
                         }
                     } else if (stats.get_specific().is_set_bolt()) {
                         BoltStats boltStats = stats.get_specific().get_bolt();
                         if (boltStats.is_set_execute_ms_avg()) {
                             Map<String, Map<GlobalStreamId, Double>> execute_msg_avg = boltStats.get_execute_ms_avg();
-                          /*  for (String key : execute_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the execute_msg_avg.keySet() map?");
-                                for (GlobalStreamId inner_key : execute_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key stream ID : " + inner_key.get_streamId());
-                                    System.out.println("The inner key component ID : " + inner_key.get_componentId());
-                                    System.out.println("The inner value : " + execute_msg_avg.get(key).get(inner_key).toString());
-                                }
-                            }*/
 
                             Map<GlobalStreamId, Double> statValues = execute_msg_avg.get(ALL_TIME);
 
@@ -221,24 +202,13 @@ public class GlobalState {
                                     }
                                     temporaryExecuteLatency.put(componentId, temporaryExecuteLatency.get(componentId) +
                                             statValues.get(key).doubleValue());
-                              //      System.out.println("In temporaryExecuteLatency.get(" + componentId + "):  " + temporaryExecuteLatency.get(componentId));
+
                                 }
                             }
                         }
 
                         if (boltStats.is_set_process_ms_avg()) {
                             Map<String, Map<GlobalStreamId, Double>> process_msg_avg = boltStats.get_process_ms_avg();
-                          /*  for (String key : process_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the process_msg_avg.keySet() map?");
-                                for (GlobalStreamId inner_key : process_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key stream ID : " + inner_key.get_streamId());
-                                    System.out.println("The inner key component ID : " + inner_key.get_componentId());
-                                    System.out.println("The inner value : " + process_msg_avg.get(key).get(inner_key).toString());
-                                }
-                            } */
-                            // been through the loop
-                            // component.setCompleteLatency(component.getCompleteLatency() / complete_msg_avg.keySet().size()); // COME BACK TO THIS LATER
 
                             Map<GlobalStreamId, Double> statValues = process_msg_avg.get(ALL_TIME);
 
@@ -251,7 +221,7 @@ public class GlobalState {
                                             statValues.get(key).doubleValue());
                                 }
                             }
-                        //    System.out.println("In temporaryProcessLatency.get(" + componentId + "):  " + temporaryProcessLatency.get(componentId));
+
                         }
                         /*(defn compute-executor-capacity
                           [^ExecutorSummary e]

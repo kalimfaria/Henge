@@ -41,8 +41,8 @@ public class Topologies {
 
     public TopologyPairs getTopologyPairScaling() { // when trying to add topologies to either of these
 
-        writeToFile(same_top, "In topologies:  getTopologyPairScaling");
-        writeToFile(same_top, "Do you even realize we need to rebalance?!!");
+        writeToFile(same_top, "In topologies:  getTopologyPairScaling\n");
+
 
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
@@ -75,24 +75,24 @@ public class Topologies {
             }
         }
 
-        writeToFile(same_top, "Failing Topologies: ");
+        writeToFile(same_top, "Failing Topologies: \n");
         for (Topology t : failingTopologies)
-            writeToFile(same_top, "Failing : " + t.getId());
-        writeToFile(same_top, "Successful Topologies: ");
+            writeToFile(same_top, "Failing : " + t.getId() +"\n");
+        writeToFile(same_top, "Successful Topologies: \n");
         for (Topology t : successfulTopologies)
-            writeToFile(same_top, "Successful : " + t.getId());
+            writeToFile(same_top, "Successful : " + t.getId() + "\n");
 
         TopologyPairs topologyPair = new TopologyPairs();
         topologyPair.setReceivers(failingTopologies);
         topologyPair.setGivers(successfulTopologies);
 
-        writeToFile(same_top, "Checking after topologies are set into the variables");
-        writeToFile(same_top, "Givers:");
+        writeToFile(same_top, "Checking after topologies are set into the variables\n");
+        writeToFile(same_top, "Givers:\n");
         for (String t: topologyPair.getGivers())
-            writeToFile(same_top, "topology: " + t);
-        writeToFile(same_top, "Receivers:");
+            writeToFile(same_top, "topology: " + t + "\n");
+        writeToFile(same_top, "Receivers:\n");
         for (String t: topologyPair.getReceivers())
-        writeToFile(same_top, "topology: " + t);
+        writeToFile(same_top, "topology: " + t + "\n");
 
         return topologyPair;
     }
@@ -169,9 +169,9 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologySLO = (Double) conf.get(Config.TOPOLOGY_SLO);
-            writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig");
-            writeToFile(same_top, "Topology name: " + id);
-            writeToFile(same_top, "Topology SLO: " + topologySLO);
+            writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig\n");
+            writeToFile(same_top, "Topology name: " + id + "\n");
+            writeToFile(same_top, "Topology SLO: " + topologySLO + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
