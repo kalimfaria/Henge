@@ -136,12 +136,14 @@ public class Topology implements Comparable<Topology> {
         writeToFile(same_top, "Topology Latency SLO: " + userSpecifiedLatencySLO + "\n");
         writeToFile(same_top, "Topology Measured Latency SLO: " + getAverageLatency() + "\n");
 
-        if (sensitivity.equals("throughput"))
-            return (getMeasuredSLO() < userSpecifiedSLO);
-        else if (sensitivity.equals("latency"))
-            return (getAverageLatency() > averageLatency);
-        else
-            return false;
+        if (sensitivity != null) {
+            if (sensitivity.equals("throughput"))
+                return (getMeasuredSLO() < userSpecifiedSLO);
+            else if (sensitivity.equals("latency"))
+                return (getAverageLatency() > averageLatency);
+            
+        }
+        return (getMeasuredSLO() < userSpecifiedSLO);
     }
 
     public String printSLOs() {
