@@ -12,24 +12,50 @@ public class Topology implements Comparable<Topology> {
     private static final Integer SLO_WINDOW = 30;
 
     private String id;
+    private String sensitivity;
     private Double userSpecifiedSLO;
     private Double userSpecifiedLatencySLO;
     private Queue<Double> measuredSLOs;
-    private Queue<Double> measuredLatency;
+    //   private Queue<Double> measuredLatency;
     private HashMap<String, Component> spouts;
     private HashMap<String, Component> bolts;
 
+    public HashMap<HashMap<String, String>, Double> latencies;
+    private Double averageLatency;
+    private Double tailLatency;
+
+
     private File same_top;
 
-    public Topology(String topologyId, Double slo) {
+    public Topology(String topologyId, Double slo, Double latency_slo, String sensitivity) {
         id = topologyId;
         userSpecifiedSLO = slo;
         measuredSLOs = new LinkedList<Double>();
         spouts = new HashMap<String, Component>();
         bolts = new HashMap<String, Component>();
-        userSpecifiedLatencySLO = 0.0;
-        measuredLatency = new LinkedList<Double>();
+        userSpecifiedLatencySLO = latency_slo;
+        //     measuredLatency = new LinkedList<Double>();
+        this.sensitivity = sensitivity;
+        latencies = new HashMap<HashMap<String, String>, Double>();
         same_top = new File("/tmp/same_top.log");
+        tailLatency = averageLatency = Double.MAX_VALUE;
+    }
+
+
+    public Double getTailLatency() {
+        return tailLatency;
+    }
+
+    public void setTailLatency(Double latency) {
+        tailLatency = latency;
+    }
+
+    public Double getAverageLatency() {
+        return averageLatency;
+    }
+
+    public void setAverageLatency(Double latency) {
+        averageLatency = latency;
     }
 
     public String getId() {
@@ -40,7 +66,7 @@ public class Topology implements Comparable<Topology> {
         return userSpecifiedSLO;
     }
 
-    public void setMeasuredLatency(Double value) {
+  /*  public void setMeasuredLatency(Double value) {
         if (measuredLatency.size() == SLO_WINDOW) {
             measuredLatency.remove();
         }
@@ -55,7 +81,7 @@ public class Topology implements Comparable<Topology> {
             result += value;
         }
         return measuredLatency.size() == 0 ? 0.0 : (result / measuredLatency.size());
-    }
+    }*/
 
     public void setMeasuredSLOs(Double value) {
         if (measuredSLOs.size() == SLO_WINDOW) {
@@ -107,7 +133,15 @@ public class Topology implements Comparable<Topology> {
         writeToFile(same_top, "Topology name: " + id + "\n");
         writeToFile(same_top, "Topology SLO: " + userSpecifiedSLO + "\n");
         writeToFile(same_top, "Topology Measured SLO: " + getMeasuredSLO() + "\n");
-        return getMeasuredSLO() < userSpecifiedSLO;
+        writeToFile(same_top, "Topology Latency SLO: " + userSpecifiedLatencySLO + "\n");
+        writeToFile(same_top, "Topology Measured Latency SLO: " + getAverageLatency() + "\n");
+
+        if (sensitivity.equals("throughput"))
+            return (getMeasuredSLO() < userSpecifiedSLO);
+        else if (sensitivity.equals("latency"))
+            return (getAverageLatency() > averageLatency);
+        else
+            return false;
     }
 
     public String printSLOs() {

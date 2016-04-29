@@ -283,8 +283,10 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     writeToFile(same_top, "Inserted into targets: " + targetDetails.getId() + "\n");
                     writeToFile(same_top, "Inserted into victims: " + victimDetails.getId() + "\n");
+
                     targets.put(targetDetails.getId(), executorSummaries);
                     victims.put(victimDetails.getId(), executorSummaries);
+
                     sloObserver.clearTopologySLOs(target.getId());
                     sloObserver.clearTopologySLOs(victim.getId());
 

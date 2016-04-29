@@ -115,7 +115,7 @@ public class Observer {
             HashMap<String, HashMap<String, Integer>> temporaryExecuted = new HashMap<>();
             HashMap<String, Long> temporaryFailed = new HashMap<>();
             HashMap<String, Long> temporaryAcked = new HashMap<>();
-            HashMap<String, Double> temporaryCompleteLatency = new HashMap<>();
+         //   HashMap<String, Double> temporaryCompleteLatency = new HashMap<>();
             for (ExecutorSummary executor : executorSummaries) {
                 String componentId = executor.get_component_id();
                 Component component = topology.getAllComponents().get(componentId);
@@ -133,7 +133,7 @@ public class Observer {
                     SpoutStats spout = specific.get_spout();
 
 
-                    if (spout.is_set_complete_ms_avg()) {
+               /*     if (spout.is_set_complete_ms_avg()) {
                         Map<String, Map<String, Double>> complete_msg_avg = spout.get_complete_ms_avg();
                         Map<String, Double> statValues = complete_msg_avg.get(ALL_TIME);
 
@@ -147,6 +147,7 @@ public class Observer {
                             }
                         }
                     }
+                    */
 
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
@@ -158,7 +159,6 @@ public class Observer {
                                     statValues.get(key).intValue());
                         }
                     }
-
 
                     if (spout.is_set_acked()) {
 
@@ -242,13 +242,13 @@ public class Observer {
                     component.setTotalFailed(temporaryFailed.get(componentId));
                 }
 
-                if (temporaryCompleteLatency.containsKey(componentId)) {
+              /*  if (temporaryCompleteLatency.containsKey(componentId)) {
                     totalLatency += temporaryCompleteLatency.get(componentId);
                     count ++;
-                }
+                } */
             }
-            if (count > 0)
-                topology.setMeasuredLatency(totalLatency/count);
+         /*   if (count > 0)
+                topology.setMeasuredLatency(totalLatency/count); */
         }
     }
 
@@ -329,7 +329,6 @@ public class Observer {
 
     private void logFinalSourceJuicesPer(HashMap<String, Topology> allTopologies) {
 
-
         for (String topologyId : allTopologies.keySet()) {
             Double calculatedSLO = 0.0;
             Topology topology = allTopologies.get(topologyId);
@@ -369,8 +368,8 @@ public class Observer {
             }
             topology.setMeasuredSLOs(calculatedSLO);
             long time_now = System.currentTimeMillis();
-            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getMeasuredLatency() + ","  + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
-            writeToFile(same_top, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + topology.getMeasuredLatency() + "," + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
+            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getAverageLatency() + ","  + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
+            writeToFile(same_top, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + topology.getAverageLatency() + "," + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
         }
 
     }

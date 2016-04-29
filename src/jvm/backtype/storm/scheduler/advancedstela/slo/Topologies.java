@@ -8,15 +8,16 @@ import org.apache.thrift.transport.TTransportException;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Topologies {
-    private static final Integer UP_TIME = 10*60;
-    private static final Integer REBALANCING_INTERVAL = 60*5;
+    private static final Integer UP_TIME = 10 * 60;
+    private static final Integer REBALANCING_INTERVAL = 60 * 5;
 
     private Map config;
     private NimbusClient nimbusClient;
@@ -43,7 +44,6 @@ public class Topologies {
 
         writeToFile(same_top, "In topologies:  getTopologyPairScaling\n");
 
-
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
         ArrayList<Topology> failingTopologies = new ArrayList<Topology>();
@@ -52,23 +52,19 @@ public class Topologies {
 
         for (Topology topology : stelaTopologies.values()) {
             long lastRebalancedAtTime = 0;
-            if ( lastRebalancedAt.containsKey(topology.getId()) )
+            if (lastRebalancedAt.containsKey(topology.getId()))
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
 
 
-            if ((System.currentTimeMillis() / 1000 >=  lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId()))
-            {
+            if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
                 writeToFile(same_top, "The topology can be successful or failed \n");
                 writeToFile(same_top, "Topology name: " + topology.getId() + "\n");
                 boolean violated = topology.sloViolated();
 
-                if (violated)
-                {
+                if (violated) {
                     writeToFile(same_top, topology.getId() + " violated the SLO \n");
                     failingTopologies.add(topology);
-                }
-                else if (!violated)
-                {
+                } else if (!violated) {
                     writeToFile(same_top, topology.getId() + " did not violate the SLO \n");
                     successfulTopologies.add(topology);
                 }
@@ -77,7 +73,7 @@ public class Topologies {
 
         writeToFile(same_top, "Failing Topologies: \n");
         for (Topology t : failingTopologies)
-            writeToFile(same_top, "Failing : " + t.getId() +"\n");
+            writeToFile(same_top, "Failing : " + t.getId() + "\n");
         writeToFile(same_top, "Successful Topologies: \n");
         for (Topology t : successfulTopologies)
             writeToFile(same_top, "Successful : " + t.getId() + "\n");
@@ -88,17 +84,16 @@ public class Topologies {
 
         writeToFile(same_top, "Checking after topologies are set into the variables\n");
         writeToFile(same_top, "Givers:\n");
-        for (String t: topologyPair.getGivers())
+        for (String t : topologyPair.getGivers())
             writeToFile(same_top, "topology: " + t + "\n");
         writeToFile(same_top, "Receivers:\n");
-        for (String t: topologyPair.getReceivers())
-        writeToFile(same_top, "topology: " + t + "\n");
+        for (String t : topologyPair.getReceivers())
+            writeToFile(same_top, "topology: " + t + "\n");
 
         return topologyPair;
     }
 
-    public void updateLastRebalancedTime(String topologyId, Long time)
-    {
+    public void updateLastRebalancedTime(String topologyId, Long time) {
         lastRebalancedAt.put(topologyId, time);
     }
 
@@ -112,11 +107,11 @@ public class Topologies {
                 log.append("TOPOLOGY INFO \n");
                 for (TopologySummary topologySummary : topologies) {
 
-                log.append(topologySummary.get_id() + "\n");
-                log.append("Topology Uptime: " +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
-                log.append("Topology Status: "  +  nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
-                log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
-                log.append("Topology Num Workers: " +  topologySummary.get_num_workers() + "\n");
+                    log.append(topologySummary.get_id() + "\n");
+                    log.append("Topology Uptime: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
+                    log.append("Topology Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
+                    log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
+                    log.append("Topology Num Workers: " + topologySummary.get_num_workers() + "\n");
 
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
@@ -127,18 +122,22 @@ public class Topologies {
 
                     if (!stelaTopologies.containsKey(id) /*&& upForMoreThan(id)*/) {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
+                        Double userLatencySLO = getUserSpecifiedLatencySLOFromConfig(id);
+                        String sensitivity = getUserSLOSensitivityFromConfig(id);
+                        Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, sensitivity);
 
-                        Topology topology = new Topology(id, userSpecifiedSlo);
                         addSpoutsAndBolts(stormTopology, topology);
                         constructTopologyGraph(stormTopology, topology);
 
                         stelaTopologies.put(id, topology);
 
-                    } else if (stelaTopologies.containsKey(id)){
+                    } else if (stelaTopologies.containsKey(id)) {
                         TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
                         updateParallelismHintsForTopology(topologyInfo, id, stormTopology);
                     }
                 }
+
+                getLatencies();
 
                 log.append("********* END CLUSTER INFO **********\n");
                 writeToFile(flatline_log, log.toString());
@@ -183,6 +182,50 @@ public class Topologies {
         }
 
         return topologySLO;
+    }
+
+    private String getUserSLOSensitivityFromConfig(String id)
+    {
+        String sensitivity = new String();
+        JSONParser parser = new JSONParser();
+        try {
+            Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
+            sensitivity = (String) conf.get(Config.TOPOLOGY_SENSITIVITY);
+            writeToFile(same_top, "In the function:  getUserSLOSensitivityFromConfig\n");
+            writeToFile(same_top, "Topology name: " + id + "\n");
+            writeToFile(same_top, "Topology Sensitivity: " +  sensitivity + "\n");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (AuthorizationException e) {
+            e.printStackTrace();
+        } catch (NotAliveException e) {
+            e.printStackTrace();
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        return sensitivity;
+    }
+
+    private Double getUserSpecifiedLatencySLOFromConfig(String id) {
+        Double topologyLatencySLO = 1.0;
+        JSONParser parser = new JSONParser();
+        try {
+            Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
+
+            topologyLatencySLO = (Double) conf.get(Config.TOPOLOGY_LATENCY_SLO);
+            writeToFile(same_top, "In the function: getUserSpecifiedLatencySLOFromConfig\n");
+            writeToFile(same_top, "Topology name: " + id + "\n");
+            writeToFile(same_top, "Topology Latency SLO: " + topologyLatencySLO + "\n");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (AuthorizationException e) {
+            e.printStackTrace();
+        } catch (NotAliveException e) {
+            e.printStackTrace();
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        return topologyLatencySLO;
     }
 
     private void addSpoutsAndBolts(StormTopology stormTopology, Topology topology) {
@@ -250,12 +293,13 @@ public class Topologies {
                     allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
                 }
             }
-        }
-        else {
+        } else {
             for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
                 if (allComponents.containsKey(spout.getKey())) {
-                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey())); ;; /// WHAT?
-                      }
+                    allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey()));
+                    ;
+                    ; /// WHAT?
+                }
             }
 
             for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
@@ -266,10 +310,171 @@ public class Topologies {
         }
     }
 
-
     public void remove(String topologyId) {
         stelaTopologies.remove(topologyId);
     }
+
+    public void getLatencies() {
+
+        HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = ReadFiles();
+        Double average_latency = 0.0,tail_latency = Double.MIN_VALUE; // measure
+        int k = 0;
+        for (String topology: stelaTopologies.keySet())
+        {
+            Topology topology_ = stelaTopologies.get(topology);
+            if (data.containsKey(topology))
+            {
+                HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
+                for (HashMap<String, String> op_pairs: top_data.keySet())
+                {
+
+                    ArrayList <Double> times = top_data.get(op_pairs);
+                    Double final_time = 0.0;
+                    for (int i = 0; i < times.size(); i++) {
+                        k++;
+                        final_time += times.get(i);
+                        if (tail_latency < times.get(i)) tail_latency =  times.get(i);
+                    }
+
+                    topology_.latencies.put(op_pairs, final_time/times.size());
+
+
+
+                    average_latency += final_time;
+                }
+                topology_.setAverageLatency(average_latency/(double)k);
+                topology_.setTailLatency(tail_latency);
+
+                average_latency = 0.0;
+                tail_latency = Double.MIN_VALUE;
+                k = 0;
+            }
+            else
+            {
+                writeToFile(same_top, "No latency data for topology: " + topology + " \n");
+            }
+        }
+
+        writeToFile(same_top, "Let's get some latency data \n");
+
+        for (String topology: stelaTopologies.keySet())
+        {
+                HashMap<HashMap<String, String>, Double> top_data = stelaTopologies.get(topology).latencies;
+                for (HashMap<String, String> op_pairs: top_data.keySet())
+                {
+                    Double latency = top_data.get(op_pairs);
+                    for (String spouts: op_pairs.keySet())
+                    {
+                        writeToFile(same_top, "Topology: " + topology+ " spout: " + spouts + " sinks: " + op_pairs.get(spouts) + " latency: " + latency + ". \n");
+                    }
+
+                    writeToFile(same_top, "Topology: " + topology+ " average latency: " + stelaTopologies.get(topology).getAverageLatency() + " tail latency: " + stelaTopologies.get(topology).getTailLatency() + ". \n");
+                }
+        }
+    }
+
+
+    public HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> ReadFiles() {
+        String topology = new String();
+        String spout = new String();
+        String sink = new String();
+        Double latency = 0.0;
+
+        HashMap<HashMap<String, String>, ArrayList<Double>> op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
+        HashMap<String, String> op_temp = new HashMap<String, String>();
+        HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
+
+
+        final File folder = new File("/users/kalim2/output/");
+
+        try {
+            for (final File file : folder.listFiles()) {
+                if (!file.isDirectory()) {
+                   //System.out.println(file.getName());
+
+                    FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
+
+                    FileLock lock = channel.tryLock();
+                    while (lock == null) {
+                        lock = channel.tryLock();
+                    }
+
+
+                    BufferedReader br = null;
+                    String line = "";
+                    String cvsSplitBy = ",";
+
+                    try {
+
+                        br = new BufferedReader(new FileReader(file));
+                        while ((line = br.readLine()) != null) {
+
+                            // use comma as separator
+                            String[] split_line = line.split(cvsSplitBy);
+
+                            topology = split_line[0];
+                            spout = split_line[1];
+                            sink = split_line[2];
+                            latency = Double.parseDouble(split_line[3]);
+
+                            if (top_op_latency.containsKey(topology)) {
+                                op_latency = top_op_latency.get(topology);
+                                boolean flag = false;
+                                for (HashMap<String, String> ops : op_latency.keySet()) {
+                                    if (ops.containsKey(spout) && ops.get(spout).equals(sink)) {
+                                        ArrayList<Double> times = op_latency.get(ops);
+                                        times.add(latency);
+                                        flag = true;
+                                        op_latency.put(ops, times); // PUT IT BACK
+                                        top_op_latency.put(topology, op_latency);
+                                    }
+                                }
+                                if (!flag) {
+                                    op_temp = new HashMap<>();
+                                    op_temp.put(spout, sink);
+                                    ArrayList<Double> t = new ArrayList<Double>();
+                                    op_latency.put(op_temp, t); // PUT IT BACK
+                                    top_op_latency.put(topology, op_latency);
+                                }
+                            }
+                            else {
+                                op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
+                                op_temp = new HashMap<>();
+                                op_temp.put(spout, sink);
+                                ArrayList<Double> t = new ArrayList<Double>();
+                                op_latency.put(op_temp, t);
+                                top_op_latency.put(topology, op_latency);
+                            }
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (br != null) {
+                            try {
+                                br.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+
+                    lock.release();
+                    channel.close();
+
+                }
+            }
+
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
+        return top_op_latency;
+    }
+
+
+
+
 
     public void writeToFile(File file, String data) {
         try {
