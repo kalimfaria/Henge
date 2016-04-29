@@ -1,9 +1,15 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
 
 public class ETPStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
@@ -36,6 +42,7 @@ public class ETPStrategy {
         sourceList = new ArrayList<Component>();
         sinkList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
+
     }
 
     public ArrayList<ResultComponent> topologyETPRankDescending() { //used by targets

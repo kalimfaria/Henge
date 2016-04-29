@@ -3,7 +3,12 @@ package backtype.storm.scheduler.advancedstela.etp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
+import java.util.Map.Entry;
 
 public class LatencyStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
@@ -20,9 +25,10 @@ public class LatencyStrategy {
     private ArrayList<Component> sinkList;
     private HashMap<Component, Double> congestionMap;
     private HashMap<Component, Double> topologyETPMap;
-    private HashMap<Component, HashMap<ArrayList<Component>, Double>> uncongestedPaths;
+    //private HashMap<Component, HashMap<ArrayList<Component>, Double>> uncongestedPaths;
+    private HashMap<Component, HashMap<ArrayList<Component>, Double>> pathCollection; //indexed by each component - points to all paths that lead to this sink that pass by this component
     private HashMap<Component, Double> etpLatencyMap;
-
+    private File latency_log;
 
 
     public LatencyStrategy(TopologySchedule tS, TopologyStatistics tStats) {
@@ -38,12 +44,16 @@ public class LatencyStrategy {
         sourceList = new ArrayList<Component>();
         sinkList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
-        uncongestedPaths = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
+        //uncongestedPaths = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
+        pathCollection = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
         etpLatencyMap = new HashMap<Component, Double>();
+        latency_log = new File("/tmp/latency.log");
     }
 
     public ArrayList<ResultComponent> topologyETPRankDescending() { //used by targets
-        collectRates();
+    	String topologyId = topologySchedule.getId();
+    	writeToFile(latency_log, "------Calculating Component Descending Map for:"+ topologyId + "-------" + "\n");
+    	collectRates();
         congestionDetection();
 
         Double totalThroughput = 0.0;
@@ -70,47 +80,60 @@ public class LatencyStrategy {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
         }
+        //print topologyETP
+        writeToFile(latency_log, "------Topology ETP Map for "+ topologySchedule.getId() + "-------" + "\n");
+        for(Entry<Component, Double> e: topologyETPMap.entrySet()){
+        	writeToFile(latency_log, e.getKey().getId()+"->"+ e.getValue() +"\n");
+        }
         
-      //calculate uncongestedPath for each component
+        writeToFile(latency_log, "+++++++++ Path Collection +++++++" + "\n");
+        //calculate all path from source to sink for each component
         for (Component component : topologySchedule.getComponents().values()) {
+        	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
         	//populate uncongestedPathMap 
-        	ArrayList<ArrayList<Component>> compUncongestedPaths = uncongestedPathCalculation(component, sinksMap);
+        	ArrayList<ArrayList<Component>> compToPaths = pathCollectionCalculation(component, sinksMap);
         	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
         	//populate compLatencyMap
-        	for(ArrayList<Component> path : compUncongestedPaths){
+        	for(ArrayList<Component> path : compToPaths){
+        		writeToFile(latency_log, "Path:\n");
         		Double totalLatency =0.0;
         		for(Component member : path){
         			totalLatency+=member.getProcessLatency();
+        			writeToFile(latency_log, "Component: "+member.getId());
         		}
+        		writeToFile(latency_log, "\n Total Latency: "+totalLatency+"\n");
         		compLatencyMap.put(path, totalLatency);
         	}
-        	this.uncongestedPaths.put(component, compLatencyMap);
+        	this.pathCollection.put(component, compLatencyMap);
         }
+        
         
         //populate etpLatencyMap
         for (Component component : topologySchedule.getComponents().values()) {
-        	HashMap<Component, Integer>  uncongestedSinkCount = new HashMap<Component, Integer>();
-        	HashMap<Component, Double> uncongestedSinkTotalLatency = new HashMap<Component, Double>();
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.uncongestedPaths.get(component);
+        	HashMap<Component, Integer>  sinkCount = new HashMap<Component, Integer>();
+        	HashMap<Component, Double> sinkTotalLatency = new HashMap<Component, Double>();
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.pathCollection.get(component);
         	for(ArrayList<Component> path : compLatencyMap.keySet()){
         		Component sink = path.get(0);
-        		if(!uncongestedSinkCount.containsKey(sink)){
-        			uncongestedSinkCount.put(sink, 1);
-        			uncongestedSinkTotalLatency.put(sink, compLatencyMap.get(path));
+        		if(!sinkCount.containsKey(sink)){
+        			sinkCount.put(sink, 1);
+        			sinkTotalLatency.put(sink, compLatencyMap.get(path));
         		}
         		else{
-        			uncongestedSinkCount.put(sink, uncongestedSinkCount.get(sink)+1);
-        			uncongestedSinkTotalLatency.put(sink, uncongestedSinkTotalLatency.get(sink)+compLatencyMap.get(path));
+        			sinkCount.put(sink, sinkCount.get(sink)+1);
+        			sinkTotalLatency.put(sink, sinkTotalLatency.get(sink)+compLatencyMap.get(path));
         		}
         	}
         	
         	Double etpLatencyScore =0.0;
-        	for(Component sink: uncongestedSinkCount.keySet()){
+        	for(Component sink: sinkCount.keySet()){
         		//take an average 
-        		etpLatencyScore += uncongestedSinkTotalLatency.get(sink)/uncongestedSinkCount.get(sink)*topologyETPMap.get(sink);
+        		etpLatencyScore += sinkTotalLatency.get(sink)/sinkCount.get(sink)*topologyETPMap.get(sink);
         	}
         	this.etpLatencyMap.put(component, etpLatencyScore);
+        	writeToFile(latency_log, "=== Component: "+ component.getId()+ ", ETPLatency Score: " + etpLatencyScore+"===\n");
         }
+        
         
 
 
@@ -129,11 +152,19 @@ public class LatencyStrategy {
         }
 
         Collections.sort(resultComponents, Collections.reverseOrder());
+        //print descending list
+        writeToFile(latency_log, "=== Descending List ===\n");
+        for(ResultComponent r:resultComponents){
+        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        }
+        writeToFile(latency_log, "\n");
         return resultComponents;
     }
 
     public ArrayList<ResultComponent> topologyETPRankAscending() { //used by victims
-        collectRates();
+    	String topologyId = topologySchedule.getId();
+    	writeToFile(latency_log, "------Calculating Component Descending Map for:"+ topologyId + "-------" + "\n");
+    	collectRates();
         congestionDetection();
 
         Double totalThroughput = 0.0;
@@ -144,7 +175,7 @@ public class LatencyStrategy {
         }
 
         if (totalThroughput == 0.0) {
-            LOG.info("Nothing to do as throughput is 0.");
+        	//LOG.info("Nothing to do as throughput is 0.");
             new TreeMap<>();
         }
 
@@ -162,47 +193,75 @@ public class LatencyStrategy {
             topologyETPMap.put(component, score);
         }
         
+        //print topologyETP
+        writeToFile(latency_log, "------Topology ETP Map for "+ topologySchedule.getId() + "-------" + "\n");
+        for(Entry<Component, Double> e: topologyETPMap.entrySet()){
+        	writeToFile(latency_log, e.getKey().getId()+"->"+ e.getValue() +"\n");
+        }    
+        
+        writeToFile(latency_log, "+++++++++ Path Collection +++++++" + "\n");
         //calculate uncongestedPath for each component
         for (Component component : topologySchedule.getComponents().values()) {
-        	//populate uncongestedPathMap 
-        	ArrayList<ArrayList<Component>> compUncongestedPaths = uncongestedPathCalculation(component, sinksMap);
+        	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
+        	//populate pathCollectionMap 
+        	ArrayList<ArrayList<Component>> compToPaths = pathCollectionCalculation(component, sinksMap);
         	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
         	//populate compLatencyMap
-        	for(ArrayList<Component> path : compUncongestedPaths){
+        	for(ArrayList<Component> path : compToPaths){
+        		writeToFile(latency_log, "Path:\n");
+        		Double totalLatency =0.0;
+        		for(Component member : path){
+        			totalLatency+=member.getProcessLatency();
+        			writeToFile(latency_log, "Component: "+member.getId());
+        		}
+        		writeToFile(latency_log, "\n Total Latency: "+totalLatency+"\n");
+        		compLatencyMap.put(path, totalLatency);
+        	}
+        	this.pathCollection.put(component, compLatencyMap);
+        }
+        
+      //calculate uncongestedPath for each component
+        for (Component component : topologySchedule.getComponents().values()) {
+        	//populate uncongestedPathMap 
+        	ArrayList<ArrayList<Component>> compToPaths = pathCollectionCalculation(component, sinksMap);
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
+        	//populate compLatencyMap
+        	for(ArrayList<Component> path : compToPaths){
         		Double totalLatency =0.0;
         		for(Component member : path){
         			totalLatency+=member.getProcessLatency();
         		}
         		compLatencyMap.put(path, totalLatency);
         	}
-        	this.uncongestedPaths.put(component, compLatencyMap);
+        	this.pathCollection.put(component, compLatencyMap);
         }
         
         //populate etpLatencyMap
         for (Component component : topologySchedule.getComponents().values()) {
-        	HashMap<Component, Integer>  uncongestedSinkCount = new HashMap<Component, Integer>();
-        	HashMap<Component, Double> uncongestedSinkTotalLatency = new HashMap<Component, Double>();
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.uncongestedPaths.get(component);
+        	HashMap<Component, Integer>  sinkCount = new HashMap<Component, Integer>();
+        	HashMap<Component, Double> sinkTotalLatency = new HashMap<Component, Double>();
+        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.pathCollection.get(component);
         	for(ArrayList<Component> path : compLatencyMap.keySet()){
         		Component sink = path.get(0);
-        		if(!uncongestedSinkCount.containsKey(sink)){
-        			uncongestedSinkCount.put(sink, 1);
-        			uncongestedSinkTotalLatency.put(sink, compLatencyMap.get(path));
+        		if(!sinkCount.containsKey(sink)){
+        			sinkCount.put(sink, 1);
+        			sinkTotalLatency.put(sink, compLatencyMap.get(path));
         		}
         		else{
-        			uncongestedSinkCount.put(sink, uncongestedSinkCount.get(sink)+1);
-        			uncongestedSinkTotalLatency.put(sink, uncongestedSinkTotalLatency.get(sink)+compLatencyMap.get(path));
+        			sinkCount.put(sink, sinkCount.get(sink)+1);
+        			sinkTotalLatency.put(sink, sinkTotalLatency.get(sink)+compLatencyMap.get(path));
         		}
         	}
         	
         	Double etpLatencyScore =0.0;
-        	for(Component sink: uncongestedSinkCount.keySet()){
+        	for(Component sink: sinkCount.keySet()){
         		//take an average 
-        		etpLatencyScore += uncongestedSinkTotalLatency.get(sink)/uncongestedSinkCount.get(sink)*topologyETPMap.get(sink);
+        		etpLatencyScore += sinkTotalLatency.get(sink)/sinkCount.get(sink)*topologyETPMap.get(sink);
         	}
+        	writeToFile(latency_log, "=== Component: "+ component.getId()+ ", ETPLatency Score: " + etpLatencyScore+"===\n");
         	this.etpLatencyMap.put(component, etpLatencyScore);
         }
-        
+           
 
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
@@ -215,6 +274,11 @@ public class LatencyStrategy {
         }
 
         Collections.sort(resultComponents);
+        writeToFile(latency_log, "=== Ascending List ===\n");
+        for(ResultComponent r:resultComponents){
+        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        }
+        writeToFile(latency_log, "\n");
         return resultComponents;
     }
 
@@ -237,6 +301,13 @@ public class LatencyStrategy {
                 congestionMap.put(self, io);
             }
         }
+        
+        //print congestion map
+        writeToFile(latency_log, "------Congestion Map for "+ topologySchedule.getId() + "-------" + "\n");
+        for(Entry<Component, Double> e: congestionMap.entrySet()){
+        	writeToFile(latency_log, "->"+ e.getKey().getId());
+        }
+        writeToFile(latency_log, "\n");
     }
 
     private Double etpCalculation(Component component, HashMap<String, Double> sinksMap) {
@@ -257,12 +328,11 @@ public class LatencyStrategy {
         return ret;
     }
     
-    private ArrayList<ArrayList<Component>> uncongestedPathCalculation(Component component, HashMap<String, Double> sinksMap) {
+    private ArrayList<ArrayList<Component>> pathCollectionCalculation(Component component, HashMap<String, Double> sinksMap) {
         //int ret = -1;
     	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
         if (component.getChildren().size() == 0) {
         	//add an entry to the uncongested path
-        	
         	ret.add(new ArrayList<Component>());
         	ret.get(ret.size()-1).add(component);
             return ret;
@@ -271,11 +341,8 @@ public class LatencyStrategy {
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
             Component child = components.get(c);
-            if (congestionMap.get(child)==null) {
-                ret = uncongestedPathCalculation(child, sinksMap); 
-                ret.get(ret.size()-1).add(component);
-                //uncongestedPathCalculation(child, sinksMap);
-            }
+            ret = pathCollectionCalculation(child, sinksMap); 
+            ret.get(ret.size()-1).add(component);
         }
 
         return ret;
@@ -287,29 +354,58 @@ public class LatencyStrategy {
         }
 
         expectedEmitRates.putAll(componentEmitRates);
-
+        
+        //print
+        writeToFile(latency_log, "------Emit Rate Map for "+ topologySchedule.getId() + "-------" + "\n");
+        for(Entry<String, Double> e: expectedEmitRates.entrySet()){
+        	writeToFile(latency_log, e.getKey()+"->"+ e.getValue() +"\n");
+        }
+        
         for (Map.Entry<String, List<Integer>> executeThroughput : topologyStatistics.getExecuteThroughputHistory().entrySet()) {
             componentExecuteRates.put(executeThroughput.getKey(), computeMovingAverage(executeThroughput.getValue()));
         }
         expectedExecutedRates.putAll(componentExecuteRates);
+        
+        //print
+        writeToFile(latency_log, "------Execution Rate Map for "+ topologySchedule.getId() + "-------" + "\n");      
+        for(Entry<String, Double> e: expectedExecutedRates.entrySet()){
+        	writeToFile(latency_log, e.getKey()+"->"+ e.getValue() +"\n");
+        }
 
         /**------not using window right now, maybe later----**/
         	
         for (Map.Entry<String, Component> component : topologySchedule.getComponents().entrySet()) {
             parallelism.put(component.getKey(), component.getValue().getParallelism());
         }
-
+        //print
+        writeToFile(latency_log, "------Parallelism Map for "+ topologySchedule.getId() + "-------" + "\n");      
+        for(Entry<String, Integer> e: parallelism.entrySet()){
+        	writeToFile(latency_log, e.getKey()+"->"+ e.getValue() +"\n");
+        }      
+        
         for (Component component : topologySchedule.getComponents().values()) {
             if (component.getParents().size() == 0) {
                 sourceList.add(component);
             }
         }
+        //print
+        writeToFile(latency_log, "------Source List for "+ topologySchedule.getId() + "-------" + "\n");      
+        for(Component c: sourceList){
+        	writeToFile(latency_log, c+"->"+ c.getId());
+        }
+        writeToFile(latency_log, "\n");
         
         for (Component component : topologySchedule.getComponents().values()) {
             if (component.getChildren().size() == 0) {
                 sinkList.add(component);
             }
         }
+        //print
+        writeToFile(latency_log, "------Sink List for "+ topologySchedule.getId() + "-------" + "\n");      
+        for(Component c: sinkList){
+        	writeToFile(latency_log, c+"->"+ c.getId());
+        }
+        writeToFile(latency_log, "\n");
         
     }
 
@@ -319,6 +415,18 @@ public class LatencyStrategy {
             sum += val;
         }
         return sum / (rates.size() * 1.0);
+    }
+    
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWritter = new FileWriter(file, true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.append(data);
+            bufferWritter.close();
+            fileWritter.close();
+        } catch (IOException ex) {
+          System.out.println(ex.toString());
+        }
     }
 
 	
