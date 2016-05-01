@@ -81,7 +81,7 @@ public class ETPStrategy {
         		Long curTime = System.currentTimeMillis();
         		if(curTime-component.getLastRebalancedAt()>300000){
         			resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
-        			component.setLastRebalancedAt(curTime);
+        			//component.setLastRebalancedAt(curTime);
         		}
         	}
         }
@@ -122,11 +122,13 @@ public class ETPStrategy {
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
         for (Component component: topologyETPMap.keySet()) {
-        	Long curTime = System.currentTimeMillis();
-    		if(curTime-component.getLastRebalancedAt()>300000){
-    			resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
-    			component.setLastRebalancedAt(curTime);
-    		}
+        	if(!this.congestionMap.containsKey(component)){ 
+		    	Long curTime = System.currentTimeMillis();
+				if(curTime-component.getLastRebalancedAt()>300000){
+					resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+					//component.setLastRebalancedAt(curTime);
+				}
+        	}
         }
         
 

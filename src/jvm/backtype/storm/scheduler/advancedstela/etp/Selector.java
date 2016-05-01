@@ -1,30 +1,42 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
-import backtype.storm.generated.ExecutorSummary;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+
+import backtype.storm.generated.ExecutorSummary;
+import backtype.storm.scheduler.advancedstela.slo.Topology;
 
 public class Selector {
 
-    public ExecutorPair selectPair(GlobalState globalState, GlobalStatistics globalStatistics,
-                                                 String targetID, String victimID) {
+    public ExecutorPair selectPair(GlobalState globalState, GlobalStatistics globalStatistics, Topology targetTopo, Topology victimTopo ) {
 
-        TopologySchedule targetSchedule = globalState.getTopologySchedules().get(targetID);
-        TopologySchedule victimSchedule = globalState.getTopologySchedules().get(victimID);
-        TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetID);
-        TopologyStatistics victimStatistics = globalStatistics.getTopologyStatistics().get(victimID);
+        TopologySchedule targetSchedule = globalState.getTopologySchedules().get(targetTopo.getId());
+        TopologySchedule victimSchedule = globalState.getTopologySchedules().get(victimTopo.getId());
+        TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetTopo.getId());
+        TopologyStatistics victimStatistics = globalStatistics.getTopologyStatistics().get(victimTopo.getId());
 
         //ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
         //ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
+        ArrayList<ResultComponent> rankTarget = new ArrayList<ResultComponent>();
+        if(targetTopo.getSensitivity().equals("throughput")){
+        	ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+        	rankTarget = targetStrategy.topologyETPRankDescending();
+        }
+        else{
+        	LatencyStrategy targetStrategy = new LatencyStrategy(targetSchedule, targetStatistics, targetTopo);
+        	rankTarget = targetStrategy.topologyETPRankDescending();
+        }
         
-        LatencyStrategy targetStrategy = new LatencyStrategy(targetSchedule, targetStatistics);
-        LatencyStrategy victimStrategy = new LatencyStrategy(victimSchedule, victimStatistics);
-
-        ArrayList<ResultComponent> rankTarget = targetStrategy.topologyETPRankDescending();
-        ArrayList<ResultComponent> rankVictim = victimStrategy.topologyETPRankAscending();
+        ArrayList<ResultComponent> rankVictim = new ArrayList<ResultComponent>();
+        if(targetTopo.getSensitivity().equals("throughput")){
+        	ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
+        	rankVictim = victimStrategy.topologyETPRankDescending();
+        }
+        else{
+        	LatencyStrategy victimStrategy = new LatencyStrategy(victimSchedule, victimStatistics, victimTopo);
+        	rankVictim = victimStrategy.topologyETPRankDescending();
+        }
+        
 
         for (ResultComponent victimComponent : rankVictim) {
             List<ExecutorSummary> victimExecutorDetails = victimComponent.component.getExecutorSummaries();
