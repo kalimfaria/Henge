@@ -102,8 +102,14 @@ public class LatencyStrategy {
         	for(ArrayList<Component> downStream : downStreams){
         		for(ArrayList<Component> upStream : upStreams){
         			writeToFile(latency_log, "Path(downstream):\n");
-                    writeToFile(latency_log, downStream+"\n");
+        			for(Component c: downStream){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
+        			writeToFile(latency_log, "\n");
                     writeToFile(latency_log, "Path(upstream):\n");
+                    for(Component c: upStream){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
                     writeToFile(latency_log, upStream+"\n");
             		Double totalLatency =0.0;
             		Component head = upStream.get(upStream.size()-1);
@@ -116,7 +122,10 @@ public class LatencyStrategy {
             		newpath.addAll(downStream);
             		newpath.addAll(upStream);
             		writeToFile(latency_log, "New Path:\n");
-                    writeToFile(latency_log, newpath+"\n");	
+        			for(Component c:newpath){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
+        			writeToFile(latency_log, "\n");
             		compLatencyMap.put(newpath, totalLatency);
         		}
         		this.pathCollection.put(component, compLatencyMap);
@@ -228,8 +237,14 @@ public class LatencyStrategy {
         	for(ArrayList<Component> downStream : downStreams){
         		for(ArrayList<Component> upStream : upStreams){
         			writeToFile(latency_log, "Path(downstream):\n");
-                    writeToFile(latency_log, downStream+"\n");
+        			for(Component c: downStream){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
+        			writeToFile(latency_log, "\n");
                     writeToFile(latency_log, "Path(upstream):\n");
+                    for(Component c: upStream){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
                     writeToFile(latency_log, upStream+"\n");
             		Double totalLatency =0.0;
             		Component head = upStream.get(upStream.size()-1);
@@ -242,7 +257,10 @@ public class LatencyStrategy {
             		newpath.addAll(downStream);
             		newpath.addAll(upStream);
             		writeToFile(latency_log, "New Path:\n");
-                    writeToFile(latency_log, newpath+"\n");	
+        			for(Component c:newpath){
+        	        	writeToFile(latency_log, c.getId()+"->");
+        	        }
+        			writeToFile(latency_log, "\n");
             		compLatencyMap.put(newpath, totalLatency);
         		}
         		this.pathCollection.put(component, compLatencyMap);
