@@ -92,30 +92,36 @@ public class LatencyStrategy {
         
         writeToFile(latency_log, "+++++++++ Path Collection +++++++" + "\n");
         //calculate all path from source to sink for each component
+        HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
         for (Component component : topologySchedule.getComponents().values()) {
         	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
-        	//populate uncongestedPathMap 
-        	ArrayList<ArrayList<Component>> compToPaths = pathCollectionCalculation(component);
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
+        	//populate pathCollectionMap 
+        	ArrayList<ArrayList<Component>> downStreams = downstreamTracking(component);
+        	ArrayList<ArrayList<Component>> upStreams = upstreamTracking(component);	
         	//populate compLatencyMap
-        	for(ArrayList<Component> path : compToPaths){
-        		writeToFile(latency_log, "Path:\n");
-                writeToFile(latency_log, path+"\n");
-        		Double totalLatency =0.0;
-        		/*for(Component member : path){
-        			totalLatency+=member.getProcessLatency();
-        			writeToFile(latency_log, "Component: "+member.getId());
+        	for(ArrayList<Component> downStream : downStreams){
+        		for(ArrayList<Component> upStream : upStreams){
+        			writeToFile(latency_log, "Path(downstream):\n");
+                    writeToFile(latency_log, downStream+"\n");
+                    writeToFile(latency_log, "Path(upstream):\n");
+                    writeToFile(latency_log, upStream+"\n");
+            		Double totalLatency =0.0;
+            		Component head = upStream.get(upStream.size()-1);
+            		Component tail = downStream.get(0);
+            		HashMap<String, String> head_tail = new HashMap<String, String>();
+            		head_tail.put(head.getId(), tail.getId());
+            		totalLatency = this.topo.latencies.get(head_tail);
+            		writeToFile(latency_log, "\n Total Path Latency: "+totalLatency+"\n");
+            		ArrayList<Component> newpath = new ArrayList<Component>();
+            		newpath.addAll(downStream);
+            		newpath.addAll(upStream);
+            		writeToFile(latency_log, "New Path:\n");
+                    writeToFile(latency_log, newpath+"\n");	
+            		compLatencyMap.put(newpath, totalLatency);
         		}
-        		writeToFile(latency_log, "\n Total Latency: "+totalLatency+"\n");*/
-        		Component head = path.get(path.size()-1);
-        		Component tail = path.get(0);
-        		HashMap<String, String> head_tail = new HashMap<String, String>();
-        		head_tail.put(head.getId(), tail.getId());
-        		totalLatency = this.topo.latencies.get(head_tail);
-        		writeToFile(latency_log, "\n Total Path Latency: "+totalLatency+"\n");
-        		compLatencyMap.put(path, totalLatency);
+        		this.pathCollection.put(component, compLatencyMap);
+        		
         	}
-        	this.pathCollection.put(component, compLatencyMap);
         }
         
         
@@ -123,7 +129,7 @@ public class LatencyStrategy {
         for (Component component : topologySchedule.getComponents().values()) {
         	HashMap<Component, Integer>  sinkCount = new HashMap<Component, Integer>();
         	HashMap<Component, Double> sinkTotalLatency = new HashMap<Component, Double>();
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.pathCollection.get(component);
+        	compLatencyMap = this.pathCollection.get(component);
         	for(ArrayList<Component> path : compLatencyMap.keySet()){
         		Component sink = path.get(0);
         		if(!sinkCount.containsKey(sink)){
@@ -212,37 +218,44 @@ public class LatencyStrategy {
         
         writeToFile(latency_log, "+++++++++ Path Collection +++++++" + "\n");
         //calculate uncongestedPath for each component
+        HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
         for (Component component : topologySchedule.getComponents().values()) {
         	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
         	//populate pathCollectionMap 
-        	ArrayList<ArrayList<Component>> compToPaths = pathCollectionCalculation(component);
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = new HashMap<ArrayList<Component>, Double>();
+        	ArrayList<ArrayList<Component>> downStreams = downstreamTracking(component);
+        	ArrayList<ArrayList<Component>> upStreams = upstreamTracking(component);	
         	//populate compLatencyMap
-        	for(ArrayList<Component> path : compToPaths){
-        		writeToFile(latency_log, "Path:\n");
-                writeToFile(latency_log, path+"\n");
-        		Double totalLatency =0.0;
-        		/*for(Component member : path){
-        			totalLatency+=member.getProcessLatency();
-        			writeToFile(latency_log, "Component: "+member.getId());
-        		}*/
-        		Component head = path.get(path.size()-1);
-        		Component tail = path.get(0);
-        		HashMap<String, String> head_tail = new HashMap<String, String>();
-        		head_tail.put(head.getId(), tail.getId());
-        		totalLatency = this.topo.latencies.get(head_tail);
-        		writeToFile(latency_log, "\n Total Path Latency: "+totalLatency+"\n");
-        		compLatencyMap.put(path, totalLatency);
+        	for(ArrayList<Component> downStream : downStreams){
+        		for(ArrayList<Component> upStream : upStreams){
+        			writeToFile(latency_log, "Path(downstream):\n");
+                    writeToFile(latency_log, downStream+"\n");
+                    writeToFile(latency_log, "Path(upstream):\n");
+                    writeToFile(latency_log, upStream+"\n");
+            		Double totalLatency =0.0;
+            		Component head = upStream.get(upStream.size()-1);
+            		Component tail = downStream.get(0);
+            		HashMap<String, String> head_tail = new HashMap<String, String>();
+            		head_tail.put(head.getId(), tail.getId());
+            		totalLatency = this.topo.latencies.get(head_tail);
+            		writeToFile(latency_log, "\n Total Path Latency: "+totalLatency+"\n");
+            		ArrayList<Component> newpath = new ArrayList<Component>();
+            		newpath.addAll(downStream);
+            		newpath.addAll(upStream);
+            		writeToFile(latency_log, "New Path:\n");
+                    writeToFile(latency_log, newpath+"\n");	
+            		compLatencyMap.put(newpath, totalLatency);
+        		}
+        		this.pathCollection.put(component, compLatencyMap);
+        		
         	}
-        	this.pathCollection.put(component, compLatencyMap);
         }
-        
+        		
         
         //populate etpLatencyMap
         for (Component component : topologySchedule.getComponents().values()) {
         	HashMap<Component, Integer>  sinkCount = new HashMap<Component, Integer>();
         	HashMap<Component, Double> sinkTotalLatency = new HashMap<Component, Double>();
-        	HashMap<ArrayList<Component>, Double> compLatencyMap = this.pathCollection.get(component);
+        	compLatencyMap = this.pathCollection.get(component);
         	for(ArrayList<Component> path : compLatencyMap.keySet()){
         		Component sink = path.get(0);
         		if(!sinkCount.containsKey(sink)){
@@ -286,7 +299,27 @@ public class LatencyStrategy {
         return resultComponents;
     }
 
-    private void congestionDetection() {
+    private ArrayList<ArrayList<Component>> upstreamTracking(Component component) {
+		// TODO Auto-generated method stub
+    	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
+        if (component.getParents().size() == 0) {
+        	//add an entry to the uncongested path
+        	ret.add(new ArrayList<Component>());
+        	ret.get(ret.size()-1).add(component);
+            return ret;
+        }
+
+        HashMap<String, Component> components = topologySchedule.getComponents();
+        for (String p : component.getParents()) {
+            Component parent = components.get(p);
+            ret = upstreamTracking(parent); 
+            ret.get(ret.size()-1).add(component);
+        }
+
+        return ret;
+	}
+
+	private void congestionDetection() {
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (Map.Entry<String, Double> componentRate : expectedExecutedRates.entrySet()) {
             Double out = componentRate.getValue();
@@ -332,7 +365,7 @@ public class LatencyStrategy {
         return ret;
     }
     
-    private ArrayList<ArrayList<Component>> pathCollectionCalculation(Component component) {
+    private ArrayList<ArrayList<Component>> downstreamTracking(Component component) {
         //int ret = -1;
     	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
         if (component.getChildren().size() == 0) {
@@ -345,7 +378,7 @@ public class LatencyStrategy {
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
             Component child = components.get(c);
-            ret = pathCollectionCalculation(child); 
+            ret = downstreamTracking(child); 
             ret.get(ret.size()-1).add(component);
         }
 
