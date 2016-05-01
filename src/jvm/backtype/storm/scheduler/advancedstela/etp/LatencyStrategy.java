@@ -51,7 +51,7 @@ public class LatencyStrategy {
         //uncongestedPaths = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
         pathCollection = new HashMap<Component, HashMap<ArrayList<Component>, Double>>();
         etpLatencyMap = new HashMap<Component, Double>();
-        latency_log = new File("/tmp/latency.log");
+        latency_log = new File("/tmp/ETPlatency.log");
     }
 
     public ArrayList<ResultComponent> topologyETPRankDescending() { //used by targets
@@ -100,14 +100,15 @@ public class LatencyStrategy {
         	//populate compLatencyMap
         	for(ArrayList<Component> path : compToPaths){
         		writeToFile(latency_log, "Path:\n");
+                writeToFile(latency_log, path+"\n");
         		Double totalLatency =0.0;
         		/*for(Component member : path){
         			totalLatency+=member.getProcessLatency();
         			writeToFile(latency_log, "Component: "+member.getId());
         		}
         		writeToFile(latency_log, "\n Total Latency: "+totalLatency+"\n");*/
-        		Component head = path.get(0);
-        		Component tail = path.get(path.size()-1);
+        		Component head = path.get(path.size()-1);
+        		Component tail = path.get(0);
         		HashMap<String, String> head_tail = new HashMap<String, String>();
         		head_tail.put(head.getId(), tail.getId());
         		totalLatency = this.topo.latencies.get(head_tail);
@@ -219,13 +220,14 @@ public class LatencyStrategy {
         	//populate compLatencyMap
         	for(ArrayList<Component> path : compToPaths){
         		writeToFile(latency_log, "Path:\n");
+                writeToFile(latency_log, path+"\n");
         		Double totalLatency =0.0;
         		/*for(Component member : path){
         			totalLatency+=member.getProcessLatency();
         			writeToFile(latency_log, "Component: "+member.getId());
         		}*/
-        		Component head = path.get(0);
-        		Component tail = path.get(path.size()-1);
+        		Component head = path.get(path.size()-1);
+        		Component tail = path.get(0);
         		HashMap<String, String> head_tail = new HashMap<String, String>();
         		head_tail.put(head.getId(), tail.getId());
         		totalLatency = this.topo.latencies.get(head_tail);

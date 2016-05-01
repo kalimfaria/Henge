@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class Topologies {
-    private static final Integer UP_TIME = 10 * 60;
+    private static final Integer UP_TIME =  60;// 10 * 60;
     private static final Integer REBALANCING_INTERVAL = 60 * 5;
 
     private Map config;
@@ -181,7 +181,9 @@ public class Topologies {
             e.printStackTrace();
         }
 
-        return topologySLO;
+        /*DEBUG*/
+        return (topologySLO == null ? 1.0 : topologySLO);
+//        return topologySLO;
     }
 
     private String getUserSLOSensitivityFromConfig(String id)
@@ -225,7 +227,8 @@ public class Topologies {
         } catch (TException e) {
             e.printStackTrace();
         }
-        return topologyLatencySLO;
+     //   return topologyLatencySLO;
+        return (topologyLatencySLO == null ? 50.0: topologyLatencySLO);
     }
 
     private void addSpoutsAndBolts(StormTopology stormTopology, Topology topology) {

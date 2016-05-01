@@ -40,7 +40,8 @@ public class Topology implements Comparable<Topology> {
         this.sensitivity = sensitivity;
         latencies = new HashMap<HashMap<String, String>, Double>();
         same_top = new File("/tmp/same_top.log");
-        tailLatency = averageLatency = Double.MAX_VALUE;
+        tailLatency = Double.MAX_VALUE;
+        averageLatency = 0.0;
     }
     
     public String getSensitivity() {
@@ -146,7 +147,7 @@ public class Topology implements Comparable<Topology> {
             if (sensitivity.equals("throughput"))
                 return (getMeasuredSLO() < userSpecifiedSLO);
             else if (sensitivity.equals("latency"))
-                return (getAverageLatency() > averageLatency);
+                return (getAverageLatency() > userSpecifiedLatencySLO);
             
         }
         return (getMeasuredSLO() < userSpecifiedSLO);

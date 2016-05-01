@@ -26,7 +26,11 @@ public class TopologyPairs {
     }
 
     public void setGivers(ArrayList<Topology> giverTopologies) {
+        System.out.println("In setGivers");
         for (Topology topology: giverTopologies) {
+            System.out.println("Topology ID:" + topology.getId());
+            System.out.println("Topology User Specified SLO:" + topology.getUserSpecifiedSLO());
+            System.out.println("Topology Measured SLO:" + topology.getMeasuredSLO());
             givers_temp.put(topology.getId(), Math.abs(topology.getUserSpecifiedSLO() - topology.getMeasuredSLO()));
         }
 
@@ -73,20 +77,7 @@ public class TopologyPairs {
             }
         });
 
-
         StringBuffer log = new StringBuffer();
-        log.append("The sorted order of receivers: \n");
-        for (int i = 0; i < list.size(); i++)
-        {
-            givers.add((String) ((HashMap.Entry)list.get(i)).getKey());
-            log.append((String) ((HashMap.Entry)list.get(i)).getKey() + " " + (Double) ((HashMap.Entry)list.get(i)).getValue() + "\n");
-        }
-
-        log.append("***");
-        writeToFile(flatline_log, log.toString());
-
-
-
         for (HashMap.Entry receiver : receivers_temp.entrySet())
         {
             receivers.add((String)receiver.getKey());
