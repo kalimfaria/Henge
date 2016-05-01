@@ -257,7 +257,7 @@ public class LatencyStrategy {
         	        }
                     writeToFile(latency_log, upStream+"\n");
             		Double totalLatency =0.0;
-            		Component head = upStream.get(upStream.size()-1);
+            		Component head = upStream.get(0);
             		writeToFile(latency_log, "head: "+head.getId()+"\n");
             		Component tail = downStream.get(0);
             		writeToFile(latency_log, "tail: "+tail.getId()+"\n");
