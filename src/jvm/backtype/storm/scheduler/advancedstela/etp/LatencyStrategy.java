@@ -173,19 +173,29 @@ public class LatencyStrategy {
         
 
 
-        ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: etpLatencyMap.keySet()) {
-        	if(this.congestionMap.containsKey(component)){
-        		//only benefiting congested component
+        ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>(); 
+        if(this.congestionMap.size()!=0){
+        	for (Component component: etpLatencyMap.keySet()) {
+            	if(this.congestionMap.containsKey(component)){
+            		//only benefiting congested component
+            		Long curTime = System.currentTimeMillis();
+            		if(curTime-component.getLastRebalancedAt()>300000){
+            			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
+            			component.setLastRebalancedAt(curTime);
+            		}    		
+            }
+        	}
+        }
+        else{
+        	for (Component component: etpLatencyMap.keySet()) {
         		Long curTime = System.currentTimeMillis();
         		if(curTime-component.getLastRebalancedAt()>300000){
         			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
-        			component.setLastRebalancedAt(curTime);
+        			component.setLastRebalancedAt(curTime);	
         		}
-        		
         	}
-            
         }
+        
 
         Collections.sort(resultComponents, Collections.reverseOrder());
         //print descending list
@@ -316,15 +326,26 @@ public class LatencyStrategy {
         }
            
 
-
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: etpLatencyMap.keySet()) {
-        	if(!this.congestionMap.containsKey(component)){//if not congested
-		    	Long curTime = System.currentTimeMillis();
-				if(curTime-component.getLastRebalancedAt()>300000){
-					resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
-					component.setLastRebalancedAt(curTime);
-				}
+        if(this.congestionMap.size()!=0){
+        	for (Component component: etpLatencyMap.keySet()) {
+            	if(this.congestionMap.containsKey(component)){
+            		//only benefiting congested component
+            		Long curTime = System.currentTimeMillis();
+            		if(curTime-component.getLastRebalancedAt()>300000){
+            			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
+            			component.setLastRebalancedAt(curTime);
+            		}    		
+            }
+        	}
+        }
+        else{
+        	for (Component component: etpLatencyMap.keySet()) {
+        		Long curTime = System.currentTimeMillis();
+        		if(curTime-component.getLastRebalancedAt()>300000){
+        			resultComponents.add(new ResultComponent(component, etpLatencyMap.get(component)));
+        			component.setLastRebalancedAt(curTime);	
+        		}
         	}
         }
 
