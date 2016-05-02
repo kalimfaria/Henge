@@ -121,6 +121,7 @@ public class Topologies {
                     }
 
                     if (!stelaTopologies.containsKey(id) /*&& upForMoreThan(id)*/) {
+                        //String sortingStrategy = "Unified"; // other - Class-Based
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
                         Double userLatencySLO = getUserSpecifiedLatencySLOFromConfig(id);
                         String sensitivity = getUserSLOSensitivityFromConfig(id);

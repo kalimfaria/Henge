@@ -25,6 +25,7 @@ public class Topology implements Comparable<Topology> {
     public HashMap<HashMap<String, String>, Double> latencies;
     private Double averageLatency;
     private Double tailLatency;
+    static public String sortingStrategy;
 
 
     private File same_top;
@@ -42,6 +43,7 @@ public class Topology implements Comparable<Topology> {
         same_top = new File("/tmp/same_top.log");
         tailLatency = Double.MAX_VALUE;
         averageLatency = 0.0;
+        sortingStrategy = "ascending";
     }
     
     public String getSensitivity() {
@@ -157,9 +159,218 @@ public class Topology implements Comparable<Topology> {
     }
 
 
-    public int compareTo(Topology other) {
+  /*  public int compareTo(Topology other) {
         return getMeasuredSLO().compareTo(other.getMeasuredSLO());
+    }*/
+
+    public int compareTo(Topology other) {
+
+        switch (sortingStrategy) {
+            case "ascending":
+                return slo_ascending(other);
+            case "descending":
+                return slo_descending(other);
+            case "latency-ascending":
+                return latency_slo_ascending(other);
+            case "latency-descending":
+                return latency_slo_descending(other);
+            case "throughput-ascending":
+                return throughput_slo_ascending(other);
+            case "throughput-descending":
+                return throughput_slo_descending(other);
+            default:
+                return 0;
+        }
+
     }
+
+    public int slo_ascending(Topology other){
+
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+        }
+
+        return (slo_perc.compareTo(other_slo_perc));
+    }
+
+    public int slo_descending(Topology other){
+
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+        }
+
+        return (other_slo_perc.compareTo(slo_perc));
+    }
+
+    public int latency_slo_ascending(Topology other){
+
+        Integer my_sens, other_sens;
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+            my_sens = 1;
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+            my_sens = 2;
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+            other_sens = 1;
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+            other_sens = 2;
+        }
+        if (my_sens.compareTo(other_sens) != 0)
+            return my_sens.compareTo(other_sens);
+        else
+            return (slo_perc.compareTo(other_slo_perc));
+    }
+
+
+    public int latency_slo_descending(Topology other){ /// PUT LATENCY FIRST NO MATTER SENSITIVITY
+
+        Integer my_sens, other_sens;
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+            my_sens = 1;
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+            my_sens = 2;
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+            other_sens = 1;
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+            other_sens = 2;
+        }
+        if (my_sens.compareTo(other_sens) != 0)
+            return my_sens.compareTo(other_sens);
+        else
+            return (other_slo_perc.compareTo(slo_perc));
+    }
+
+
+
+
+    public int throughput_slo_ascending(Topology other){
+
+        Integer my_sens, other_sens;
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+            my_sens = 2;
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+            my_sens = 1;
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+            other_sens = 2;
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+            other_sens = 1;
+        }
+        if (my_sens.compareTo(other_sens) != 0)
+            return my_sens.compareTo(other_sens);
+        else
+            return (slo_perc.compareTo(other_slo_perc));
+    }
+
+
+    public int throughput_slo_descending(Topology other){ /// PUT LATENCY FIRST NO MATTER SENSITIVITY
+
+        Integer my_sens, other_sens;
+        Double slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            slo_perc = Math.abs((userSpecifiedLatencySLO - getAverageLatency())/userSpecifiedLatencySLO);
+            my_sens = 2;
+        }
+        else
+        {
+            slo_perc = Math.abs((userSpecifiedSLO - getMeasuredSLO())/userSpecifiedSLO);
+            my_sens = 1;
+        }
+
+        Double other_slo_perc = 0.0;
+        if (sensitivity.equals("latency"))
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedLatencySLO - other.getAverageLatency())/other.userSpecifiedLatencySLO);
+            other_sens = 2;
+        }
+        else
+        {
+            other_slo_perc = Math.abs((other.userSpecifiedSLO - other.getMeasuredSLO())/other.userSpecifiedSLO);
+            other_sens = 1;
+        }
+        if (my_sens.compareTo(other_sens) != 0)
+            return my_sens.compareTo(other_sens);
+        else
+            return (other_slo_perc.compareTo(slo_perc));
+    }
+
+
+
+
+
 
     public boolean sloViolated() {
         writeToFile(same_top, "In the function: sloViolated() \n");

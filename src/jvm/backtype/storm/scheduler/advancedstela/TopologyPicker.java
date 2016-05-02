@@ -1,9 +1,12 @@
 package backtype.storm.scheduler.advancedstela;
+import backtype.storm.scheduler.advancedstela.slo.Topology;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class TopologyPicker {
 
@@ -11,6 +14,85 @@ public class TopologyPicker {
     public TopologyPicker() {
         same_top = new File("/tmp/same_top.log");
     }
+
+
+    public ArrayList<String> unifiedStrategy(ArrayList<Topology>receiver_topologies, ArrayList<Topology>giver_topologies)
+    {
+        String strategy_name = "BTBV";
+
+
+        switch(strategy_name)
+        {
+            case "BTBV": {
+                Topology.sortingStrategy = "ascending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "ascending";
+                Collections.sort(giver_topologies);
+            }
+            case "BTWV": {
+                Topology.sortingStrategy = "ascending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "descending";
+                Collections.sort(giver_topologies);
+            }
+            case "WTBV": {
+                Topology.sortingStrategy = "descending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "ascending";
+                Collections.sort(giver_topologies);
+            }
+            case "WTWV": {
+                Topology.sortingStrategy = "descending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "descending";
+                Collections.sort(giver_topologies);
+            }
+
+        }
+        ArrayList<String> topologies = new ArrayList<>();
+        topologies.add(receiver_topologies.get(0).getId());
+        topologies.add(giver_topologies.get(0).getId());
+        return topologies;
+    }
+
+    public ArrayList<String> classBasedStrategy(ArrayList<Topology>receiver_topologies, ArrayList<Topology>giver_topologies)
+    {
+        String strategy_name = "BTBV";
+
+        switch(strategy_name)
+        {
+            case "BTBV": {
+                Topology.sortingStrategy = "latency-ascending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "throughput-ascending";
+                Collections.sort(giver_topologies);
+            }
+            case "BTWV": {
+                Topology.sortingStrategy = "latency-ascending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "throughput-descending";
+                Collections.sort(giver_topologies);
+            }
+            case "WTBV": {
+                Topology.sortingStrategy = "latency-descending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "throughput-ascending";
+                Collections.sort(giver_topologies);
+            }
+            case "WTWV": {
+                Topology.sortingStrategy = "latency-descending";
+                Collections.sort(receiver_topologies);
+                Topology.sortingStrategy = "throughput-descending";
+                Collections.sort(giver_topologies);
+            }
+
+        }
+        ArrayList<String> topologies = new ArrayList<>();
+        topologies.add(receiver_topologies.get(0).getId());
+        topologies.add(giver_topologies.get(0).getId());
+        return topologies;
+    }
+
 
     public ArrayList<String> bestTargetWorstVictim (ArrayList<String> receivers, ArrayList<String>  givers)
 

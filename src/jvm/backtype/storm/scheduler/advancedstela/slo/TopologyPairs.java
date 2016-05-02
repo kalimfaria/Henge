@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class TopologyPairs {
-    private ArrayList<String> givers; // the first index is for the topology ID and the second one is for the SLO-juice :D
+    private ArrayList<String> givers;
     private ArrayList<String> receivers;
     private HashMap<String, Double> givers_temp;
     private HashMap<String, Double> receivers_temp;

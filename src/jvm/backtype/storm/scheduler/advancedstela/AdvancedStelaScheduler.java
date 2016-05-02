@@ -2,9 +2,10 @@ package backtype.storm.scheduler.advancedstela;
 
 import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.scheduler.*;
+import backtype.storm.scheduler.Topologies;
 import backtype.storm.scheduler.advancedstela.etp.*;
+import backtype.storm.scheduler.advancedstela.slo.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
-import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedWriter;
@@ -113,8 +114,18 @@ public class AdvancedStelaScheduler implements IScheduler {
             runAdvancedStelaComponents(cluster, topologies);
 
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
+
             ArrayList <String> receivers = topologiesToBeRescaled.getReceivers();
             ArrayList <String> givers = topologiesToBeRescaled.getGivers();
+
+            ArrayList <Topology> receiver_topologies = new ArrayList<Topology>();
+            ArrayList <Topology> giver_topologies = new ArrayList<Topology>();
+
+            for (int i = 0; i < receivers.size(); i++)
+                receiver_topologies.add(sloObserver.getTopologyById(receivers.get(i)));
+
+            for (int i = 0; i < givers.size(); i++)
+                giver_topologies.add(sloObserver.getTopologyById(givers.get(i)));
 
             writeToFile(same_top, "Got the topology pairs in schedule()\n");
             writeToFile(same_top, "Checking after topologies are set into the variables\n");
@@ -129,7 +140,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             if (receivers.size() > 0 && givers.size() > 0) {
 
-                ArrayList <String> topologyPair = new TopologyPicker().worstTargetBestVictim(receivers, givers);
+                ArrayList <String> topologyPair = new TopologyPicker().unifiedStrategy(receiver_topologies, giver_topologies);//.worstTargetBestVictim(receivers, givers);
                 String receiver = topologyPair.get(0);
                 String giver = topologyPair.get(1);
                 TopologyDetails target = topologies.getById(receiver);
