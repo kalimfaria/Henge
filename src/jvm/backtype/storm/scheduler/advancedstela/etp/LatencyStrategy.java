@@ -112,7 +112,7 @@ public class LatencyStrategy {
                     for(Component c: upStream){
         	        	writeToFile(latency_log, c.getId()+"->");
         	        }
-                    writeToFile(latency_log, upStream+"\n");
+                    
             		Double totalLatency =0.0;
             		Component head = upStream.get(0);
             		writeToFile(latency_log, "head: "+head.getId()+"\n");
@@ -140,9 +140,9 @@ public class LatencyStrategy {
         			writeToFile(latency_log, "\n");
             		compLatencyMap.put(newpath, totalLatency);
         		}
-        		this.pathCollection.put(component, compLatencyMap);
         		
         	}
+        	this.pathCollection.put(component, compLatencyMap);
         }
         
         
@@ -274,7 +274,7 @@ public class LatencyStrategy {
                     for(Component c: upStream){
         	        	writeToFile(latency_log, c.getId()+"->");
         	        }
-                    writeToFile(latency_log, upStream+"\n");
+                    //writeToFile(latency_log, upStream+"\n");
             		Double totalLatency =0.0;
             		Component head = upStream.get(0);
             		writeToFile(latency_log, "head: "+head.getId()+"\n");
@@ -301,10 +301,9 @@ public class LatencyStrategy {
         	        }
         			writeToFile(latency_log, "\n");
             		compLatencyMap.put(newpath, totalLatency);
-        		}
-        		this.pathCollection.put(component, compLatencyMap);
-        		
+        		}	
         	}
+        	this.pathCollection.put(component, compLatencyMap);
         }
         		
         
