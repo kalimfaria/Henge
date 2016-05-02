@@ -126,7 +126,7 @@ public class ETPStrategy {
 		    	Long curTime = System.currentTimeMillis();
 				if(curTime-component.getLastRebalancedAt()>300000){
 					resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
-					//component.setLastRebalancedAt(curTime);
+					component.setLastRebalancedAt(curTime);
 				}
         	}
         }

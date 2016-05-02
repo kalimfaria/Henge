@@ -18,7 +18,7 @@ public class Topology implements Comparable<Topology> {
 	private Double userSpecifiedSLO;
     private Double userSpecifiedLatencySLO;
     private Queue<Double> measuredSLOs;
-    //   private Queue<Double> measuredLatency;
+    private Queue<Double> measuredLatency;
     private HashMap<String, Component> spouts;
     private HashMap<String, Component> bolts;
 
@@ -36,7 +36,7 @@ public class Topology implements Comparable<Topology> {
         spouts = new HashMap<String, Component>();
         bolts = new HashMap<String, Component>();
         userSpecifiedLatencySLO = latency_slo;
-        //     measuredLatency = new LinkedList<Double>();
+        measuredLatency = new LinkedList<Double>();
         this.sensitivity = sensitivity;
         latencies = new HashMap<HashMap<String, String>, Double>();
         same_top = new File("/tmp/same_top.log");
@@ -63,6 +63,12 @@ public class Topology implements Comparable<Topology> {
 
     public void setAverageLatency(Double latency) {
         averageLatency = latency;
+
+        if (measuredLatency.size() == SLO_WINDOW) {
+            measuredLatency.remove();
+        }
+        measuredLatency.add(latency);
+
     }
 
     public String getId() {
@@ -105,6 +111,26 @@ public class Topology implements Comparable<Topology> {
         return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
     }
 
+    public boolean allReadingsViolateSLO() {
+
+        for (Double value : measuredSLOs) {
+            if (value > userSpecifiedSLO)
+                return false;
+        }
+
+        return true;
+    }
+
+    public boolean allLatencyReadingsViolateSLO() {
+
+        for (Double value : measuredLatency) {
+            if (value < userSpecifiedLatencySLO)
+                return false;
+        }
+
+        return true;
+    }
+
     public void addSpout(String id, Component component) {
         spouts.put(id, component);
     }
@@ -145,12 +171,12 @@ public class Topology implements Comparable<Topology> {
 
         if (sensitivity != null) {
             if (sensitivity.equals("throughput"))
-                return (getMeasuredSLO() < userSpecifiedSLO);
+                return (allReadingsViolateSLO()); //getMeasuredSLO() < userSpecifiedSLO);
             else if (sensitivity.equals("latency"))
-                return (getAverageLatency() > userSpecifiedLatencySLO);
+                return allLatencyReadingsViolateSLO() ;//(getAverageLatency() > userSpecifiedLatencySLO); //
             
         }
-        return (getMeasuredSLO() < userSpecifiedSLO);
+        return (allReadingsViolateSLO());
     }
 
     public String printSLOs() {
