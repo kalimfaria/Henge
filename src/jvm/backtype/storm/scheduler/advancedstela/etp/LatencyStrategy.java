@@ -321,8 +321,13 @@ public class LatencyStrategy {
         	}
         	
         	Double etpLatencyScore =0.0;
+        	writeToFile(latency_log, "=== Calculating Component ETP: "+ component.getId()+"===");
         	for(Component sink: sinkCount.keySet()){
         		//take an average 
+        		writeToFile(latency_log, "measuring sink: "+sink.getId());
+        		writeToFile(latency_log, "path/sink count: "+sinkCount.get(sink));
+        		writeToFile(latency_log, "sinkTotalLatency: "+sinkTotalLatency.get(sink));
+        		writeToFile(latency_log, "sink ETP: "+topologyETPMap.get(sink));
         		etpLatencyScore += sinkTotalLatency.get(sink)/sinkCount.get(sink)*topologyETPMap.get(sink);
         	}
         	writeToFile(latency_log, "=== Component: "+ component.getId()+ ", ETPLatency Score: " + etpLatencyScore+"===\n");
