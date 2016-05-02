@@ -96,8 +96,10 @@ public class LatencyStrategy {
         for (Component component : topologySchedule.getComponents().values()) {
         	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
         	//populate pathCollectionMap 
-        	ArrayList<ArrayList<Component>> downStreams = downstreamTracking(component);
-        	ArrayList<ArrayList<Component>> upStreams = upstreamTracking(component);	
+        	ArrayList<ArrayList<Component>> downStreams = new ArrayList<ArrayList<Component>>();
+        	downstreamTracking(component, downStreams);
+        	ArrayList<ArrayList<Component>> upStreams = new ArrayList<ArrayList<Component>>();
+        	upstreamTracking(component, upStreams);	
         	//populate compLatencyMap
         	for(ArrayList<Component> downStream : downStreams){
         		for(ArrayList<Component> upStream : upStreams){
@@ -251,8 +253,10 @@ public class LatencyStrategy {
         for (Component component : topologySchedule.getComponents().values()) {
         	writeToFile(latency_log, "------Path Collection for Component: "+ component.getId()+ "-------" + "\n");
         	//populate pathCollectionMap 
-        	ArrayList<ArrayList<Component>> downStreams = downstreamTracking(component);
-        	ArrayList<ArrayList<Component>> upStreams = upstreamTracking(component);	
+        	ArrayList<ArrayList<Component>> downStreams = new ArrayList<ArrayList<Component>>();
+        	downstreamTracking(component, downStreams);
+        	ArrayList<ArrayList<Component>> upStreams = new ArrayList<ArrayList<Component>>();
+        	upstreamTracking(component, upStreams);	
         	//populate compLatencyMap
         	for(ArrayList<Component> downStream : downStreams){
         		for(ArrayList<Component> upStream : upStreams){
@@ -358,24 +362,24 @@ public class LatencyStrategy {
         return resultComponents;
     }
 
-    private ArrayList<ArrayList<Component>> upstreamTracking(Component component) {
+    private void upstreamTracking(Component component, ArrayList<ArrayList<Component>> upStreams) {
 		// TODO Auto-generated method stub
-    	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
+    	//ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
         if (component.getParents().size() == 0) {
         	//add an entry to the uncongested path
-        	ret.add(new ArrayList<Component>());
-        	ret.get(ret.size()-1).add(component);
-            return ret;
+        	upStreams.add(new ArrayList<Component>());
+        	upStreams.get(upStreams.size()-1).add(component);
+            return;
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String p : component.getParents()) {
             Component parent = components.get(p);
-            ret = upstreamTracking(parent); 
-            ret.get(ret.size()-1).add(component);
+            upstreamTracking(parent,upStreams); 
+            upStreams.get(upStreams.size()-1).add(component);
         }
 
-        return ret;
+        return;
 	}
 
 	private void congestionDetection() {
@@ -424,24 +428,23 @@ public class LatencyStrategy {
         return ret;
     }
     
-    private ArrayList<ArrayList<Component>> downstreamTracking(Component component) {
+    private void downstreamTracking(Component component, ArrayList<ArrayList<Component>> downStreams) {
         //int ret = -1;
-    	ArrayList<ArrayList<Component>> ret = new ArrayList<ArrayList<Component>>();
         if (component.getChildren().size() == 0) {
         	//add an entry to the uncongested path
-        	ret.add(new ArrayList<Component>());
-        	ret.get(ret.size()-1).add(component);
-            return ret;
+        	downStreams.add(new ArrayList<Component>());
+        	downStreams.get(downStreams.size()-1).add(component);
+        	return;
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
             Component child = components.get(c);
-            ret = downstreamTracking(child); 
-            ret.get(ret.size()-1).add(component);
+            downstreamTracking(child,downStreams); 
+            downStreams.get(downStreams.size()-1).add(component);
         }
 
-        return ret;
+        return;
     }
 
     private void collectRates() {
