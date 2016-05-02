@@ -20,7 +20,6 @@ public class TopologyPicker {
     {
         String strategy_name = "BTBV";
 
-
         switch(strategy_name)
         {
             case "BTBV": {
@@ -85,8 +84,16 @@ public class TopologyPicker {
                 Topology.sortingStrategy = "throughput-descending";
                 Collections.sort(giver_topologies);
             }
-
         }
+
+        writeToFile(same_top, "In class based strategy : BTBV\nReceiver Topologies:\n");
+        for (Topology t : receiver_topologies)
+            writeToFile(same_top, "Topology: " + t.getId() + "," + t.getSensitivity() + "," + t.getAverageLatency() + "," + t.getMeasuredSLO() + "\n");
+
+        writeToFile(same_top, "Giver Topologies:\n");
+        for (Topology t : giver_topologies)
+            writeToFile(same_top, "Topology: " + t.getId() + "," + t.getSensitivity() + "," + t.getAverageLatency() + "," + t.getMeasuredSLO() + "\n");
+
         ArrayList<String> topologies = new ArrayList<>();
         topologies.add(receiver_topologies.get(0).getId());
         topologies.add(giver_topologies.get(0).getId());
@@ -135,7 +142,6 @@ public class TopologyPicker {
 
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(0));
-        //topologyPair.add(givers.get(0));
         topologyPair.add(givers.get(givers.size() - 1));
         return topologyPair;
     }
@@ -156,7 +162,6 @@ public class TopologyPicker {
         }
         ArrayList<String> topologyPair = new ArrayList<>();
         topologyPair.add(receivers.get(receivers.size() - 1));
-        //topologyPair.add(givers.get(0));
         topologyPair.add(givers.get(givers.size() - 1));
         return topologyPair;
 
@@ -191,9 +196,8 @@ public class TopologyPicker {
             bufferWriter.append(data);
             bufferWriter.close();
             fileWriter.close();
-            //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
-            // LOG.info("error! writing to file {}", ex);
+
             System.out.println(ex.toString());
         }
     }

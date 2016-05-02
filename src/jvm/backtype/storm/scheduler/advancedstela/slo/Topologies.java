@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class Topologies {
-    private static final Integer UP_TIME =  60;// 10 * 60;
+    private static final Integer UP_TIME =  10 * 60;
     private static final Integer REBALANCING_INTERVAL = 60 * 5;
 
     private Map config;
@@ -56,7 +56,7 @@ public class Topologies {
                 lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
 
 
-            if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
+            if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) &&  upForMoreThan(topology.getId())) {
                 writeToFile(same_top, "The topology can be successful or failed \n");
                 writeToFile(same_top, "Topology name: " + topology.getId() + "\n");
                 boolean violated = topology.sloViolated();

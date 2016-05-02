@@ -9,16 +9,10 @@ import java.util.*;
 public class TopologyPairs {
     private ArrayList<String> givers;
     private ArrayList<String> receivers;
-    private HashMap<String, Double> givers_temp;
-    private HashMap<String, Double> receivers_temp;
-    private File flatline_log;
 
     public TopologyPairs() {
-        givers = new ArrayList <String> ();
-        givers_temp = new HashMap <String, Double> ();
-        receivers = new ArrayList <String> ();
-        receivers_temp = new HashMap <String, Double> ();
-        flatline_log = new File("/tmp/flat_line.log");
+        givers = new ArrayList<String>();
+        receivers = new ArrayList<String>();
     }
 
     public ArrayList<String> getGivers() {
@@ -26,6 +20,23 @@ public class TopologyPairs {
     }
 
     public void setGivers(ArrayList<Topology> giverTopologies) {
+        for (Topology topology : giverTopologies) {
+            givers.add(topology.getId());
+        }
+    }
+
+    public ArrayList<String> getReceivers() {
+        return receivers;
+    }
+
+    public void setReceivers(ArrayList<Topology> receiverTopologies) {
+        for (Topology topology : receiverTopologies) {
+            receivers.add(topology.getId());
+        }
+    }
+}
+
+    /*public void setGivers(ArrayList<Topology> giverTopologies) {
         System.out.println("In setGivers");
         for (Topology topology: giverTopologies) {
             System.out.println("Topology ID:" + topology.getId());
@@ -56,13 +67,11 @@ public class TopologyPairs {
 
         log.append("***");
         writeToFile(flatline_log,log.toString());
-    }
+    }*/
 
-    public ArrayList<String> getReceivers() {
-        return receivers;
-    }
 
-    public void setReceivers(ArrayList<Topology> receiverTopologies) {
+
+    /*public void setReceivers(ArrayList<Topology> receiverTopologies) {
         for (Topology topology: receiverTopologies) {
             receivers_temp.put(topology.getId(), Math.abs(topology.getUserSpecifiedSLO() - topology.getMeasuredSLO()));
         }
@@ -86,18 +95,5 @@ public class TopologyPairs {
         }
         log.append("***");
         writeToFile(flatline_log, log.toString());
-    }
+    }*/
 
-    private void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWritter = new FileWriter(file, true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.append(data);
-            bufferWritter.close();
-            fileWritter.close();
-        } catch (IOException ex) {
-            System.out.println(ex.toString());
-        }
-    }
-
-}
