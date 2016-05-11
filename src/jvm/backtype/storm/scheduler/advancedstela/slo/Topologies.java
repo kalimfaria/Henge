@@ -14,10 +14,12 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+
 
 public class Topologies {
-    private static final Integer UP_TIME =  10 * 60;
-    private static final Integer REBALANCING_INTERVAL = 60 * 5;
+    private static final Integer UP_TIME = 60;//60 * 10;
+    private static final Integer REBALANCING_INTERVAL = 60; //60 * 10;
 
     private Map config;
     private NimbusClient nimbusClient;
@@ -26,6 +28,7 @@ public class Topologies {
     private HashMap<String, Long> lastRebalancedAt;
     private File flatline_log;
     private File same_top;
+    private int numHosts;
 
     public Topologies(Map conf) {
         config = conf;
@@ -125,7 +128,8 @@ public class Topologies {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
                         Double userLatencySLO = getUserSpecifiedLatencySLOFromConfig(id);
                         String sensitivity = getUserSLOSensitivityFromConfig(id);
-                        Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, sensitivity);
+                        Long numWorkers = getNumWorkersFromConfig(id);
+                        Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, sensitivity, numWorkers);
 
                         addSpoutsAndBolts(stormTopology, topology);
                         constructTopologyGraph(stormTopology, topology);
@@ -135,6 +139,7 @@ public class Topologies {
                     } else if (stelaTopologies.containsKey(id)) {
                         TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(id);
                         updateParallelismHintsForTopology(topologyInfo, id, stormTopology);
+                        updateNumWorkersForTopology(topologySummary, id);
                     }
                 }
 
@@ -209,6 +214,29 @@ public class Topologies {
         return sensitivity;
     }
 
+    private Long getNumWorkersFromConfig(String id)
+    {
+        Long workers = 0L;
+        JSONParser parser = new JSONParser();
+        try {
+            Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
+            workers = (Long) conf.get(Config.TOPOLOGY_WORKERS);
+            writeToFile(same_top, "In the function:  getNumWorkersFromConfig\n");
+            writeToFile(same_top, "Topology name: " + id + "\n");
+            writeToFile(same_top, "Topology workers: " +  workers + "\n");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (AuthorizationException e) {
+            e.printStackTrace();
+        } catch (NotAliveException e) {
+            e.printStackTrace();
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        return workers;
+    }
+
+
     private Double getUserSpecifiedLatencySLOFromConfig(String id) {
         Double topologyLatencySLO = 1.0;
         JSONParser parser = new JSONParser();
@@ -279,12 +307,10 @@ public class Topologies {
                 parallelism_hints.put(execSummary.get(i).get_component_id(), 1);
         }
 
-
         Topology topology = stelaTopologies.get(topologyId);
         HashMap<String, Component> allComponents = topology.getAllComponents();
 
         if (topologyInfo.get_executors().size() == 0) {
-
             for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
                 if (allComponents.containsKey(spout.getKey())) {
                     allComponents.get(spout.getKey()).updateParallelism(spout.getValue().get_common().
@@ -297,12 +323,11 @@ public class Topologies {
                     allComponents.get(bolt.getKey()).updateParallelism(bolt.getValue().get_common().get_parallelism_hint());
                 }
             }
-        } else {
+        }
+        else {
             for (Map.Entry<String, SpoutSpec> spout : stormTopology.get_spouts().entrySet()) {
                 if (allComponents.containsKey(spout.getKey())) {
                     allComponents.get(spout.getKey()).updateParallelism(parallelism_hints.get(spout.getKey()));
-                    ;
-                    ; /// WHAT?
                 }
             }
 
@@ -313,6 +338,13 @@ public class Topologies {
             }
         }
     }
+
+
+    private void updateNumWorkersForTopology(TopologySummary topologySummary, String topologyId) {
+        Long numWorkers = new Long(topologySummary.get_num_workers());
+        stelaTopologies.get(topologyId).setWorkers(numWorkers);
+    }
+
 
     public void remove(String topologyId) {
         stelaTopologies.remove(topologyId);
@@ -331,20 +363,30 @@ public class Topologies {
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
                 for (HashMap<String, String> op_pairs: top_data.keySet())
                 {
-
                     ArrayList <Double> times = top_data.get(op_pairs);
-                    Double final_time = 0.0;
+                    SummaryStatistics latencies = new SummaryStatistics();
+                 //   Double final_time = 0.0;
                     for (int i = 0; i < times.size(); i++) {
-                        k++;
-                        final_time += times.get(i);
+
+                //     final_time += times.get(i);
+                        latencies.addValue(times.get(i));
                         if (tail_latency < times.get(i)) tail_latency =  times.get(i);
                     }
 
-                    topology_.latencies.put(op_pairs, final_time/times.size());
+                    double standardDeviation = latencies.getStandardDeviation();
+                    double mean = latencies.getMean();
 
+                    latencies.clear();
 
+                    for (int i = 0; i < times.size(); i++)
+                    {
+                        k++;
+                        if ((times.get(i)-mean) <= 2*standardDeviation)
+                            latencies.addValue(times.get(i));
+                    }
 
-                    average_latency += final_time;
+                    topology_.latencies.put(op_pairs, latencies.getMean());//final_time/times.size());
+                    average_latency += latencies.getSum(); // replaced by final_time
                 }
                 topology_.setAverageLatency(average_latency/(double)k);
                 topology_.setTailLatency(tail_latency);
@@ -389,7 +431,7 @@ public class Topologies {
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
 
 
-        final File folder = new File("/users/kalim2/output/");
+        final File folder = new File("/proj/Stella/output/");
 
         try {
             for (final File file : folder.listFiles()) {

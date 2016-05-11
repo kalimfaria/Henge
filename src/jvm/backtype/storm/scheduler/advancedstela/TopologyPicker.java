@@ -86,14 +86,14 @@ public class TopologyPicker {
             }
         }
 
-        writeToFile(same_top, "In class based strategy : BTBV\nReceiver Topologies:\n");
+     /*   writeToFile(same_top, "In class based strategy : BTBV\nReceiver Topologies:\n");
         for (Topology t : receiver_topologies)
             writeToFile(same_top, "Topology: " + t.getId() + "," + t.getSensitivity() + "," + t.getAverageLatency() + "," + t.getMeasuredSLO() + "\n");
 
         writeToFile(same_top, "Giver Topologies:\n");
         for (Topology t : giver_topologies)
             writeToFile(same_top, "Topology: " + t.getId() + "," + t.getSensitivity() + "," + t.getAverageLatency() + "," + t.getMeasuredSLO() + "\n");
-
+*/
         ArrayList<String> topologies = new ArrayList<>();
         topologies.add(receiver_topologies.get(0).getId());
         topologies.add(giver_topologies.get(0).getId());

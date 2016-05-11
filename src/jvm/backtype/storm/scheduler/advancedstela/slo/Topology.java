@@ -25,12 +25,13 @@ public class Topology implements Comparable<Topology> {
     public HashMap<HashMap<String, String>, Double> latencies;
     private Double averageLatency;
     private Double tailLatency;
+    private Long numWorkers;
     static public String sortingStrategy;
 
 
     private File same_top;
 
-    public Topology(String topologyId, Double slo, Double latency_slo, String sensitivity) {
+    public Topology(String topologyId, Double slo, Double latency_slo, String sensitivity, Long numWorkers) {
         id = topologyId;
         userSpecifiedSLO = slo;
         measuredSLOs = new LinkedList<Double>();
@@ -44,12 +45,20 @@ public class Topology implements Comparable<Topology> {
         tailLatency = Double.MAX_VALUE;
         averageLatency = 0.0;
         sortingStrategy = "ascending";
+        this.numWorkers =  numWorkers;
     }
-    
+
+    public Long getWorkers() {
+        return numWorkers;
+    }
+
+    public void setWorkers(Long numWorkers) {
+        this.numWorkers = numWorkers;
+    }
+
     public String getSensitivity() {
 		return sensitivity;
 	}
-
 
     public Double getTailLatency() {
         return tailLatency;
@@ -381,13 +390,18 @@ public class Topology implements Comparable<Topology> {
         writeToFile(same_top, "Topology Measured Latency SLO: " + getAverageLatency() + "\n");
 
         if (sensitivity != null) {
-            if (sensitivity.equals("throughput"))
-                return (allReadingsViolateSLO()); //getMeasuredSLO() < userSpecifiedSLO);
-            else if (sensitivity.equals("latency"))
-                return allLatencyReadingsViolateSLO() ;//(getAverageLatency() > userSpecifiedLatencySLO); //
-            
+            if (sensitivity.equals("throughput")) {
+                //return (allReadingsViolateSLO()); //
+                return getMeasuredSLO() < userSpecifiedSLO;
+            }            else if (sensitivity.equals("latency")) {
+                //return allLatencyReadingsViolateSLO() ;//
+                return (getAverageLatency() > userSpecifiedLatencySLO); //
+            }
         }
-        return (allReadingsViolateSLO());
+      //  return (allReadingsViolateSLO());
+        return getMeasuredSLO() < userSpecifiedSLO;
+
+
     }
 
     public String printSLOs() {

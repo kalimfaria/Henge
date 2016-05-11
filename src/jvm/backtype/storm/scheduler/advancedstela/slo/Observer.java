@@ -35,6 +35,8 @@ public class Observer {
     private File juice_log;
     private File flatline_log, outlier_log, same_top;
 
+    HashMap <String, Integer> hostToWorkerSlots;
+    HashMap <String, Integer> hostToUsedWorkerSlots;
 
     public Observer(Map conf) {
         config = conf;
@@ -43,6 +45,18 @@ public class Observer {
         outlier_log = new File("/tmp/outlier.log");
         flatline_log = new File("/tmp/flat_line.log");
         same_top = new File("/tmp/same_top.log");
+        hostToUsedWorkerSlots = new HashMap<String, Integer>();
+        hostToWorkerSlots = new HashMap<String, Integer>();
+    }
+
+    public HashMap getHostToWorkerSlotMapping()
+    {
+        return hostToWorkerSlots;
+    }
+
+    public HashMap getHostToUsedWorkerSlotMapping()
+    {
+        return hostToUsedWorkerSlots;
     }
 
     public TopologyPairs getTopologiesToBeRescaled() {
@@ -82,6 +96,8 @@ public class Observer {
                             + "SUPERVISOR USED WORKERS" + ss.get_num_used_workers() + "\n"
                             + "SUPERVISOR GET NUMBER OF TOTAL WORKERS" + ss.get_num_workers() + "\n"
                             + "SUPERVISOR GET UPTIME SECS" + ss.get_uptime_secs() + "\n");
+                    hostToWorkerSlots.put(ss.get_host(), ss.get_num_workers());
+                    hostToUsedWorkerSlots.put(ss.get_host(), ss.get_num_used_workers()); // populating for use when comparing with less occupied machines :)
                 }
 
 
@@ -227,8 +243,8 @@ public class Observer {
                 }
             }
 
-            double totalLatency = 0;
-            int count = 0;
+            //double totalLatency = 0;
+            //int count = 0;
             for (String componentId : topology.getAllComponents().keySet()) {
                 Component component = topology.getAllComponents().get(componentId);
                 if (temporaryTransferred.containsKey(componentId)) {
