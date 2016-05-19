@@ -30,7 +30,7 @@ public class Component {
         this.execute_msg_latency = 0.0;
         this.complete_msg_avg_latency = 0.0;
         this.capacity = 0.0; // Expectation -> bolts.capacity	String (double value returned in String format)	This value indicates number of messages executed * average execute latency / time window
-        long lastRebalancedAt = 0L;
+        this.lastRebalancedAt = 0L;
     }
 
     public String getId() {

@@ -54,6 +54,16 @@ public class LatencyStrategy {
         latency_log = new File("/tmp/ETPlatency.log");
     }
 
+    public boolean isTheCongestionMapEmpty()
+    {
+        String topologyId = topologySchedule.getId();
+        writeToFile(latency_log, "------Figuring out if the congestion Map is empty for: " + topologyId + " to see if we require crazy compaction----" + "\n");
+        System.out.println("------Figuring out if the congestion Map is empty for: " + topologyId + " to see if we require crazy compaction----" + "\n");
+        collectRates();
+        congestionDetection();
+        return congestionMap.isEmpty();
+    }
+
     public ArrayList<ResultComponent> topologyETPRankDescending() { //used by targets
     	String topologyId = topologySchedule.getId();
     	writeToFile(latency_log, "------Calculating Component Descending Map for:"+ topologyId + "-------" + "\n");
@@ -336,7 +346,7 @@ public class LatencyStrategy {
         		writeToFile(latency_log, "sink ETP: "+topologyETPMap.get(sink));
         		etpLatencyScore += sinkTotalLatency.get(sink)/sinkCount.get(sink)*topologyETPMap.get(sink);
         	}
-        	writeToFile(latency_log, "=== Component: "+ component.getId()+ ", ETPLatency Score: " + etpLatencyScore+"===\n");
+        	writeToFile(latency_log, "=== Component: " + component.getId() + ", ETPLatency Score: " + etpLatencyScore + "===\n");
         	this.etpLatencyMap.put(component, etpLatencyScore);
         }
            
@@ -386,7 +396,7 @@ public class LatencyStrategy {
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String p : component.getParents()) {
             Component parent = components.get(p);
-            int idx = upstreamTracking(parent,upStreams); 
+            int idx = upstreamTracking(parent, upStreams);
             upStreams.get(idx).add(component);
         }
         
@@ -406,7 +416,9 @@ public class LatencyStrategy {
                     in += expectedEmitRates.get(parent);
                 }
             }
-
+            System.out.println("Component name: " + componentRate.getKey());
+            System.out.println("in: " + in);
+            System.out.println("out: " + out);
             if (in > 1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
@@ -451,7 +463,7 @@ public class LatencyStrategy {
         HashMap<String, Component> components = topologySchedule.getComponents();
         for (String c : component.getChildren()) {
             Component child = components.get(c);            
-            int idx = downstreamTracking(child,downStreams); 
+            int idx = downstreamTracking(child, downStreams);
             downStreams.get(idx).add(component);
         }
 

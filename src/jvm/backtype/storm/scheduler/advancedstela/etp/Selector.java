@@ -15,8 +15,6 @@ public class Selector {
         TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetTopo.getId());
         TopologyStatistics victimStatistics = globalStatistics.getTopologyStatistics().get(victimTopo.getId());
 
-        //ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
-        //ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
         ArrayList<ResultComponent> rankTarget = new ArrayList<ResultComponent>();
         if(targetTopo.getSensitivity().equals("throughput")){
         	ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
@@ -30,14 +28,15 @@ public class Selector {
         ArrayList<ResultComponent> rankVictim = new ArrayList<ResultComponent>();
         if(targetTopo.getSensitivity().equals("throughput")){
         	ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
-        	rankVictim = victimStrategy.topologyETPRankDescending();
+        	rankVictim = victimStrategy.topologyETPRankAscending(); // CHANGED BY FARIA
         }
         else{
         	LatencyStrategy victimStrategy = new LatencyStrategy(victimSchedule, victimStatistics, victimTopo);
-        	rankVictim = victimStrategy.topologyETPRankDescending();
+        	rankVictim = victimStrategy.topologyETPRankAscending(); // CHANGED BY FARIA
         }
-        
 
+        //ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+        //ETPStrategy victimStrategy = new ETPStrategy(victimSchedule, victimStatistics);
         for (ResultComponent victimComponent : rankVictim) {
             List<ExecutorSummary> victimExecutorDetails = victimComponent.component.getExecutorSummaries();
 
