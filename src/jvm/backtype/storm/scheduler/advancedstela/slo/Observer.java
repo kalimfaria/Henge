@@ -22,6 +22,7 @@ import java.util.*;
 public class Observer {
     private static final Logger LOG = LoggerFactory.getLogger(Observer.class);
     private static final String ALL_TIME = ":all-time";
+    private static final String TEN_MINS = "600";
     private static final String METRICS = "__metrics";
     private static final String SYSTEM = "__system";
     private static final String DEFAULT = "default";
@@ -73,6 +74,11 @@ public class Observer {
         }
         else
             return topology;
+    }
+
+
+    public HashMap<String,Topology> getAllTopologies() {
+        return topologies.getStelaTopologies();
     }
 
     public void run() {
@@ -141,6 +147,7 @@ public class Observer {
             List<ExecutorSummary> executorSummaries = topologyInfo.get_executors();
             HashMap<String, Integer> temporaryTransferred = new HashMap<>();
             HashMap<String, HashMap<String, Integer>> temporaryExecuted = new HashMap<>();
+            HashMap<String, HashMap<String, Integer>> temporaryExecuted_10Mins = new HashMap<>();
             HashMap<String, Long> temporaryFailed = new HashMap<>();
             HashMap<String, Long> temporaryAcked = new HashMap<>();
             //   HashMap<String, Double> temporaryCompleteLatency = new HashMap<>();
@@ -240,6 +247,27 @@ public class Observer {
 
                         writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "\n");
                     }
+
+                    Map<GlobalStreamId, Long> executedStatValues_10Mins = executed.get(TEN_MINS);
+
+
+                    for (GlobalStreamId streamId : executedStatValues_10Mins.keySet()) {
+                        if (!temporaryExecuted_10Mins.containsKey(componentId)) {
+                            temporaryExecuted_10Mins.put(componentId, new HashMap<String, Integer>());
+                        }
+
+                        if (!temporaryExecuted_10Mins.get(componentId).containsKey(streamId.get_componentId())) {
+                            temporaryExecuted_10Mins.get(componentId).put(streamId.get_componentId(), 0);
+                        }
+
+                        temporaryExecuted_10Mins.get(componentId).put(streamId.get_componentId(),
+                                temporaryExecuted_10Mins.get(componentId).get(streamId.get_componentId()) +
+                                        executedStatValues_10Mins.get(streamId).intValue());
+
+                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "," +  executedStatValues_10Mins.get(streamId).intValue() + "\n");
+                    }
+
+
                 }
             }
 
@@ -257,6 +285,13 @@ public class Observer {
                     for (String source : executedValues.keySet()) {
                         component.addCurrentExecuted(source, executedValues.get(source));
                         component.addTotalExecuted(source, executedValues.get(source));
+                    }
+                }
+
+                if (temporaryExecuted_10Mins.containsKey(componentId)) {
+                    HashMap<String, Integer> executedValues = temporaryExecuted_10Mins.get(componentId);
+                    for (String source : executedValues.keySet()) {
+                        component.setCurrentExecuted_10MINS(source, executedValues.get(source));
                     }
                 }
 

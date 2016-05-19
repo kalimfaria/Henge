@@ -138,6 +138,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                 writeToFile(same_top, "topology: " + t + "\n");
 
             removeAlreadySelectedPairs(receivers, givers);
+            /*DEBUG*/ // ONLY ADDED THESE TWO LINES SO THAT WE PREVENT REBALANCING WOO :D
+      //      receiver_topologies = new ArrayList<Topology>();
+      //      giver_topologies = new ArrayList<Topology>();
+
 
             /*There need to be three strategies here. 1A) If some receivers are latency sensitive and their congestion-map is empty (iterative vs B) one-shot)*/
             /*There need to be three strategies here. 2. If some receivers are latency sensitive and their congestion-map is not empty, apply class based*/
@@ -290,6 +294,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         writeToFile(same_top, "In schedule function\n");
         sloObserver.run();
         globalState.collect(cluster, topologies);
+        globalState.setCapacities(sloObserver.getAllTopologies());
         globalStatistics.collect();
     }
 

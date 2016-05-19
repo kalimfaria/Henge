@@ -352,11 +352,9 @@ public class Topologies {
     public void getLatencies() {
 
 
-
-
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = ReadFiles();
 
-        System.out.println("In function: getLatencies()");
+        //    System.out.println("In function: getLatencies()");
         Double average_latency = 0.0, tail_latency = Double.MIN_VALUE; // measure
         int k = 0;
         for (String topology : stelaTopologies.keySet()) {
@@ -364,25 +362,25 @@ public class Topologies {
             if (data.containsKey(topology)) {
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
                 for (HashMap<String, String> op_pairs : top_data.keySet()) {
-                    System.out.println("In getLatencies:");
+                    //              System.out.println("In getLatencies:");
 
                     Set sources = op_pairs.keySet();
                     ArrayList<Double> times = top_data.get(op_pairs);
 
-                    Iterator it = sources.iterator();
+        /*            Iterator it = sources.iterator();
                     while (it.hasNext()) {
                         String spout_ = (String)it.next();
 
-                        System.out.println("Source: " + spout_ );//+ " Sink: " + pairs.get(it.next())
-                        System.out.println("Sink: " + op_pairs.get(spout_) );
+        //                System.out.println("Source: " + spout_ );//+ " Sink: " + pairs.get(it.next())
+        //                System.out.println("Sink: " + op_pairs.get(spout_) );
                     }
 
                     for (Double t : times)
                     {
                         System.out.println("Time: " + t);//+ " Sink: " + pairs.get(it.next())
                     }
-
-                //    SummaryStatistics latencies = new SummaryStatistics();
+        */
+                    //    SummaryStatistics latencies = new SummaryStatistics();
                     Double final_time = 0.0;
                     for (int i = 0; i < times.size(); i++) {
 
@@ -407,10 +405,10 @@ public class Topologies {
                     average_latency += final_time;//latencies.getSum(); //
 
 
-                    System.out.println("Average Latency: " + average_latency);
-                    System.out.println("k: " + k);
+                    //       System.out.println("Average Latency: " + average_latency);
+                    //       System.out.println("k: " + k);
                 }
-                System.out.println("Set value of average latency: " + average_latency / (double) k);
+                //   System.out.println("Set value of average latency: " + average_latency / (double) k);
                 topology_.setAverageLatency(average_latency / (double) k);
 
                 topology_.setTailLatency(tail_latency);
@@ -449,7 +447,7 @@ public class Topologies {
         HashMap<String, String> op_temp = new HashMap<String, String>();
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
 
-        System.out.println("In function: ReadFiles()");
+        //   System.out.println("In function: ReadFiles()");
 
         final File folder = new File("/users/kalim2/output/");
 
@@ -474,7 +472,7 @@ public class Topologies {
 
                         br = new BufferedReader(new FileReader(file));
                         while ((line = br.readLine()) != null) {
-                            System.out.println(line);
+                           // System.out.println(line);
                             // use comma as separator
                             String[] split_line = line.split(cvsSplitBy);
 
@@ -503,8 +501,7 @@ public class Topologies {
                                     op_latency.put(op_temp, t); // PUT IT BACK
                                     top_op_latency.put(topology, op_latency);
                                 }
-                            }
-                            else {
+                            } else {
                                 op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
                                 op_temp = new HashMap<>();
                                 op_temp.put(spout, sink);
@@ -538,31 +535,26 @@ public class Topologies {
             System.out.println(ex.toString());
         }
 
-        System.out.println("Reading the file :D");
-
+    /*    System.out.println("Reading the file :D");
         for (String ID : top_op_latency.keySet()) {
             System.out.println("ID: " + ID);
             HashMap<HashMap<String, String>, ArrayList<Double>> something = top_op_latency.get(ID);
             for (Map.Entry some : something.entrySet()) {
-
                 ArrayList<Double> times = (ArrayList<Double>) some.getValue();
                 HashMap<String, String> pairs = (HashMap<String, String>) some.getKey();
                 Set<String> sources = pairs.keySet();
                 Iterator it = sources.iterator();
                 while (it.hasNext()) {
-                    String spout_ = (String)it.next();
+                    String spout_ = (String) it.next();
 
-                    System.out.println("Source: " + spout_ );//+ " Sink: " + pairs.get(it.next())
-                    System.out.println("Sink: " + pairs.get(spout_) );
+                    System.out.println("Source: " + spout_);//+ " Sink: " + pairs.get(it.next())
+                    System.out.println("Sink: " + pairs.get(spout_));
                 }
-
-
                 for (Double x : times) {
                     System.out.println("Time value: " + x);
                 }
-
             }
-        }
+        }*/
         return top_op_latency;
     }
 

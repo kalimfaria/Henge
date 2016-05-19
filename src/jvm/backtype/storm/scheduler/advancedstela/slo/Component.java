@@ -20,6 +20,7 @@ public class Component {
 
     private HashMap<String, Integer> totalExecuted;
     private HashMap<String, Integer> currentExecuted;
+    private HashMap<String, Integer> currentExecuted_10Mins;
     private HashMap<String, Double> spoutTransfer;
 
     public Component(String key, int parallelismHint) {
@@ -33,6 +34,7 @@ public class Component {
         currentAcked = prevAcked = totalAcked = 0L;
         totalExecuted = new HashMap<String, Integer>();
         currentExecuted = new HashMap<String, Integer>();
+        currentExecuted_10Mins = new HashMap<String, Integer>();
         spoutTransfer = new HashMap<String, Double>();
 
     }
@@ -180,8 +182,25 @@ public class Component {
         }
     }
 
+    public void setCurrentExecuted_10MINS(String key, Integer value) {
+
+        currentExecuted_10Mins.put(key, value );
+
+
+    }
+
+    public HashMap<String, Integer> getCurrentExecuted_10MINS() {
+        return currentExecuted_10Mins;
+
+
+    }
+
     public void updateParallelism(int parallelismHint) {
         parallelism = parallelismHint;
+    }
+
+    public int getParallelism() {
+        return parallelism;
     }
 
     public String printSLOValue() {

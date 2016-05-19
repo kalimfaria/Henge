@@ -4,6 +4,7 @@ import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.scheduler.ExecutorDetails;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class Component {
@@ -15,11 +16,15 @@ public class Component {
     private List<ExecutorSummary> executorSummaries;
     private double process_msg_latency;
     private double execute_msg_latency;
+    private double execute_msg_latency_10mins;
+    private Long prevTime;
     private double complete_msg_avg_latency;
     private double capacity;
     private long lastRebalancedAt;
 
-    public Component(String identifier, int parallelismHint){ //, double process_msg_latency, double execute_msg_latency, double complete_msg_avg_latency, double rate) {
+
+
+    public Component(String identifier, int parallelismHint){ //, double process_msg_latency,  double execute_msg_latency, double complete_msg_avg_latency, double rate) {
         id = identifier;
         parallelism = parallelismHint;
         parents = new ArrayList<String>();
@@ -28,14 +33,20 @@ public class Component {
         executorSummaries = new ArrayList<ExecutorSummary>();
         this.process_msg_latency = 0.0;
         this.execute_msg_latency = 0.0;
+        this.execute_msg_latency_10mins = 0.0;
         this.complete_msg_avg_latency = 0.0;
         this.capacity = 0.0; // Expectation -> bolts.capacity	String (double value returned in String format)	This value indicates number of messages executed * average execute latency / time window
         this.lastRebalancedAt = 0L;
+
+        prevTime = 0L;
     }
 
     public String getId() {
         return id;
     }
+
+
+
 
     public Integer getParallelism() {
         return parallelism;
@@ -61,6 +72,17 @@ public class Component {
         execute_msg_latency = latency;
 
     }
+
+
+    public double getExecuteLatency10mins() {
+        return execute_msg_latency_10mins;
+    }
+
+    public void setExecuteLatency10mins(double latency) {
+        execute_msg_latency_10mins = latency;
+
+    }
+
 
     public double getCompleteLatency() {
         return complete_msg_avg_latency;
