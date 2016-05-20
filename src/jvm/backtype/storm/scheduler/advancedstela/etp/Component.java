@@ -4,10 +4,11 @@ import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.scheduler.ExecutorDetails;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
-public class Component {
+public class Component implements Comparable<Component>{
     private String id;
     private Integer parallelism;
     private List<String> parents;
@@ -17,11 +18,21 @@ public class Component {
     private double process_msg_latency;
     private double execute_msg_latency;
     private double execute_msg_latency_10mins;
-    private Long prevTime;
+
     private double complete_msg_avg_latency;
-    private double capacity;
+    private Double capacity;
     private long lastRebalancedAt;
 
+
+
+  /*  public int compareTo(Component other) { // ascending order
+            return (this.capacity.compareTo(other.getCapacity()));
+    }
+    */
+
+    public int compareTo(Component other) { // descending order
+        return (other.getCapacity().compareTo(this.capacity));
+    }
 
 
     public Component(String identifier, int parallelismHint){ //, double process_msg_latency,  double execute_msg_latency, double complete_msg_avg_latency, double rate) {
@@ -38,7 +49,7 @@ public class Component {
         this.capacity = 0.0; // Expectation -> bolts.capacity	String (double value returned in String format)	This value indicates number of messages executed * average execute latency / time window
         this.lastRebalancedAt = 0L;
 
-        prevTime = 0L;
+
     }
 
     public String getId() {
@@ -92,7 +103,7 @@ public class Component {
         complete_msg_avg_latency = latency;
     }
 
-    public double getCapacity() {
+    public Double getCapacity() {
         return capacity;
     }
 
