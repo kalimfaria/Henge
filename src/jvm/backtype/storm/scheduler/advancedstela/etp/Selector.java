@@ -21,8 +21,9 @@ public class Selector {
         	rankTarget = targetStrategy.topologyETPRankDescending();
         }
         else{
-        	LatencyStrategy targetStrategy = new LatencyStrategy(targetSchedule, targetStatistics, targetTopo);
-        	rankTarget = targetStrategy.topologyETPRankDescending();
+        	LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
+        	rankTarget = targetStrategy.topologyCapacityDescending();
+
         }
         
         ArrayList<ResultComponent> rankVictim = new ArrayList<ResultComponent>();
@@ -31,8 +32,8 @@ public class Selector {
         	rankVictim = victimStrategy.topologyETPRankAscending(); // CHANGED BY FARIA
         }
         else{
-        	LatencyStrategy victimStrategy = new LatencyStrategy(victimSchedule, victimStatistics, victimTopo);
-        	rankVictim = victimStrategy.topologyETPRankAscending(); // CHANGED BY FARIA
+        	LatencyStrategyWithCapacity victimStrategy = new LatencyStrategyWithCapacity(victimSchedule, victimStatistics, victimTopo);
+        	rankVictim = victimStrategy.topologyCapacityAscending(); // CHANGED BY FARIA
         }
 
         //ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
@@ -47,6 +48,11 @@ public class Selector {
                     for (ExecutorSummary targetSummary : targetExecutorDetails) {
 
                         if (victimSummary.get_host().equals(targetSummary.get_host())) {
+                            System.out.println("What is being returned by the selector");
+                            System.out.println("targetComponent ID: " + targetComponent.component.getId());
+                            System.out.println("targetComponent Capacity: " + targetComponent.component.getCapacity());
+                            System.out.println("victimComponent ID: " + victimComponent.component.getId());
+                            System.out.println("victimComponent Capacity: " + victimComponent.component.getCapacity());
                             return new ExecutorPair(targetSummary, victimSummary);
                         }
 

@@ -20,8 +20,8 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 
 public class Topologies {
-    private static final Integer UP_TIME = 60 * 20;// * 10;// 10;
-    private static final Integer REBALANCING_INTERVAL = 60 * 30;//10
+    private static final Integer UP_TIME = 60 * 15 ; // 60 * 10
+    private static final Integer REBALANCING_INTERVAL = 60 * 10;//30 previously
 
     private Map config;
     private NimbusClient nimbusClient;

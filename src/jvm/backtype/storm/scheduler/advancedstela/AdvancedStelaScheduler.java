@@ -157,9 +157,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                         // check congestionmap size and then make a decision.
                         TopologySchedule receiverSchedule = globalState.getTopologySchedules().get(receiver.getId());
                         TopologyStatistics receiverStatistics = globalStatistics.getTopologyStatistics().get(receiver.getId());
-                        LatencyStrategy receiverStrategy = new LatencyStrategy(receiverSchedule, receiverStatistics, receiver);
+                        LatencyStrategyWithCapacity receiverStrategy = new LatencyStrategyWithCapacity(receiverSchedule, receiverStatistics, receiver);
 
-                        if (receiverStrategy.isTheCongestionMapEmpty()) {
+                        if (!receiverStrategy.isThereCongestion()) {
                             compactLatencySensitiveTopology(topologies.getById(receiver.getId()), receiverSchedule);
                             removedTopologies.add(receiver.getId());
                         }
