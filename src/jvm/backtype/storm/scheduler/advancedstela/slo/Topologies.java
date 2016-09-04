@@ -165,8 +165,8 @@ public class Topologies {
     private boolean upForMoreThan(String id) {
         Long time = System.currentTimeMillis();
         Long topologyUpAt = topologiesUptime.get(id);
-
-        return ((time - topologyUpAt) / 1000) > UP_TIME;
+        return true; // TEMP ONLY
+  //      return ((time - topologyUpAt) / 1000) > UP_TIME;
     }
 
     private Double getUserSpecifiedSLOFromConfig(String id) {
