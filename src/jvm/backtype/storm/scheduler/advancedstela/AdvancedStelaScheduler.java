@@ -320,87 +320,52 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
                                              ExecutorPair executorPair) {
-    
+
         Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
         ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
 
         WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
-        SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
+        String component = targetExecutorSummary.get_component_id();
+        int componentParallelism = globalState.getTopologySchedules().get(target.getId()).getComponents().get(component).getParallelism(); // TODO break up this line
+        List<ExecutorDetails> targetExecutors = globalState.getTopologySchedules().get(target.getId()).getComponents().get(component).getExecutorDetails();
 
-        writeToFile(same_top, "The slot that has been chosen for the target is: " + targetSlot.toString() + "\n");
-        printSchedule(currentTargetAssignment, "current target assignment");
-
-        writeToFile(same_top, "Does the old schedule have this worker slot: " + targetSlot + "\n");
-        writeToFile(same_top, "Checking: " + targetSchedule.containsKey(targetSlot) + "\n");
-        ArrayList <ExecutorDetails> oldExecutorDetails = new ArrayList<>();
-        HashMap <WorkerSlot, ArrayList<ExecutorDetails>> newWorkerSlotToExecutorDetails = new HashMap<>();
-
-        if (targetSchedule.containsKey(targetSlot)) {
-            writeToFile(same_top, " Yes, it does \n");
-            oldExecutorDetails = targetSchedule.get(targetSlot);
-            for (ExecutorDetails oldExecutorDetail : oldExecutorDetails) {
-                writeToFile(same_top, "Old executor: "  + oldExecutorDetail.toString() + "\n");
-            }
-        } else {
-            writeToFile(same_top, "Topology is not even deployed on that particular target slot \n");
+        // get all the tasks
+        ArrayList <Integer> targetTasks = new ArrayList<>();
+        for (ExecutorDetails targetExecutor: targetExecutors) {
+            targetTasks.add(targetExecutor.getStartTask());
+            targetTasks.add(targetExecutor.getEndTask());
         }
-        Map<ExecutorDetails,WorkerSlot> currentExecutorsToSlots =  currentTargetAssignment.getExecutorToSlot();
-        // just flipping the map :)
-        // TODO extract into another function
-        for (Map.Entry<ExecutorDetails, WorkerSlot> currentExecutorToSlot : currentExecutorsToSlots.entrySet() ) {
-            ArrayList<ExecutorDetails> details = new ArrayList<>();
-            if (newWorkerSlotToExecutorDetails.containsKey(currentExecutorToSlot.getValue()))
-            {
-                details = newWorkerSlotToExecutorDetails.get(currentExecutorToSlot.getValue());
-            }
-            details.add(currentExecutorToSlot.getKey());
-            newWorkerSlotToExecutorDetails.put(currentExecutorToSlot.getValue(), details);
-        }
+        // all of them should be unique -- should now be sorted
+        Collections.sort(targetTasks);
+        int totalTasks = targetTasks.size();
+        double tasksPerExecutor = Math.floor(new Double(totalTasks) / new Double(componentParallelism));
 
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> currentExecutorToSlot : newWorkerSlotToExecutorDetails.entrySet()) {
-            writeToFile(same_top, "new executor: worker slot "  + currentExecutorToSlot.getKey() + "\n");
-            ArrayList<ExecutorDetails> executorDetails = currentExecutorToSlot.getValue();
-            for (ExecutorDetails d: executorDetails){
-                writeToFile(same_top, "new executor: executor details "  + d.toString() + "\n");
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> newExecutorToSlot = new HashMap <>();
+
+
+        ArrayList<ExecutorDetails> targetExecutorDetails = new ArrayList<>();
+
+        for (int i = 0; i < componentParallelism; i ++) {
+            int startingTask = i * (int)tasksPerExecutor ;
+            int endingTask  = (i + 1) * (int)tasksPerExecutor;
+            if (endingTask > totalTasks)
+                endingTask = totalTasks - 1; // because starts from 0
+
+            targetExecutorDetails.add(new ExecutorDetails(startingTask, endingTask));
+        }
+        newExecutorToSlot.put(targetSlot, targetExecutorDetails);
+
+        // copy old components part that are not on this slot
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> slotSchedule : targetSchedule.entrySet() ) {
+            if (!slotSchedule.getKey().equals(targetSlot)) {
+                newExecutorToSlot.put(slotSchedule.getKey(), slotSchedule.getValue()); // load the other parts
             }
         }
 
-        ArrayList<ExecutorDetails> currentExecutorsForTargetSlot = newWorkerSlotToExecutorDetails.get(targetSlot);
-        if (currentExecutorsForTargetSlot.size() > oldExecutorDetails.size()) {
-            writeToFile(same_top, "num of old executors on slot  "  + oldExecutorDetails.size() + "\n");
-            writeToFile(same_top, "num of new executors on slot  "  + currentExecutorsForTargetSlot.size() + "\n");
-            writeToFile(same_top, "don't need to do nothing bro :D \n");
-        } else {
-            for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> newSlotToDetails : newWorkerSlotToExecutorDetails.entrySet()) {
-                writeToFile(same_top, "newSlotToDetails.getValue().size() "  + newSlotToDetails.getValue().size() + "\n");
-                writeToFile(same_top, "oldExecutorDetails.size() - numExecutorsExchanged "  + (oldExecutorDetails.size() - numExecutorsExchanged) + "\n");
-                writeToFile(same_top, "newSlotToDetails.getKey() "  + newSlotToDetails.getKey().toString() + "\n");
-                writeToFile(same_top, "targetSlot "  + targetSlot.toString() + "\n");
-                if ((newSlotToDetails.getValue().size() == oldExecutorDetails.size() + numExecutorsExchanged) && !newSlotToDetails.getKey().equals(targetSlot)) {
-                    // give this slot one executor from the target slot's executor
-                    ArrayList<ExecutorDetails> currentTargetSlotExecutors = newWorkerSlotToExecutorDetails.get(targetSlot);
-                    ExecutorDetails executorDetails =   newSlotToDetails.getValue().get(0);
-                    // add it to target slot
-                    currentTargetSlotExecutors.add(executorDetails);
-                    // delete from old slot
-                    newSlotToDetails.getValue().remove(0);
-                    // put back :D
-                    newWorkerSlotToExecutorDetails.put(targetSlot, currentTargetSlotExecutors);
-                    break;
-                }
-            }
-        }
 
-        writeToFile(same_top, "Changed the schedule \n");
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> currentExecutorToSlot : newWorkerSlotToExecutorDetails.entrySet()) {
-            writeToFile(same_top, "new executor: worker slot "  + currentExecutorToSlot.getKey() + "\n");
-            ArrayList<ExecutorDetails> executorDetails = currentExecutorToSlot.getValue();
-            for (ExecutorDetails d: executorDetails){
-                writeToFile(same_top, "new executor: executor details "  + d.toString() + "\n");
-            }
-        }
-
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
+        // so currently, we are changing the config for all worker slots of this topology
+        // TODO skip the upper loop and do this only for the target slot
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : newExecutorToSlot.entrySet()) {
             if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
                 cluster.freeSlot(topologyEntry.getKey());
             }
@@ -420,7 +385,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void reassignVictimNewScheduling(TopologyDetails victim, Cluster cluster,
                                              ExecutorPair executorPair) {
-        Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
+       /* Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
         ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
 
         WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
@@ -508,6 +473,55 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
             cluster.assign(topologyEntry.getKey(), victim.getId(), topologyEntry.getValue());
         }
+        victims.remove((victim.getId()));*/
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
+        ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
+
+        WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
+        String component = victimExecutorSummary.get_component_id();
+        int componentParallelism = globalState.getTopologySchedules().get(victim.getId()).getComponents().get(component).getParallelism(); // TODO break up this line
+        List<ExecutorDetails> victimExecutors = globalState.getTopologySchedules().get(victim.getId()).getComponents().get(component).getExecutorDetails();
+
+        // get all the tasks
+        ArrayList <Integer> victimTasks = new ArrayList<>();
+        for (ExecutorDetails victimExecutor: victimExecutors) {
+            victimTasks.add(victimExecutor.getStartTask());
+            victimTasks.add(victimExecutor.getEndTask());
+        }
+        // all of them should be unique -- should now be sorted
+        Collections.sort(victimTasks);
+        int totalTasks = victimTasks.size();
+        double tasksPerExecutor = Math.floor(new Double(totalTasks) / new Double(componentParallelism));
+
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> newExecutorToSlot = new HashMap <>();
+
+        ArrayList<ExecutorDetails> victimExecutorDetails = new ArrayList<>();
+
+        for (int i = 0; i < componentParallelism; i ++) {
+            int startingTask = i * (int)tasksPerExecutor ;
+            int endingTask  = (i + 1) * (int)tasksPerExecutor;
+            if (endingTask > totalTasks)
+                endingTask = totalTasks - 1; // because starts from 0
+
+            victimExecutorDetails.add(new ExecutorDetails(startingTask, endingTask));
+        }
+        newExecutorToSlot.put(victimSlot, victimExecutorDetails); // no, this is only all the executors for that bolt
+
+    /*    // copy old components part that are not on this slot
+        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> slotSchedule : victimSchedule.entrySet() ) {
+            if (!slotSchedule.getKey().equals(victimSlot)) {
+                newExecutorToSlot.put(slotSchedule.getKey(), slotSchedule.getValue()); // load the other parts
+            }
+        }
+*/
+        // so currently, we are changing the config for all worker slots of this topology
+        // TODO skip the upper loop and do this only for the target slot
+        //for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : newExecutorToSlot.entrySet()) {
+            if (cluster.getUsedSlots().contains(victimSlot)) {
+                cluster.freeSlot(victimSlot);
+            }
+            cluster.assign(victimSlot, victim.getId(), newExecutorToSlot.get(victimSlot));
+       // }
         victims.remove((victim.getId()));
     }
 
