@@ -60,6 +60,17 @@ public class AdvancedStelaScheduler implements IScheduler {
             List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
             sb.append("targets.length() : " + targets.size() + "\n");
             sb.append("victims.length(): " + victims.size() + "\n");
+
+            for (TopologyDetails topologyThatNeedsToBeScheduled : topologiesScheduled) {
+                Collection<ExecutorDetails> unscheduledExecutors =  cluster.getUnassignedExecutors(topologyThatNeedsToBeScheduled);
+                writeToFile(same_top, " Topology that needs to be scheduled " + topologyThatNeedsToBeScheduled.getName() + "\n");
+                writeToFile(same_top,  "Is there an assignment for this topology: " + (cluster.getAssignmentById(topologyThatNeedsToBeScheduled.getId()) != null)  + "\n");
+                writeToFile(same_top, " Number of unassigned executors " + unscheduledExecutors.size() + "\n");
+                for (ExecutorDetails unscheduledExecutor: unscheduledExecutors ) {
+                    writeToFile(same_top, " Unassigned executor "+ unscheduledExecutor.toString() + "\n");
+                }
+            }
+
             for (TopologyDetails topologyThatNeedsToBeScheduled : topologiesScheduled) {
                 sb.append("Id of topology: " + topologyThatNeedsToBeScheduled.getId() + "\n");
             }
@@ -165,7 +176,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void decideAssignmentForTargets(Topologies topologies, Cluster cluster) {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
         for (TopologyDetails topologyDetails : unscheduledTopologies) {
-            if (targets.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) // BY REMOVING THIS, WE CAN FIX THE BUG
+            if (targets.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null*/) // BY REMOVING THIS, WE CAN FIX THE BUG
             {
                 findAssignmentForTarget(topologyDetails, cluster, topologyDetails.getId());
             }
@@ -176,7 +187,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
 
         for (TopologyDetails topologyDetails : unscheduledTopologies) {
-            if (victims.containsKey(topologyDetails.getId()) && cluster.getAssignmentById(topologyDetails.getId()) != null) // BY REMOVING THIS SECOND PART, WE CAN FIX THE BUG
+            if (victims.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null()*/) // BY REMOVING THIS SECOND PART, WE CAN FIX THE BUG
             {
                 findAssignmentForVictim(topologyDetails, cluster, topologyDetails.getId());
             }
@@ -309,41 +320,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
                                              ExecutorPair executorPair) {
-    /*    ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
-        WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
-        Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
-        Set<ExecutorDetails> previousTargetExecutors = globalState.getTopologySchedules().get(target.getId()).getExecutorToComponent().keySet();
-        ArrayList<Integer> previousTargetTasks = new ArrayList<Integer>();
-        ArrayList<Integer> currentTargetTasks = new ArrayList<Integer>();
-        SchedulerAssignment currentTargetAssignment = cluster.getAssignmentById(target.getId());
-        printSchedule(currentTargetAssignment, "current target assignment");
-        if (currentTargetAssignment != null) {
-            Set<ExecutorDetails> currentTargetExecutors = currentTargetAssignment.getExecutorToSlot().keySet();
-            for (ExecutorDetails executorDetails : currentTargetExecutors) {
-                currentTargetTasks.add(executorDetails.getStartTask());
-                currentTargetTasks.add(executorDetails.getEndTask());
-            }
-            currentTargetExecutors.removeAll(previousTargetExecutors);
-            currentTargetTasks.removeAll(previousTargetTasks);
-            for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
-                if (topologyEntry.getKey().equals(targetSlot)) {
-                    ArrayList<ExecutorDetails> executorsOfOldTarget = topologyEntry.getValue();
-                    executorsOfOldTarget.addAll(currentTargetExecutors);
-                    targetSchedule.put(targetSlot, executorsOfOldTarget);
-                }
-            }
-        }
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
-            if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
-                cluster.freeSlot(topologyEntry.getKey());
-            }
-            cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-        }
-        targets.remove(target.getId()); */
-
-
-        /******/
-
+    
         Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
         ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
 
