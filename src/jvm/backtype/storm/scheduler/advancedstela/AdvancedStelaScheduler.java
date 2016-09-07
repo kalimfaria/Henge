@@ -321,67 +321,17 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
                                              ExecutorPair executorPair) {
 
-        /*Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
-        ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
-
-        WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
-        String component = targetExecutorSummary.get_component_id();
-        int componentParallelism = globalState.getTopologySchedules().get(target.getId()).getComponents().get(component).getParallelism(); // TODO break up this line
-        List<ExecutorDetails> targetExecutors = globalState.getTopologySchedules().get(target.getId()).getComponents().get(component).getExecutorDetails();
-
-        // get all the tasks
-        ArrayList <Integer> targetTasks = new ArrayList<>();
-        for (ExecutorDetails targetExecutor: targetExecutors) {
-            targetTasks.add(targetExecutor.getStartTask());
-            targetTasks.add(targetExecutor.getEndTask());
-        }
-        // all of them should be unique -- should now be sorted
-        Collections.sort(targetTasks);
-        int totalTasks = targetTasks.size();
-        double tasksPerExecutor = Math.floor(new Double(totalTasks) / new Double(componentParallelism));
-
-        Map<WorkerSlot, ArrayList<ExecutorDetails>> newExecutorToSlot = new HashMap <>();
-
-
-        ArrayList<ExecutorDetails> targetExecutorDetails = new ArrayList<>();
-
-        for (int i = 0; i < componentParallelism; i ++) {
-            int startingTask = i * (int)tasksPerExecutor ;
-            int endingTask  = (i + 1) * (int)tasksPerExecutor;
-            if (endingTask > totalTasks)
-                endingTask = totalTasks - 1; // because starts from 0
-
-            targetExecutorDetails.add(new ExecutorDetails(startingTask, endingTask));
-        }
-        newExecutorToSlot.put(targetSlot, targetExecutorDetails);
-
-        // copy old components part that are not on this slot
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> slotSchedule : targetSchedule.entrySet() ) {
-            if (!slotSchedule.getKey().equals(targetSlot)) {
-                newExecutorToSlot.put(slotSchedule.getKey(), slotSchedule.getValue()); // load the other parts
-            }
-        }
-
-
-        // so currently, we are changing the config for all worker slots of this topology
-        // TODO skip the upper loop and do this only for the target slot
-        for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : newExecutorToSlot.entrySet()) {
-            if (cluster.getUsedSlots().contains(topologyEntry.getKey())) {
-                cluster.freeSlot(topologyEntry.getKey());
-            }
-            cluster.assign(topologyEntry.getKey(), target.getId(), topologyEntry.getValue());
-        }
-        targets.remove((target.getId())); */
-
 
         Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
         ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
         String component = targetExecutorSummary.get_component_id();
 
+        String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), targetExecutorSummary.get_host());
+        if (supervisorId == null ) {
+            writeToFile(same_top, "Supervisor ID is null for creating the worker slot for the target");
+        }
 
-
-        WorkerSlot targetSlot = new WorkerSlot(targetExecutorSummary.get_host(), targetExecutorSummary.get_port());
-
+        WorkerSlot targetSlot = new WorkerSlot(supervisorId, targetExecutorSummary.get_port());
 
         writeToFile(same_top, "From the topology\n");
         for (WorkerSlot workerSlots : targetSchedule.keySet()) {
@@ -492,8 +442,12 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
 
         ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
+        String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), victimExecutorSummary.get_host());
+        if (supervisorId == null ) {
+            writeToFile(same_top, "Supervisor ID is null for creating the worker slot");
+        }
         String component = victimExecutorSummary.get_component_id();
-        WorkerSlot victimSlot = new WorkerSlot(victimExecutorSummary.get_host(), victimExecutorSummary.get_port());
+        WorkerSlot victimSlot = new WorkerSlot(supervisorId, victimExecutorSummary.get_port());
         writeToFile(same_top, "the slot we're trying to create slot port: " + victimSlot.getPort() + "slot host: " + victimSlot.getNodeId() +" \n");
         ArrayList <ExecutorDetails> victimSlotExecutors = victimSchedule.get(victimSlot); // these are the executors on the victim slot
         if (victimSlotExecutors != null) {
@@ -592,8 +546,13 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-
-    public int hashCode(String str, int port) {
-        return str.hashCode() + 13 * ((Integer) port).hashCode();
+    public String getSupervisorIdFromNodeName (HashMap<String, Node> supervisorsToNodes, String nodeName) {
+        for (Map.Entry<String, Node> supervisorToNode : supervisorsToNodes.entrySet()) {
+            Node node = supervisorToNode.getValue();
+            if (node.hostname.equals(nodeName)) {
+                return supervisorToNode.getKey();
+            }
+        }
+        return null;
     }
 }
