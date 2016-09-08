@@ -51,21 +51,27 @@ public class AdvancedStelaScheduler implements IScheduler {
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         int numTopologies = topologies.getTopologies().size();
 
-
+        for (String target : targets.keySet()) {
+            LOG.info("target {} ", target);
+        }
+        for (String victim  : victims.keySet()) {
+            LOG.info ("victim {} ", victim);
+        }
 
         if (numTopologiesThatNeedScheduling > 0) {
 
             if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0)
             {
+                LOG.info ("STORM IS GOING TO PERFORM THE REBALANCING");
                 new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
             } else {
                 StringBuffer sb = new StringBuffer();
-                sb.append("cluster.needsSchedulingTopologies(topologies).size() > 0\n");
-                sb.append("Before calling EvenScheduler: \n");
-                sb.append("Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
+                LOG.info("cluster.needsSchedulingTopologies(topologies).size() > 0\n");
+                LOG.info("Before calling EvenScheduler: \n");
+                LOG.info("Size of cluster.needsSchedulingTopologies(topologies): " + cluster.needsSchedulingTopologies(topologies).size() + "\n");
                 List<TopologyDetails> topologiesScheduled = cluster.needsSchedulingTopologies(topologies);
-                sb.append("targets.length() : " + targets.size() + "\n");
-                sb.append("victims.length(): " + victims.size() + "\n");
+                LOG.info("targets.length() : " + targets.size() + "\n");
+                LOG.info("victims.length(): " + victims.size() + "\n");
 
                 for (TopologyDetails topologyThatNeedsToBeScheduled : topologiesScheduled) {
                     Collection<ExecutorDetails> unscheduledExecutors =  cluster.getUnassignedExecutors(topologyThatNeedsToBeScheduled);
@@ -82,14 +88,14 @@ public class AdvancedStelaScheduler implements IScheduler {
                 }
 
                 if (!targets.isEmpty()) {
-                    sb.append("!targets.isEmpty()\n");
+                    LOG.info("!targets.isEmpty()\n");
                     decideAssignmentForTargets(topologies, cluster);
-                    targets.clear();
+                   // targets.clear();
                 }
                 if (!victims.isEmpty()) {
-                    sb.append("!victims.isEmpty()\n");
+                    LOG.info("!victims.isEmpty()\n");
                     decideAssignmentForVictims(topologies, cluster);
-                    victims.clear();
+                  //  victims.clear();
                 }
                 LOG.info(sb.toString());
             /*if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0)
@@ -167,33 +173,40 @@ public class AdvancedStelaScheduler implements IScheduler {
                 }
             } else if (giver_topologies.size() == 0) {
                 StringBuffer sb = new StringBuffer();
-                sb.append("There are no givers! *Sob* \n");
-                sb.append("Receivers:  \n");
+                LOG.info("There are no givers! *Sob* \n");
+                LOG.info("Receivers:  \n");
 
                 for (int i = 0; i < receiver_topologies.size(); i++)
-                    sb.append(receiver_topologies.get(i).getId() + "\n");
-                LOG.info(sb.toString() + "\n");
+                    LOG.info(receiver_topologies.get(i).getId() + "\n");
+
             } else if (receiver_topologies.size() == 0) {
                 StringBuffer sb = new StringBuffer();
-                sb.append("There are no receivers! *Sob* \n");
-                sb.append("Givers:  \n");
+                LOG.info("There are no receivers! *Sob* \n");
+                LOG.info("Givers:  \n");
 
                 for (int i = 0; i < giver_topologies.size(); i++)
-                    sb.append(giver_topologies.get(i).getId() + "\n");
-                LOG.info(sb.toString() + "\n");
+                    LOG.info(giver_topologies.get(i).getId() + "\n");
+
             }
         }
     }
 
     private void decideAssignmentForTargets(Topologies topologies, Cluster cluster) {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
+        for (String target : targets.keySet()) {
+            LOG.info("target {} ", target);
+        }
         for (TopologyDetails topologyDetails : unscheduledTopologies) {
             LOG.info("in decideAssignmentForTargets");
+
+
+            LOG.info(" the name of the target we are looking at {} ", topologyDetails.getId());
+
+
             if (targets.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null*/) // BY REMOVING THIS, WE CAN FIX THE BUG
             {
                 LOG.info("Found topology in targets " + topologyDetails.getId() + "\n");
                 findAssignmentForTarget(topologyDetails, cluster, topologyDetails.getId());
-
             }
         }
     }
@@ -201,7 +214,11 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void decideAssignmentForVictims(Topologies topologies, Cluster cluster) {
         List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
         LOG.info("in decideAssignmentForVictims");
+        for (String victim : victims.keySet()) {
+            LOG.info("victim {} ", victim);
+        }
         for (TopologyDetails topologyDetails : unscheduledTopologies) {
+            LOG.info(" the name of the victim we are looking at {} ", topologyDetails.getId());
             if (victims.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null()*/) // BY REMOVING THIS SECOND PART, WE CAN FIX THE BUG
             {
                 LOG.info("Found topology in victims " + topologyDetails.getId() + "\n");
@@ -219,7 +236,6 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void findAssignmentForVictim(TopologyDetails victim, Cluster cluster, String topologyId) {
         ExecutorPair executorPair = victims.get(topologyId);
         reassignVictimNewScheduling(victim, cluster, executorPair);
-
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {

@@ -20,7 +20,7 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 
 public class Topologies {
-    private static final Integer UP_TIME = 60 * 15 ; // 60 * 10
+    private static final Integer UP_TIME = 60 * 15; // 60 * 10
     private static final Integer REBALANCING_INTERVAL = 60 * 10;//30 previously
 
     private Map config;
@@ -166,7 +166,7 @@ public class Topologies {
         Long time = System.currentTimeMillis();
         Long topologyUpAt = topologiesUptime.get(id);
         return true; // TEMP ONLY
-  //      return ((time - topologyUpAt) / 1000) > UP_TIME;
+        //      return ((time - topologyUpAt) / 1000) > UP_TIME;
     }
 
     private Double getUserSpecifiedSLOFromConfig(String id) {
@@ -472,7 +472,7 @@ public class Topologies {
 
                         br = new BufferedReader(new FileReader(file));
                         while ((line = br.readLine()) != null) {
-                           // System.out.println(line);
+                            // System.out.println(line);
                             // use comma as separator
                             String[] split_line = line.split(cvsSplitBy);
 
