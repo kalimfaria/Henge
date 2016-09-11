@@ -5,8 +5,11 @@ import java.util.List;
 
 import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Selector {
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
 
     public ExecutorPair selectPair(GlobalState globalState, GlobalStatistics globalStatistics, Topology targetTopo, Topology victimTopo ) {
 
@@ -46,6 +49,12 @@ public class Selector {
 
                 for (ExecutorSummary victimSummary : victimExecutorDetails) {
                     for (ExecutorSummary targetSummary : targetExecutorDetails) {
+
+                        LOG.info("Target summary component {}", targetSummary.get_component_id());
+                        LOG.info("Victim summary component {}", victimSummary.get_component_id());
+
+                        LOG.info("Target summary host {}", targetSummary.get_host());
+                        LOG.info("Victim summary host {}", victimSummary.get_host());
 
                         if (victimSummary.get_host().equals(targetSummary.get_host())) {
                             System.out.println("What is being returned by the selector");

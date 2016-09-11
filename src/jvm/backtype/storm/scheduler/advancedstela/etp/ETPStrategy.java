@@ -12,9 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ETPStrategy {
-    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
-
     private String id;
+
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
     private TopologySchedule topologySchedule;
     private TopologyStatistics topologyStatistics;
     private HashMap<String, Double> componentEmitRates;
@@ -150,7 +150,7 @@ public class ETPStrategy {
                 }
             }
 
-            if (in > 1.2 * out) {
+            if (in > 0.3 * out) { // TODO FIX to 1.2
                 Double io = in - out;
                 congestionMap.put(self, io);
             }

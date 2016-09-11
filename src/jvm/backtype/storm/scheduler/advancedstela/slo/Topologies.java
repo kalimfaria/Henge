@@ -17,12 +17,14 @@ import java.nio.file.Paths;
 import java.util.*;
 
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class Topologies {
-    private static final Integer UP_TIME = 60 * 15; // 60 * 10
+    private static final Integer UP_TIME = 30;//60 * 15; // 60 * 10
     private static final Integer REBALANCING_INTERVAL = 60 * 10;//30 previously
-
+    private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;
     private HashMap<String, Topology> stelaTopologies;
@@ -62,38 +64,38 @@ public class Topologies {
 
 
             if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
-                writeToFile(same_top, "The topology can be successful or failed \n");
-                writeToFile(same_top, "Topology name: " + topology.getId() + "\n");
+                LOG.info( "The topology can be successful or failed \n");
+                LOG.info("Topology name: " + topology.getId() + "\n");
                 boolean violated = topology.sloViolated();
 
                 if (violated) {
-                    writeToFile(same_top, topology.getId() + " violated the SLO \n");
+                    LOG.info(topology.getId() + " violated the SLO \n");
                     failingTopologies.add(topology);
                 } else if (!violated) {
-                    writeToFile(same_top, topology.getId() + " did not violate the SLO \n");
+                    LOG.info(topology.getId() + " did not violate the SLO \n");
                     successfulTopologies.add(topology);
                 }
             }
         }
 
-        writeToFile(same_top, "Failing Topologies: \n");
+        LOG.info("Failing Topologies: \n");
         for (Topology t : failingTopologies)
-            writeToFile(same_top, "Failing : " + t.getId() + "\n");
-        writeToFile(same_top, "Successful Topologies: \n");
+            LOG.info("Failing : " + t.getId() + "\n");
+        LOG.info("Successful Topologies: \n");
         for (Topology t : successfulTopologies)
-            writeToFile(same_top, "Successful : " + t.getId() + "\n");
+            LOG.info("Successful : " + t.getId() + "\n");
 
         TopologyPairs topologyPair = new TopologyPairs();
         topologyPair.setReceivers(failingTopologies);
         topologyPair.setGivers(successfulTopologies);
 
-        writeToFile(same_top, "Checking after topologies are set into the variables\n");
-        writeToFile(same_top, "Givers:\n");
+        LOG.info("Checking after topologies are set into the variables\n");
+        LOG.info("Givers:\n");
         for (String t : topologyPair.getGivers())
-            writeToFile(same_top, "topology: " + t + "\n");
-        writeToFile(same_top, "Receivers:\n");
+            LOG.info("topology: " + t + "\n");
+        LOG.info("Receivers:\n");
         for (String t : topologyPair.getReceivers())
-            writeToFile(same_top, "topology: " + t + "\n");
+            LOG.info("topology: " + t + "\n");
 
         return topologyPair;
     }
@@ -165,8 +167,7 @@ public class Topologies {
     private boolean upForMoreThan(String id) {
         Long time = System.currentTimeMillis();
         Long topologyUpAt = topologiesUptime.get(id);
-        return true; // TEMP ONLY
-        //      return ((time - topologyUpAt) / 1000) > UP_TIME;
+        return ((time - topologyUpAt) / 1000) > UP_TIME;
     }
 
     private Double getUserSpecifiedSLOFromConfig(String id) {
