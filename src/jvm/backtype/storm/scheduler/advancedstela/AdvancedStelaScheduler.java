@@ -32,7 +32,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
     private File same_top;
-    final int numExecutorsExchanged = 1;
+    // final int numExecutorsExchanged = 1;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -63,6 +63,13 @@ public class AdvancedStelaScheduler implements IScheduler {
             //runAdvancedStelaComponents(cluster, topologies);
         } else if (/*numTopologiesThatNeedScheduling == 0 &&*/ numTopologies > 0) {
             runAdvancedStelaComponents(cluster, topologies);
+
+            LOG.info("Printing topology schedules");
+            Collection<TopologyDetails> topologyDetails = topologies.getTopologies();
+            for (TopologyDetails detail : topologyDetails) {
+                printSchedule(cluster.getAssignmentById(detail.getId()), detail.getId());
+            }
+
             TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
 
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
@@ -160,50 +167,26 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void decideAssignmentForTargets(Topologies topologies, Cluster cluster) {
-        List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
-        for (String target : targets.keySet()) {
-            LOG.info("target {} ", target);
-        }
-        for (TopologyDetails topologyDetails : unscheduledTopologies) {
-            LOG.info("in decideAssignmentForTargets");
-            LOG.info(" the name of the target we are looking at {} ", topologyDetails.getId());
-
-
-            if (targets.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null*/) // BY REMOVING THIS, WE CAN FIX THE BUG
-            {
-                LOG.info("Found topology in targets " + topologyDetails.getId() + "\n");
-                findAssignmentForTarget(topologyDetails, cluster, topologyDetails.getId());
-            }
-        }
-    }
-
-    private void decideAssignmentForVictims(Topologies topologies, Cluster cluster) {
-        List<TopologyDetails> unscheduledTopologies = cluster.needsSchedulingTopologies(topologies);
-        LOG.info("in decideAssignmentForVictims");
-        for (String victim : victims.keySet()) {
-            LOG.info("victim {} ", victim);
-        }
-        for (TopologyDetails topologyDetails : unscheduledTopologies) {
-            LOG.info(" the name of the victim we are looking at {} ", topologyDetails.getId());
-            if (victims.containsKey(topologyDetails.getId()) /* && cluster.getAssignmentById(topologyDetails.getId()) != null()*/) // BY REMOVING THIS SECOND PART, WE CAN FIX THE BUG
-            {
-                LOG.info("Found topology in victims " + topologyDetails.getId() + "\n");
-                findAssignmentForVictim(topologyDetails, cluster, topologyDetails.getId());
-            }
-        }
-    }
-
     private void findAssignmentForTarget(TopologyDetails target, Cluster cluster, String topologyId) {
-        ExecutorPair executorPair = targets.get(topologyId);
-        LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
-        reassignTargetNewScheduling(target, cluster, executorPair);
+        try {
+            ExecutorPair executorPair = targets.get(topologyId);
+            LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
+            reassignNewScheduling(target, cluster, 1, "target", executorPair.getTargetExecutorSummary());
+        } catch (Exception e) {
+            LOG.info("Exception in findAssignment for target {}", e.toString());
+        }
+
     }
 
     private void findAssignmentForVictim(TopologyDetails victim, Cluster cluster, String topologyId) {
-        ExecutorPair executorPair = victims.get(topologyId);
-        LOG.info("findAssignment for Victim " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
-        reassignVictimNewScheduling(victim, cluster, executorPair);
+        try{
+            ExecutorPair executorPair = victims.get(topologyId);
+            LOG.info("findAssignment for Victim " + executorPair.getVictimExecutorSummary().get_host() + " " + executorPair.getVictimExecutorSummary().get_port() + "\n");
+            reassignNewScheduling(victim, cluster, -1, "victim", executorPair.getVictimExecutorSummary());
+        } catch (Exception e) {
+            LOG.info("Exception in find assignment for victim {}", e.toString());
+        }
+
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
@@ -266,10 +249,10 @@ public class AdvancedStelaScheduler implements IScheduler {
         LOG.info("In rebalance two topologies");
         if (config != null) {
             try {
-
+                int one = 1;
                 String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
-                Integer targetNewParallelism = targetOldParallelism + numExecutorsExchanged;
+                Integer targetNewParallelism = targetOldParallelism + one;
                 String targetCommand = "/var/nimbus/storm/bin/storm " +
                         "rebalance " + targetDetails.getName() + " -e " +
                         targetComponent + "=" + targetNewParallelism;
@@ -277,7 +260,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
                 Integer victimOldParallelism = victim.getComponents().get(victimComponent).getParallelism();
-                Integer victimNewParallelism = victimOldParallelism - numExecutorsExchanged;
+                Integer victimNewParallelism = victimOldParallelism - one;
                 String victimCommand = "/var/nimbus/storm/bin/storm " +
                         "rebalance " + victimDetails.getName() + " -e " +
                         victimComponent + "=" + victimNewParallelism;
@@ -336,35 +319,37 @@ public class AdvancedStelaScheduler implements IScheduler {
          }
      }
  */
-    private void reassignTargetNewScheduling(TopologyDetails target, Cluster cluster,
-                                             ExecutorPair executorPair) {
-        LOG.info("In reassignTargetNewScheduling \n");
-        LOG.info("Target topology " + target.getId() + " \n");
-        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
-      //  Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedClusterAssignment = flipAssignment(assignmentFromCluster);
+    private void
 
+    reassignNewScheduling(TopologyDetails target, Cluster cluster,
+                                       int executorsExchanged, String status, ExecutorSummary targetExecutorSummary) {
+        LOG.info("In reassignNewScheduling status {}", status);
+        LOG.info("{} topology {}", status, target.getId());
+        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
 
         if (assignmentFromCluster == null) {
-            LOG.info("Assignment from cluster for target topology is null");
+            LOG.info("Assignment from cluster for {} topology is null", status);
         } else {
             Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
 
             for (WorkerSlot ws : targetSchedule.keySet()) {
-                LOG.info("Victim schedule worker slot {} ", ws.getNodeId(), ws.getPort());
+                LOG.info("{} schedule worker slot {} ", status, ws.getNodeId(), ws.getPort());
             }
-            ExecutorSummary targetExecutorSummary = executorPair.getTargetExecutorSummary();
             String component = targetExecutorSummary.get_component_id();
             String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), targetExecutorSummary.get_host());
             if (supervisorId == null) {
-                LOG.info("Supervisor ID is null for creating the worker slot for the target");
+                LOG.info("Supervisor ID is null for creating the worker slot for the {}", status);
             }
-            WorkerSlot targetSlot = new WorkerSlot(supervisorId, targetExecutorSummary.get_port());
-
-            LOG.info("From the target topology\n");
+            LOG.info("From the {} topology", status);
+            int port = targetExecutorSummary.get_port();
             for (WorkerSlot workerSlots : targetSchedule.keySet()) {
-                LOG.info("target slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
+                LOG.info(status + " slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
+                if (status.equals("victim") && workerSlots.getNodeId().equals(supervisorId))
+                    port = workerSlots.getPort();
+
             }
-            LOG.info("target the slot we're trying to create slot port: " + targetSlot.getPort() + "slot host: " + targetSlot.getNodeId() + " \n");
+            WorkerSlot targetSlot = new WorkerSlot(supervisorId, port);
+            LOG.info(status + " the slot we're trying to create slot port: " + targetSlot.getPort() + "slot host: " + targetSlot.getNodeId() + " \n");
 
             ArrayList<ExecutorDetails> targetSlotExecutors = targetSchedule.get(targetSlot); // these are the executors on the target slot
 
@@ -374,11 +359,11 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 // getting all the executors that belong to that component
                 for (Map.Entry<ExecutorDetails, String> targetExecutorToComponent : targetExecutorsToComponents.entrySet()) {
-                    LOG.info("target component: " + component + "\n");
-                    LOG.info("target component we are iterating on : " + targetExecutorToComponent.getValue() + "\n");
+                    LOG.info(status + " component: " + component + "\n");
+                    LOG.info(status + " component we are iterating on : " + targetExecutorToComponent.getValue() + "\n");
                     if (targetExecutorToComponent.getValue().equals(component)) {
                         targetComponentExecutors.add(targetExecutorToComponent.getKey()); // this gives us all of the executors that belong to that component
-                        LOG.info("target executor details: " + targetExecutorToComponent.getKey().toString() + "\n");
+                        LOG.info(status + " executor details: " + targetExecutorToComponent.getKey().toString() + "\n");
                     }
                 }
                 // removing all executors that belong to this component from all worker slots
@@ -386,7 +371,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     for (Iterator<Map.Entry<ExecutorDetails, WorkerSlot>> it = assignmentFromCluster.entrySet().iterator(); it.hasNext(); ) {
                         Map.Entry<ExecutorDetails, WorkerSlot> entry = it.next();
                         if (entry.getKey().equals(targetExecToComp.getKey()) && targetExecToComp.getValue().equals(component)) {
-                            LOG.info("Removing from slot {} {} executor {} component {}", target.getId(), entry.getValue(), entry.getKey(), component);
+                            LOG.info("status {} removing from slot {} {} executor {} component {}", status, target.getId(), entry.getValue(), entry.getKey(), component);
                             it.remove();
                             break;
                         }
@@ -402,38 +387,47 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 ///  we have to find the common subset between them
 
-                int numExecutorsOnSlot = getOldNumExecutorsOnSlot(targetComponentExecutors, targetSlotExecutors) + numExecutorsExchanged;
+                int numExecutorsOnSlot = getOldNumExecutorsOnSlot(targetComponentExecutors, targetSlotExecutors) + executorsExchanged;
                 //targetComponentExecutors.retainAll(targetSlotExecutors); // now we have the common elements only.
-                LOG.info("retrieving common target executors only");
+                LOG.info("status {} retrieving common target executors only", status);
 
                 // the number of old all executors across all slots
                 int oldNumExecutors = targetComponentExecutors.size();
-                int newNumExecutors = oldNumExecutors + numExecutorsExchanged; // for the target, you have to add an executor. you moron.
-                LOG.info("target component old num of executors {}", oldNumExecutors);
-                LOG.info("target component new num of executors {}", newNumExecutors);
+                int newNumExecutors = oldNumExecutors + executorsExchanged; // for the target, you have to add an executor.
+                LOG.info("status {} component old num of executors {}", status, oldNumExecutors);
+                LOG.info("status {} component new num of executors {}", status, newNumExecutors);
                 if (newNumExecutors > 0) {
-                    LOG.info("target new executors > 0", newNumExecutors);
+                    LOG.info("status {} new executors > 0", status, newNumExecutors);
+
                     ArrayList<Integer> targetTasks = new ArrayList<>();
                     for (ExecutorDetails targetExecutor : targetComponentExecutors) { // wrong assumption -- that the ranges will be consecutive
-                        LOG.info("Target starting task {} ending task {}", targetExecutor.getStartTask(), targetExecutor.getEndTask());
+                        LOG.info("status {} starting task {} ending task {}", status, targetExecutor.getStartTask(), targetExecutor.getEndTask());
                         targetTasks.add(targetExecutor.getStartTask());
                         targetTasks.add(targetExecutor.getEndTask());
                     }
                     Collections.sort(targetTasks); // this should have all the tasks
-                    int start = targetTasks.get(0); // assumption -- values are contiguous
-                    int end = targetTasks.get(targetTasks.size() - 1);
+                    int start = targetTasks.get(0);
+                    int end = targetTasks.get(targetTasks.size() - 1); // end is also the total number of tasks
 
-                    int range = (int) Math.floor((double) (end - start) / (newNumExecutors));
+                    int range = (int) Math.floor((double) (end - start + 1) / (newNumExecutors));
+                    int remainder = (end - start + 1) % newNumExecutors;
+                    LOG.info("start {} end {} remainder {] range {} status {}", start, end, remainder, range, status);
                     if (range == 0) range = 1;
 
+                    int startingTask = start;
+                    int endingTask = 0;
                     ArrayList<ExecutorDetails> newTargetComponentExecutors = new ArrayList<>();
                     for (int i = 0; i < newNumExecutors; i++) {
-                        int startingTask = start + i * range;
-                        int endingTask = start + (i + 1) * range - 1; // assumption that range needs to be continuous
-                        if (endingTask > end || (endingTask < end && i == newNumExecutors - 1))
-                            endingTask = end;
-                        LOG.info("target start {} end {} i {}", startingTask, endingTask, i);
+                        if (i < remainder) {
+                            endingTask = startingTask + range;
+                            LOG.info("status {} i {} less than remainder {}, starting task  {}, ending task {}", status, i, remainder, startingTask, endingTask);
+                        } else {
+                            endingTask = startingTask + range - 1;
+                            LOG.info("status {} i {} greater than or equal to remainder {}, starting task  {}, ending task {}", status, i, remainder, startingTask, endingTask);
+                        }
+                        LOG.info("status {} start {} end {} i {}", status, startingTask, endingTask, i);
                         newTargetComponentExecutors.add(new ExecutorDetails(startingTask, endingTask));
+                        startingTask = endingTask + 1;
                     } // now we have set up the tasks for the executor
 
                     ArrayList<ExecutorDetails> newTargetSlotExecutors = new ArrayList<>();
@@ -443,57 +437,69 @@ public class AdvancedStelaScheduler implements IScheduler {
                     // add as many executors as needed to targetslot
 
                     int c = 0;
-                    for (Iterator <ExecutorDetails>i  = newTargetComponentExecutors.iterator() ; i.hasNext() && c < numExecutorsOnSlot; c++) {
+                    for (Iterator<ExecutorDetails> i = newTargetComponentExecutors.iterator(); i.hasNext() && c < numExecutorsOnSlot; c++) {
                         ExecutorDetails ed = i.next();
-                        LOG.info("Target executor added to target slot {} ", ed.toString());
+                        LOG.info("status {} executor added to target slot {} ", status, ed.toString());
                         newTargetSlotExecutors.add(ed);
                         i.remove();
                     }
-                    /*// delete assigned executors from set
-                    for (int i = 0; i < numExecutorsOnSlot; i++) {
-                        LOG.info("Deleting target executor from list {} ", newTargetComponentExecutors.get(i).toString());
-                        newTargetComponentExecutors.remove(i);
-                    }*/
 
-                    int numExecsPerRemainingSlots = newTargetComponentExecutors.size() / (targetSchedule.size() - 1);
+                    int numExecsPerRemainingSlots = newTargetComponentExecutors.size() / (targetSchedule.size() - 1); // check this line
+                    int remainingExecutors = newTargetComponentExecutors.size() % (targetSchedule.size() - 1);
+                    LOG.info("status {} numExecsPerRemainingSlots {} remaining Executors {}", status, numExecsPerRemainingSlots, remainingExecutors);
                     cluster.freeSlots(targetSchedule.keySet());
-                  /*  if (cluster.getUsedSlots().contains(targetSlot)) {
-                        cluster.freeSlot(targetSlot);
-                    }*/
+                    cluster.getAssignmentById(target.getId()).getExecutorToSlot().clear();
+
                     cluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
-                    // }
-                    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : targetSchedule.entrySet()) {
+
+                    Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedAssignment = flipMap(assignmentFromCluster);
+
+                    int index = 0;
+                    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : flippedAssignment.entrySet()/*targetSchedule.entrySet()*/) {
                         WorkerSlot slot = topologyEntry.getKey();
-                        if (!topologyEntry.getKey().equals(targetSlot)) {
+                        LOG.info("Worker slot {} status {}", slot.toString(), status);
+                        int max = numExecsPerRemainingSlots;
+                        LOG.info("max {} status", max, status);
+                        if (!slot.equals(targetSlot)) {
+                            LOG.info("status {} slot is not equal to current slot", status);
                             if (cluster.getUsedSlots().contains(slot)) {
+                                LOG.info("slot was already assigned. status {}", status);
                                 cluster.freeSlot(slot);
                             }
+                            LOG.info(" index {} status {}", index, status);
+                            if (index < remainingExecutors) {
+                                max = max + 1;
+                                LOG.info("max is updated {} status {}", max, status);
+                            }
                             c = 0;
-                            for (Iterator <ExecutorDetails>i  = newTargetComponentExecutors.iterator() ; i.hasNext() && c < numExecsPerRemainingSlots; c++) {
+                            for (Iterator<ExecutorDetails> i = newTargetComponentExecutors.iterator(); i.hasNext() && c < max; c++) {
                                 ExecutorDetails ed = i.next();
-                                LOG.info("Target executor added to target slot {} ", ed.toString());
                                 topologyEntry.getValue().add(ed);
+                                LOG.info("slot {} executor {} status", slot.toString(), ed.toString(), status);
                                 i.remove();
-                            }
-                            /*for (int i = 0; i < numExecsPerRemainingSlots; i++) {
-                                LOG.info("Target executor added to target slot {} ", newTargetComponentExecutors.get(i).toString());
-                                topologyEntry.getValue().add(newTargetComponentExecutors.get(i));
-                            }
-                            // delete assigned executors from set
-                            for (int i = 0; i < numExecsPerRemainingSlots; i++) {
-                                LOG.info("Deleting target executor from list {} ", newTargetComponentExecutors.get(i).toString());
-                                newTargetComponentExecutors.remove(i);
-                            } */
-                            cluster.assign(slot, target.getId(), topologyEntry.getValue());
+                           }
+                           try {
+                               cluster.assign(slot, target.getId(), topologyEntry.getValue());
+                           } catch (Exception e) {
+                               LOG.info("Catching already assigned exception {}", e.toString());
+                               Map<ExecutorDetails, WorkerSlot>  assignment = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
+                               for (ExecutorDetails d : topologyEntry.getValue()) {
+                                if (assignment.containsKey(d)) {
+                                    LOG.info("Executor {} already present on {}", d.toString(), assignment.get(d).toString());
+                                }
+                               }
+                           }
+
                         }
+                        index++;
                     }
                     targets.remove((target.getId()));
 
                 } else {
-                    LOG.info("Num of new executors is now zero for target :S");
+                    LOG.info("Num of new executors is now zero for {}", status);
                 }
             } else {
-                LOG.info("the old targets schedule does not have this worker slot.");
+                LOG.info("the old {} schedule does not have this worker slot.", status);
             }
         }
     }
@@ -503,296 +509,9 @@ public class AdvancedStelaScheduler implements IScheduler {
         Map<ExecutorDetails, WorkerSlot> map = currentTargetAssignment.getExecutorToSlot();
         LOG.info("Logging for " + tag + "\n");
         for (Entry<ExecutorDetails, WorkerSlot> e : map.entrySet()) {
-            LOG.info("WorkerSlot : " + e.getValue() + " Executor {}" + e.getKey().toString() + "\n");
+            LOG.info("Host : " + globalState.getSupervisorToNode().get(e.getValue().getNodeId()).hostname + "Port: " + e.getValue().getPort()+ " Executor {}" + e.getKey().toString() + "\n");
         }
     }
-
-   /* private void reassignVictimNewScheduling(TopologyDetails victim, Cluster cluster,
-                                             ExecutorPair executorPair) {
-        LOG.info("In reassignVictimNewScheduling \n");
-        LOG.info("Victim topology " + victim.getId() + " \n");
-
-        Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
-        LOG.info("victim from the topology\n");
-        for (WorkerSlot workerSlots : victimSchedule.keySet()) {
-            LOG.info("victim slot port: " + workerSlots.getPort() + "slot host: " + workerSlots.getNodeId() + "\n");
-        }
-
-        ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
-        String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), victimExecutorSummary.get_host());
-        if (supervisorId == null) {
-            writeToFile(same_top, "Supervisor ID is null for creating the worker slot");
-            LOG.info("Supervisor ID is null for creating the worker slot");
-        }
-        String component = victimExecutorSummary.get_component_id();
-        WorkerSlot victimSlot = new WorkerSlot(supervisorId, victimExecutorSummary.get_port());
-        writeToFile(same_top, "victim the slot we're trying to create slot port: " + victimSlot.getPort() + "slot host: " + victimSlot.getNodeId() + " \n");
-        LOG.info("victim the slot we're trying to create slot port: " + victimSlot.getPort() + "slot host: " + victimSlot.getNodeId() + " \n");
-
-        ArrayList<ExecutorDetails> victimSlotExecutors = victimSchedule.get(victimSlot); // these are the executors on the victim slot
-        if (victimSlotExecutors != null) {
-            Map<ExecutorDetails, String> victimExectorsToComponents = victim.getExecutorToComponent();
-            ArrayList<ExecutorDetails> victimComponentExecutors = new ArrayList<>();
-            for (Map.Entry<ExecutorDetails, String> victimExecutorToComponent : victimExectorsToComponents.entrySet()) {
-                writeToFile(same_top, "component: " + component + "\n");
-                writeToFile(same_top, "component we are iterating on : " + victimExecutorToComponent.getValue() + "\n");
-                LOG.info("victim component: " + component + "\n");
-                LOG.info("victim component we are iterating on : " + victimExecutorToComponent.getValue() + "\n");
-                if (victimExecutorToComponent.getValue().equals(component)) {
-                    victimComponentExecutors.add(victimExecutorToComponent.getKey()); // this gives us all of the executors that belong to that component
-                    writeToFile(same_top, "executor details: " + victimExecutorToComponent.getKey().toString() + "\n");
-                    LOG.info("victim executor details: " + victimExecutorToComponent.getKey().toString() + "\n");
-                }
-            }
-            // do a deep copy
-            ArrayList<ExecutorDetails> victimNonComponentExecutorsOnSlot = new ArrayList<>();
-            for (ExecutorDetails ed : victimSlotExecutors) {
-                victimNonComponentExecutorsOnSlot.add(ed);
-            }
-
-            victimNonComponentExecutorsOnSlot.removeAll(victimComponentExecutors);
-            // these are all the executors that are on the slot but do not belong to the component in question
-            ///  we have to find the common subset between them
-
-            victimComponentExecutors.retainAll(victimSlotExecutors); // now we have the common elements only.
-            int oldNumExecutors = victimComponentExecutors.size();
-            int newNumExecutors = oldNumExecutors - numExecutorsExchanged; // TODO or just get new parallelism hint
-            LOG.info("victim old executors {} new executors {}", oldNumExecutors, newNumExecutors);
-
-            if (newNumExecutors > 0) {
-                LOG.info("victim new num executors > 1");
-                ArrayList<Integer> victimTasks = new ArrayList<>();
-                for (ExecutorDetails victimExecutor : victimComponentExecutors) {
-                    LOG.info("victim starting task {} ending task {}", victimExecutor.getStartTask(), victimExecutor.getEndTask());
-                    victimTasks.add(victimExecutor.getStartTask());
-                    victimTasks.add(victimExecutor.getEndTask());
-                }
-                Collections.sort(victimTasks);
-                int start = victimTasks.get(0); // assumption -- values are contiguous
-                int end = victimTasks.get(victimTasks.size() - 1);
-                int range = (int) Math.floor((double) (end - start) / (newNumExecutors));
-                if (range == 0) range = 1;
-
-                ArrayList<ExecutorDetails> newVictimComponentExecutorsOnSlot = new ArrayList<>();
-                for (int i = 0; i < newNumExecutors; i++) {
-                    int startingTask = start + i * range;
-                    int endingTask = start + (i + 1) * range; // assumption that range needs to be continuous
-                    if (endingTask > end)
-                        endingTask = end;
-                    LOG.info("victim i {} start {} end {}", i, startingTask, endingTask);
-                    newVictimComponentExecutorsOnSlot.add(new ExecutorDetails(startingTask, endingTask));
-                } // now we have set up the tasks for the executor
-
-                for (ExecutorDetails ed : victimNonComponentExecutorsOnSlot) {
-                    newVictimComponentExecutorsOnSlot.add(ed); // add the other executors that were on this slot but do not belong to this component
-                }
-
-                //for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : newExecutorToSlot.entrySet()) {
-                if (cluster.getUsedSlots().contains(victimSlot)) {
-                    cluster.freeSlot(victimSlot);
-                }
-                cluster.assign(victimSlot, victim.getId(), newVictimComponentExecutorsOnSlot);
-                // }
-                victims.remove((victim.getId()));
-
-            } else {
-                writeToFile(same_top, "Num of new executors is now zero :S");
-                LOG.info("Num of new executors is now zero :S");
-            }
-
-        } else {
-            LOG.info("the old victims schedule does not have this worker slot.");
-            writeToFile(same_top, "the old victims schedule does not have this worker slot.");
-
-        }
-    }
-    */
-
-    private void reassignVictimNewScheduling(TopologyDetails victim, Cluster cluster,
-                                             ExecutorPair executorPair) {
-        LOG.info("In reassignVictimNewScheduling \n");
-        LOG.info("Victim topology " + victim.getId() + " \n");
-        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = cluster.getAssignmentById(victim.getId()).getExecutorToSlot();
-      //  Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedClusterAssignment = flipAssignment(assignmentFromCluster);
-
-
-
-        if (assignmentFromCluster == null) {
-            LOG.info("Assignment from cluster for victim topology is null");
-        } else {
-
-            Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
-            for (WorkerSlot ws : victimSchedule.keySet()) {
-                LOG.info("Victim schedule worker slot {} ", ws.getNodeId(), ws.getPort());
-            }
-            ExecutorSummary victimExecutorSummary = executorPair.getVictimExecutorSummary();
-            String component = victimExecutorSummary.get_component_id();
-            String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), victimExecutorSummary.get_host());
-            if (supervisorId == null) {
-                LOG.info("Supervisor ID is null for creating the worker slot for the victim");
-            }
-            WorkerSlot victimSlot = new WorkerSlot(supervisorId, victimExecutorSummary.get_port());
-
-            LOG.info("From the victim topology\n");
-            for (WorkerSlot workerSlots : victimSchedule.keySet()) {
-                LOG.info("victim slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
-            }
-            LOG.info("victim the slot we're trying to create slot port: " + victimSlot.getPort() + "slot host: " + victimSlot.getNodeId() + " \n");
-
-            ArrayList<ExecutorDetails> victimSlotExecutors = victimSchedule.get(victimSlot); // these are the executors on the victim slot
-
-            if (victimSlotExecutors != null) {
-                Map<ExecutorDetails, String> victimExecutorsToComponents = victim.getExecutorToComponent();
-                ArrayList<ExecutorDetails> victimComponentExecutors = new ArrayList<>();
-
-                // getting all the executors that belong to that component
-                for (Map.Entry<ExecutorDetails, String> victimExecutorToComponent : victimExecutorsToComponents.entrySet()) {
-                    LOG.info("victim component: " + component + "\n");
-                    LOG.info("victim component we are iterating on : " + victimExecutorToComponent.getValue() + "\n");
-                    if (victimExecutorToComponent.getValue().equals(component)) {
-                        victimComponentExecutors.add(victimExecutorToComponent.getKey()); // this gives us all of the executors that belong to that component
-                        LOG.info("victim executor details: " + victimExecutorToComponent.getKey().toString() + "\n");
-                    }
-                }
-                // removing all executors that belong to this component from all worker slots
-                for (Map.Entry<ExecutorDetails, String> victimExecToComp : victimExecutorsToComponents.entrySet()) {
-                    for (Iterator<Map.Entry<ExecutorDetails, WorkerSlot>> it = assignmentFromCluster.entrySet().iterator(); it.hasNext(); ) {
-                        Map.Entry<ExecutorDetails, WorkerSlot> entry = it.next();
-                        if (entry.getKey().equals(victimExecToComp.getKey()) && victimExecToComp.getValue().equals(component)) {
-                            LOG.info("Removing from slot {} executor {} component {}", entry.getValue(), entry.getKey(), component);
-                            it.remove();
-                            break;
-                        }
-                    }
-                }
-                // do a deep copy
-                ArrayList<ExecutorDetails> victimNonComponentExecutorsOnSlot = new ArrayList<>();
-                for (ExecutorDetails ed : victimSlotExecutors) {
-                    victimNonComponentExecutorsOnSlot.add(ed);
-                }
-                victimNonComponentExecutorsOnSlot.removeAll(victimComponentExecutors);
-                // these are all the executors that are on the slot but do not belong to the component in question
-
-                ///  we have to find the common subset between them
-
-                int numExecutorsOnSlot = getOldNumExecutorsOnSlot(victimComponentExecutors, victimSlotExecutors) - numExecutorsExchanged;
-                //victimComponentExecutors.retainAll(victimSlotExecutors); // now we have the common elements only.
-                LOG.info("retrieving common victim executors only");
-
-                // the number of old all executors across all slots
-                int oldNumExecutors = victimComponentExecutors.size();
-                int newNumExecutors = oldNumExecutors - numExecutorsExchanged; // for the victim, you have to add an executor. you moron.
-                LOG.info("victim component old num of executors {}", oldNumExecutors);
-                LOG.info("victim component new num of executors {}", newNumExecutors);
-                if (newNumExecutors > 0) {
-                    LOG.info("victim new executors > 0", newNumExecutors);
-                    ArrayList<Integer> victimTasks = new ArrayList<>();
-                    for (ExecutorDetails victimExecutor : victimComponentExecutors) { // wrong assumption -- that the ranges will be consecutive
-                        LOG.info("Victim starting task {} ending task {}", victimExecutor.getStartTask(), victimExecutor.getEndTask());
-                        victimTasks.add(victimExecutor.getStartTask());
-                        victimTasks.add(victimExecutor.getEndTask());
-                    }
-                    Collections.sort(victimTasks); // this should have all the tasks
-                    int start = victimTasks.get(0); // assumption -- values are contiguous
-                    int end = victimTasks.get(victimTasks.size() - 1);
-
-                    int range = (int) Math.floor((double) (end - start) / (newNumExecutors));
-                    if (range == 0) range = 1;
-
-                    ArrayList<ExecutorDetails> newVictimComponentExecutors = new ArrayList<>();
-                    for (int i = 0; i < newNumExecutors; i++) {
-                        int startingTask = start + i * range;
-                        int endingTask = start + (i + 1) * range - 1; // assumption that range needs to be continuous
-                        if (endingTask > end || (endingTask < end && i == newNumExecutors - 1))
-                            endingTask = end;
-                        LOG.info("victim start {} end {} i {}", startingTask, endingTask, i);
-                        newVictimComponentExecutors.add(new ExecutorDetails(startingTask, endingTask));
-                    } // now we have set up the tasks for the executor
-
-                    ArrayList<ExecutorDetails> newVictimSlotExecutors = new ArrayList<>();
-                    for (ExecutorDetails ed : victimNonComponentExecutorsOnSlot) {
-                        newVictimSlotExecutors.add(ed); // add the other executors that were on this slot but do not belong to this component
-                    }
-                    // add as many executors as needed to targetslot
-                  /*  for (int i = 0; i < numExecutorsOnSlot; i++) {
-                        LOG.info("Target executor added to victim slot {} ", newVictimComponentExecutors.get(i).toString());
-                        newVictimSlotExecutors.add(newVictimComponentExecutors.get(i));
-                    }
-                    // delete assigned executors from set
-                    for (int i = 0; i < numExecutorsOnSlot; i++) {
-                        LOG.info("Deleting victim executor from list {} ", newVictimComponentExecutors.get(i).toString());
-                        newVictimComponentExecutors.remove(i);
-                    }
-                    */
-                    int c = 0;
-                    for (Iterator <ExecutorDetails>i  = newVictimComponentExecutors.iterator() ; i.hasNext() && c < numExecutorsOnSlot; c++) {
-                        ExecutorDetails ed = i.next();
-                        LOG.info("Victim executor added to victim slot {} ", ed.toString());
-                        newVictimSlotExecutors.add(ed);
-                        i.remove();
-                    }
-                    int numExecsPerRemainingSlots = newVictimComponentExecutors.size() / (victimSchedule.size() - 1); // TODO fix divide by 0 error here
-
-                    cluster.freeSlots(victimSchedule.keySet());
-                   /* if (cluster.getUsedSlots().contains(victimSlot)) {
-                        cluster.freeSlot(victimSlot);
-                    } */
-                    cluster.assign(victimSlot, victim.getId(), newVictimSlotExecutors);
-                    // }
-                    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : victimSchedule.entrySet()) {
-                        WorkerSlot slot = topologyEntry.getKey();
-                        if (!topologyEntry.getKey().equals(victimSlot)) {
-                            if (cluster.getUsedSlots().contains(slot)) {
-                                cluster.freeSlot(slot);
-                            }
-                         /*   for (int i = 0; i < numExecsPerRemainingSlots; i++) {
-                                LOG.info("Target executor added to victim slot {} ", newVictimComponentExecutors.get(i).toString());
-                                topologyEntry.getValue().add(newVictimComponentExecutors.get(i));
-                            }
-                            // delete assigned executors from set
-                            for (int i = 0; i < numExecsPerRemainingSlots; i++) {
-                                LOG.info("Deleting victim executor from list {} ", newVictimComponentExecutors.get(i).toString());
-                                newVictimComponentExecutors.remove(i);
-                            } */
-                            c = 0;
-                            for (Iterator <ExecutorDetails>i  = newVictimComponentExecutors.iterator() ; i.hasNext() && c < numExecsPerRemainingSlots; c++) {
-                                ExecutorDetails ed = i.next();
-                                LOG.info("Victim executor {} added to victim slot {} ", ed.toString(), topologyEntry.getKey());
-                                topologyEntry.getValue().add(ed);
-                                i.remove();
-                                if (cluster.getAssignments().get(victim.getId()).isExecutorAssigned(ed)) {
-                                    LOG.info("executor is assigned {}" ,ed.toString());
-                                    cluster.getAssignments().get(victim.getId()).getExecutorToSlot().remove(ed);
-                                    LOG.info("Removed the damn thing");
-
-                                }
-                            }
-                            try {
-                                cluster.assign(slot, victim.getId(), topologyEntry.getValue());
-                            } catch (Exception e) {
-                                LOG.info("Exception {}", e.toString());
-                                for (ExecutorDetails ed: topologyEntry.getValue()){
-                                   WorkerSlot ws = cluster.getAssignments().get(victim.getId()).getExecutorToSlot().get(ed);
-                                    LOG.info("What sup is it on? {}", ws.toString());
-                                    cluster.freeSlot(ws);
-
-                                }
-                                cluster.assign(slot, victim.getId(), topologyEntry.getValue());
-                            }
-                        }
-                    }
-                    victims.remove((victim.getId()));
-
-                } else {
-                    LOG.info("Num of new executors is now zero for victim :S");
-                }
-            } else {
-                LOG.info("the old victims schedule does not have this worker slot.");
-
-            }
-        }
-    }
-
 
     public void writeToFile(File file, String data) {
         try {
@@ -827,16 +546,13 @@ public class AdvancedStelaScheduler implements IScheduler {
         return null;
     }
 
-    public Map<WorkerSlot, ArrayList<ExecutorDetails>> flipAssignment(Map<ExecutorDetails, WorkerSlot> assignmentFromCluster) {
-        HashMap<WorkerSlot, ArrayList<ExecutorDetails>> flippedMap = new HashMap<>();
-        for (Map.Entry<ExecutorDetails, WorkerSlot> entry : assignmentFromCluster.entrySet()) {
-            if (flippedMap.containsKey(entry.getValue())) {
-                flippedMap.get(entry.getValue()).add(entry.getKey());
-            } else {
-                ArrayList<ExecutorDetails> ed = new ArrayList<>();
-                ed.add(entry.getKey());
-                flippedMap.put(entry.getValue(), ed);
+    public Map<WorkerSlot, ArrayList<ExecutorDetails>> flipMap(Map<ExecutorDetails, WorkerSlot> map){
+        Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedMap = new HashMap<>();
+        for (Map.Entry<ExecutorDetails, WorkerSlot> entry : map.entrySet()) {
+            if (!flippedMap.containsKey(entry.getValue())){
+                flippedMap.put(entry.getValue(), new ArrayList<ExecutorDetails>());
             }
+            flippedMap.get(entry.getValue()).add(entry.getKey());
         }
         return flippedMap;
     }
