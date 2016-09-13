@@ -150,10 +150,17 @@ public class GlobalState {
                 TopologySchedule topologySchedule = new TopologySchedule(id, topologySummary.get_num_workers());
                 TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(topologySummary.get_id());
 
-                addSpoutsAndBolts(topology, topologySchedule, topologyInfo);
-                constructTopologyGraph(topology, topologySchedule);
-
-                topologySchedules.put(id, topologySchedule);
+                try {
+                    addSpoutsAndBolts(topology, topologySchedule, topologyInfo);
+                    constructTopologyGraph(topology, topologySchedule);
+                    topologySchedules.put(id, topologySchedule);
+                } catch (Exception e) {
+                    LOG.info("exception while trying to add spouts and bolts : {}", e.toString());
+                    LOG.info("Logging the topology information that we just got");
+                    for (ExecutorSummary execSummary : topologyInfo.get_executors()){
+                        LOG.info("Component {} host {} port {}", execSummary.get_component_id(), execSummary.get_host(), execSummary.get_port());
+                    }
+                }
             }
         } catch (TException e) {
             e.printStackTrace();
