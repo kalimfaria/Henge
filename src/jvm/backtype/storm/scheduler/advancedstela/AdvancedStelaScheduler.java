@@ -325,7 +325,13 @@ public class AdvancedStelaScheduler implements IScheduler {
                                        int executorsExchanged, String status, ExecutorSummary targetExecutorSummary) {
         LOG.info("In reassignNewScheduling status {}", status);
         LOG.info("{} topology {}", status, target.getId());
-        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
+        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot> ();
+        Map<ExecutorDetails, WorkerSlot> tmp = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
+        for (Map.Entry <ExecutorDetails, WorkerSlot> e : tmp.entrySet()){
+            assignmentFromCluster.put(
+                    new ExecutorDetails(e.getKey().getStartTask(), e.getKey().getEndTask()),
+                    new WorkerSlot(e.getValue().getNodeId(), e.getValue().getPort()));
+        }
 
         if (assignmentFromCluster == null) {
             LOG.info("Assignment from cluster for {} topology is null", status);
@@ -374,13 +380,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                         assignmentFromCluster.remove(targetExecToComp.getKey());
                         LOG.info("removed now so should be null in assignmentCluster. value {}", assignmentFromCluster.get(targetExecToComp.getKey()));
                     }
-                   /* for (Iterator<Map.Entry<ExecutorDetails, WorkerSlot>> it = assignmentFromCluster.entrySet().iterator(); it.hasNext(); ) {
-                        Map.Entry<ExecutorDetails, WorkerSlot> entry = it.next();
-                        if (entry.getKey().equals(targetExecToComp.getKey()) && targetExecToComp.getValue().equals(component)) {
-                            LOG.info("status {} removing from slot {} {} executor {} component {}", status, target.getId(), entry.getValue(), entry.getKey(), component);
-                            it.remove();
-                        }
-                    } */
+
+                }
+                for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
+                    LOG.info("assignmentFromCluster before printing 1: executor: {}, workerslot: {}", entry.getKey().toString(), entry.getValue().toString());
                 }
                 // do a deep copy
                 ArrayList<ExecutorDetails> targetNonComponentExecutorsOnSlot = new ArrayList<>();
@@ -457,6 +460,10 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     cluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
 
+
+                    for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
+                        LOG.info("assignmentFromCluster before printing 2: executor: {}, workerslot: {}", entry.getKey().toString(), entry.getValue().toString());
+                    }
                     Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedAssignment = flipMap(assignmentFromCluster);
 
                     int index = 0;
