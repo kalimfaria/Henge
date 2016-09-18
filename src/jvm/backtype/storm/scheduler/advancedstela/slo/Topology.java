@@ -119,8 +119,7 @@ public class Topology implements Comparable<Topology> {
         for (Double value : measuredSLOs) {
             result += value;
         }
-        return 0.9;
-        //return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
+        return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
     }
 
     public boolean allReadingsViolateSLO() {

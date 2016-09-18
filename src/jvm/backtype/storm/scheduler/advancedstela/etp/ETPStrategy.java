@@ -150,7 +150,7 @@ public class ETPStrategy {
                 }
             }
 
-            if (in > 0.3 * out) { // TODO FIX to 1.2
+            if (in >  1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
             }
