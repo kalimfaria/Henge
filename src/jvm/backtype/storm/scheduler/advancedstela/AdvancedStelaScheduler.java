@@ -14,8 +14,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.Executor;
 
 // things to do -- if compaction does occur, you do need to intercept the schedule and provide separate scheduling for the compaction
 
@@ -31,6 +33,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private Selector selector;
     private HashMap<String, ExecutorPair> targets, victims;
     private HashMap<String, Integer> targetsExecutorsCount, victimsExecutorsCount;
+    private HashMap<String, Integer> targetsExecutorsCountOnSlot, victimsExecutorsCountOnSlot;
     private File juice_log;
     private File same_top;
     private int count;
@@ -48,6 +51,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         targets = new HashMap<String, ExecutorPair>();
         targetsExecutorsCount = new HashMap<String, Integer>();
         victimsExecutorsCount = new HashMap<String, Integer>();
+        targetsExecutorsCountOnSlot = new HashMap<String, Integer>();
+        victimsExecutorsCountOnSlot = new HashMap<String, Integer>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -151,7 +156,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 if (executorSummaries != null && executorSummaries.bothPopulated()) {
                     LOG.info("target host {} target port {} before rebalance", executorSummaries.getTargetExecutorSummary().get_host(), executorSummaries.getTargetExecutorSummary().get_port());
-                        rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries, cluster);
+                    rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries, cluster);
                 }
             } else if (giver_topologies.size() == 0) {
                 StringBuffer sb = new StringBuffer();
@@ -170,12 +175,12 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(giver_topologies.get(i).getId() + "\n");
 
             }
-        } else if ((!victims.isEmpty() || !targets.isEmpty()) && numTopologies > 0  && numTopologiesThatNeedScheduling == 0) {
+        } else if ((!victims.isEmpty() || !targets.isEmpty()) && numTopologies > 0 && numTopologiesThatNeedScheduling == 0) {
             LOG.info("((!victims.isEmpty() || !targets.isEmpty()) && numTopologies > 0  && numTopologiesThatNeedScheduling == 0)");
             LOG.info("Phase 3");
             // do the rebalancing the way we want it
 
-            for (Map.Entry<String, ExecutorPair> victim: victims.entrySet()) {
+            for (Map.Entry<String, ExecutorPair> victim : victims.entrySet()) {
                 LOG.info("Looping through victims : {}", victim);
                 String victimName = victim.getKey();
                 if (victimsExecutorsCount.containsKey(victim)) {
@@ -187,7 +192,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 }
             }
 
-            for (Map.Entry<String, ExecutorPair> target: targets.entrySet()) {
+            for (Map.Entry<String, ExecutorPair> target : targets.entrySet()) {
                 LOG.info("Looping through targets : {}", target);
                 String targetName = target.getKey();
                 if (targetsExecutorsCount.containsKey(target)) {
@@ -205,9 +210,10 @@ public class AdvancedStelaScheduler implements IScheduler {
         try {
             ExecutorPair executorPair = targets.get(topologyId);
             LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
-            reassignNewScheduling(target, cluster, 1, "target", executorPair.getTargetExecutorSummary());
+            reassignNewTargetScheduling(target, cluster, "target", executorPair.getTargetExecutorSummary(), targetsExecutorsCountOnSlot.get(target.getId()), targetsExecutorsCountOnSlot.get(target.getId()) + 1);
             targets.remove((target.getId()));
-            targetsExecutorsCount.remove((target.getId()));
+            targetsExecutorsCount.remove(target.getId());
+            targetsExecutorsCountOnSlot.remove(target.getId());
         } catch (Exception e) {
             LOG.info("Exception in findAssignment for target {}", e.toString());
         }
@@ -215,12 +221,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void findAssignmentForVictim(TopologyDetails victim, Cluster cluster, String topologyId) {
-        try{
+        try {
             ExecutorPair executorPair = victims.get(topologyId);
             LOG.info("findAssignment for Victim " + executorPair.getVictimExecutorSummary().get_host() + " " + executorPair.getVictimExecutorSummary().get_port() + "\n");
-            reassignNewScheduling(victim, cluster, -1, "victim", executorPair.getVictimExecutorSummary());
+            reassignNewVictimScheduling(victim, cluster, "victim", executorPair.getVictimExecutorSummary(), victimsExecutorsCountOnSlot.get(victim.getId()), victimsExecutorsCountOnSlot.get(victim.getId()) - 1);
             victims.remove((victim.getId()));
             victimsExecutorsCount.remove((victim.getId()));
+            victimsExecutorsCountOnSlot.remove(victim.getId());
         } catch (Exception e) {
             LOG.info("Exception in find assignment for victim {}", e.toString());
         }
@@ -322,7 +329,12 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
                     targetsExecutorsCount.put(targetDetails.getId(), targetDetails.getExecutors().size());
+                    int numExecutorsOnTargetSlot = findNumOfExecutorsOnSlot(targetDetails, target, executorSummaries.getTargetExecutorSummary());
+                    targetsExecutorsCountOnSlot.put(targetDetails.getId(), numExecutorsOnTargetSlot);
+
                     LOG.info("Victim old executors count {}", victimDetails.getExecutors().size());
+                    int numExecutorsOnVictimSlot = findNumOfExecutorsOnSlot(victimDetails, victim, executorSummaries.getVictimExecutorSummary());
+                    victimsExecutorsCountOnSlot.put(targetDetails.getId(), numExecutorsOnVictimSlot);
                     victimsExecutorsCount.put(victimDetails.getId(), victimDetails.getExecutors().size());
 
                     Runtime.getRuntime().exec(targetCommand);
@@ -362,10 +374,11 @@ public class AdvancedStelaScheduler implements IScheduler {
          }
      }
  */
-    private void
-
-    reassignNewScheduling(TopologyDetails target, Cluster cluster,
-                                       int executorsExchanged, String status, ExecutorSummary targetExecutorSummary) {
+   /* private void
+    reassignNewScheduling
+    (TopologyDetails target, Cluster cluster,
+    int executorsExchanged, String status,
+    ExecutorSummary targetExecutorSummary) {
         LOG.info("In reassignNewScheduling status {}", status);
         LOG.info("{} topology {}", status, target.getId());
         Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot> ();
@@ -380,7 +393,6 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("Assignment from cluster for {} topology is null", status);
         } else {
             Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
-
             for (WorkerSlot ws : targetSchedule.keySet()) {
                 LOG.info("{} schedule worker slot {} ", status, ws.getNodeId(), ws.getPort());
             }
@@ -395,17 +407,13 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info(status + " slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
                 if (status.equals("victim") && workerSlots.getNodeId().equals(supervisorId))
                     port = workerSlots.getPort();
-
             }
             WorkerSlot targetSlot = new WorkerSlot(supervisorId, port);
             LOG.info(status + " the slot we're trying to create slot port: " + targetSlot.getPort() + "slot host: " + targetSlot.getNodeId() + " \n");
-
             ArrayList<ExecutorDetails> targetSlotExecutors = targetSchedule.get(targetSlot); // these are the executors on the target slot
-
             if (targetSlotExecutors != null) {
                 Map<ExecutorDetails, String> targetExecutorsToComponents = target.getExecutorToComponent();
                 ArrayList<ExecutorDetails> targetComponentExecutors = new ArrayList<>();
-
                 // getting all the executors that belong to that component
                 for (Map.Entry<ExecutorDetails, String> targetExecutorToComponent : targetExecutorsToComponents.entrySet()) {
                     LOG.info(status + " component: " + component + "\n");
@@ -423,7 +431,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         assignmentFromCluster.remove(targetExecToComp.getKey());
                         LOG.info("removed now so should be null in assignmentCluster. value {}", assignmentFromCluster.get(targetExecToComp.getKey()));
                     }
-
                 }
                 for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
                     LOG.info("assignmentFromCluster before printing 1: executor: {}, workerslot: {}", entry.getKey().toString(), entry.getValue().toString());
@@ -435,13 +442,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                 }
                 targetNonComponentExecutorsOnSlot.removeAll(targetComponentExecutors);
                 // these are all the executors that are on the slot but do not belong to the component in question
-
                 ///  we have to find the common subset between them
-
                 int numExecutorsOnSlot = getOldNumExecutorsOnSlot(targetComponentExecutors, targetSlotExecutors) + executorsExchanged;
                 //targetComponentExecutors.retainAll(targetSlotExecutors); // now we have the common elements only.
                 LOG.info("status {} retrieving common target executors only", status);
-
                 // the number of old all executors across all slots
                 int oldNumExecutors = targetComponentExecutors.size();
                 int newNumExecutors = oldNumExecutors + executorsExchanged; // for the target, you have to add an executor.
@@ -449,7 +453,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info("status {} component new num of executors {}", status, newNumExecutors);
                 if (newNumExecutors > 0) {
                     LOG.info("status {} new executors > 0", status, newNumExecutors);
-
                     ArrayList<Integer> targetTasks = new ArrayList<>();
                     for (ExecutorDetails targetExecutor : targetComponentExecutors) { // wrong assumption -- that the ranges will be consecutive
                         LOG.info("status {} starting task {} ending task {}", status, targetExecutor.getStartTask(), targetExecutor.getEndTask());
@@ -464,7 +467,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                     int remainder = (end - start + 1) % newNumExecutors;
                     LOG.info("start {} end {} remainder {] range {} status {}", start, end, remainder, range, status);
                     if (range == 0) range = 1;
-
                     int startingTask = start;
                     int endingTask = 0;
                     ArrayList<ExecutorDetails> newTargetComponentExecutors = new ArrayList<>();
@@ -485,8 +487,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     for (ExecutorDetails ed : targetNonComponentExecutorsOnSlot) {
                         newTargetSlotExecutors.add(ed); // add the other executors that were on this slot but do not belong to this component
                     }
-                    // add as many executors as needed to targetslot
-
+                    // add as many executors as needed to targetSlot
                     int c = 0;
                     for (Iterator<ExecutorDetails> i = newTargetComponentExecutors.iterator(); i.hasNext() && c < numExecutorsOnSlot; c++) {
                         ExecutorDetails ed = i.next();
@@ -494,23 +495,19 @@ public class AdvancedStelaScheduler implements IScheduler {
                         newTargetSlotExecutors.add(ed);
                         i.remove();
                     }
-
                     int numExecsPerRemainingSlots = newTargetComponentExecutors.size() / (targetSchedule.size() - 1); // check this line
                     int remainingExecutors = newTargetComponentExecutors.size() % (targetSchedule.size() - 1);
                     LOG.info("status {} numExecsPerRemainingSlots {} remaining Executors {}", status, numExecsPerRemainingSlots, remainingExecutors);
                     cluster.freeSlots(targetSchedule.keySet());
                     //cluster.getAssignmentById(target.getId()).getExecutorToSlot().clear();
-
                     cluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
-
-
                     for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
                         LOG.info("assignmentFromCluster before printing 2: executor: {}, workerslot: {}", entry.getKey().toString(), entry.getValue().toString());
                     }
                     Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedAssignment = flipMap(assignmentFromCluster);
 
                     int index = 0;
-                    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : flippedAssignment.entrySet()/*targetSchedule.entrySet()*/) {
+                    for (Map.Entry<WorkerSlot, ArrayList<ExecutorDetails>> topologyEntry : flippedAssignment.entrySet()) {
                         WorkerSlot slot = topologyEntry.getKey();
                         LOG.info("Worker slot {} status {}", slot.toString(), status);
                         int max = numExecsPerRemainingSlots;
@@ -561,8 +558,224 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info("the old {} schedule does not have this worker slot.", status);
             }
         }
+    } */
+
+    private void reassignNewTargetScheduling (TopologyDetails target, Cluster cluster, String status, ExecutorSummary targetExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot) {
+        LOG.info("In reassignNewTargetScheduling status {}", status);
+        LOG.info("{} topology {}", status, target.getId());
+        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot>();
+        Map<ExecutorDetails, WorkerSlot> tmp = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
+        for (Map.Entry<ExecutorDetails, WorkerSlot> e : tmp.entrySet()) {
+            assignmentFromCluster.put(
+                    new ExecutorDetails(e.getKey().getStartTask(), e.getKey().getEndTask()),
+                    new WorkerSlot(e.getValue().getNodeId(), e.getValue().getPort()));
+        } // deep copy
+
+        if (assignmentFromCluster == null) {
+            LOG.info("Assignment from cluster for {} topology is null", status);
+        } else {
+            Map<WorkerSlot, ArrayList<ExecutorDetails>> targetSchedule = globalState.getTopologySchedules().get(target.getId()).getAssignment();
+            for (WorkerSlot ws : targetSchedule.keySet()) {
+                LOG.info("{} schedule worker slot {} ", status, ws.getNodeId(), ws.getPort());
+            }
+            String component = targetExecutorSummary.get_component_id();
+            String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), targetExecutorSummary.get_host());
+            if (supervisorId == null) {
+                LOG.info("Supervisor ID is null for creating the worker slot for the {}", status);
+            } else {
+
+                LOG.info("From the {} topology", status);
+                int port = targetExecutorSummary.get_port();
+                for (WorkerSlot workerSlots : targetSchedule.keySet()) {
+                    LOG.info(status + " slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
+                    if (status.equals("victim") && workerSlots.getNodeId().equals(supervisorId))
+                        port = workerSlots.getPort();
+                }
+                WorkerSlot targetSlot = new WorkerSlot(supervisorId, port);
+                LOG.info(status + " the slot we're trying to create slot port: " + targetSlot.getPort() + "slot host: " + targetSlot.getNodeId() + " \n");
+                ArrayList<ExecutorDetails> targetSlotExecutors = targetSchedule.get(targetSlot); // these are the executors on the target slot
+                if (targetSlotExecutors != null) {
+                    Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedAssignment = flipMap(assignmentFromCluster);
+                    Map<WorkerSlot, ArrayList<ExecutorDetails>> newAssignment = flipMap(assignmentFromCluster);
+                    Map <ExecutorDetails, String> executorsToComponents =  target.getExecutorToComponent();
+
+                    LOG.info("we want flipped assignment to contain the executors of the component we want on all slots");
+                    for (Map.Entry<ExecutorDetails, String> entry : executorsToComponents.entrySet())  {
+                        LOG.info("status entry.key {} entry.component {}", status, entry.getKey(), entry.getValue());
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> slotToExecutor :flippedAssignment.entrySet()) {
+                            ArrayList <ExecutorDetails> details = slotToExecutor.getValue();
+                            LOG.info("Looking at flipped assignment. Worker slot {} ", slotToExecutor.getKey().toString());
+                            LOG.info("details.contains(entry.getKey()) {}  entry.getValue().equals(component) {}", details.contains(entry.getKey()) , entry.getValue().equals(component));
+                            if (details.contains(entry.getKey()) && !entry.getValue().equals(component)) {
+                                details.remove(entry.getKey());
+                                LOG.info("Entry key removed from details {}", entry.getKey());
+                                flippedAssignment.put(slotToExecutor.getKey(),details);
+                            }
+                        }
+                    }
+                    LOG.info("flipped assignment contains the executors of the component we want on all slots");
+                    // flipped assignment contains the executors of the component we want on all slots
+
+                    ArrayList <ExecutorDetails> compExecutorsOnSlot = flippedAssignment.get(targetSlot);
+                    LOG.info("New expected number of executors on slot {}", newNumExecutorsOnSlot);
+                    LOG.info("New actual number of executors on slot {}", oldNumExecutorsOnSlot);
+                    if (compExecutorsOnSlot.size() == newNumExecutorsOnSlot) {
+                        LOG.info("WE are good to go. Don't do anything else");
+                    } else {
+                        LOG.info("finding executor slot to exchange with");
+                        WorkerSlot slotToExchangeWith = new WorkerSlot("", 0);
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: flippedAssignment.entrySet()) {
+                            if (!entry.getKey().equals(targetSlot)) {
+                                int numExecutorsOnSlot = entry.getValue().size();
+                                LOG.info("slot {} executors of component on slot {}", entry.getKey().toString(), numExecutorsOnSlot);
+                                if (numExecutorsOnSlot >= newNumExecutorsOnSlot) {
+                                    slotToExchangeWith = entry.getKey();
+                                    LOG.info("chosen slot {}", slotToExchangeWith.toString());
+                                    break;
+                                }
+                            }
+                        }
+                        LOG.info("Slot chosen {}", slotToExchangeWith.toString());
+                        // taking an executor from chosen slot and giving it to the target/victim slot
+                        // print schedule before
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: newAssignment.entrySet()) {
+                            for (ExecutorDetails ed :  entry.getValue()) {
+                                LOG.info(" Slot {} executor {} target slot {} slot exchanged with {}", entry.getKey().toString(), ed.toString(), targetSlot.toString(), slotToExchangeWith.toString());
+                            }
+                        }
+                        ArrayList<ExecutorDetails> slotToExchangeWithExecutors = flippedAssignment.get(slotToExchangeWith);
+                        ExecutorDetails executorToBeGiven = slotToExchangeWithExecutors.get(0);
+                        newAssignment.get(slotToExchangeWith).remove(executorToBeGiven);
+                        newAssignment.get(targetSlot).add(executorToBeGiven);
+
+                        LOG.info("Num of executors on target slot {} ", flippedAssignment.get(targetSlot).size());
+                        LOG.info("Num of executors on other slot {} ", flippedAssignment.get(slotToExchangeWith).size());
+
+                        // print schedule after
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: newAssignment.entrySet()) {
+                            for (ExecutorDetails ed :  entry.getValue()) {
+                                LOG.info(" Slot {} executor {} target slot {} slot exchanged with {}", entry.getKey().toString(), ed.toString(), targetSlot.toString(), slotToExchangeWith.toString());
+                            }
+                        }
+                        cluster.assign(slotToExchangeWith, target.getId(), newAssignment.get(slotToExchangeWith));
+                        cluster.assign(targetSlot, target.getId(), newAssignment.get(targetSlot));
+
+                    }
+                } else {
+                    LOG.info("Num of new executors is now zero for {}", status);
+                }
+            }
+        }
     }
 
+
+    private void reassignNewVictimScheduling (TopologyDetails victim, Cluster cluster, String status, ExecutorSummary victimExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot) {
+        LOG.info("In reassignNewVictimScheduling status {}", status);
+        LOG.info("{} topology {}", status, victim.getId());
+        Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot>();
+        Map<ExecutorDetails, WorkerSlot> tmp = cluster.getAssignmentById(victim.getId()).getExecutorToSlot();
+        for (Map.Entry<ExecutorDetails, WorkerSlot> e : tmp.entrySet()) {
+            assignmentFromCluster.put(
+                    new ExecutorDetails(e.getKey().getStartTask(), e.getKey().getEndTask()),
+                    new WorkerSlot(e.getValue().getNodeId(), e.getValue().getPort()));
+        } // deep copy
+
+        if (assignmentFromCluster == null) {
+            LOG.info("Assignment from cluster for {} topology is null", status);
+        } else {
+            Map<WorkerSlot, ArrayList<ExecutorDetails>> victimSchedule = globalState.getTopologySchedules().get(victim.getId()).getAssignment();
+            for (WorkerSlot ws : victimSchedule.keySet()) {
+                LOG.info("{} schedule worker slot {} ", status, ws.getNodeId(), ws.getPort());
+            }
+            String component = victimExecutorSummary.get_component_id();
+            String supervisorId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), victimExecutorSummary.get_host());
+            if (supervisorId == null) {
+                LOG.info("Supervisor ID is null for creating the worker slot for the {}", status);
+            } else {
+
+                LOG.info("From the {} topology", status);
+                int port = victimExecutorSummary.get_port();
+                for (WorkerSlot workerSlots : victimSchedule.keySet()) {
+                    LOG.info(status + " slot port: " + workerSlots.getPort() + " slot host: " + workerSlots.getNodeId() + "\n");
+                    if (status.equals("victim") && workerSlots.getNodeId().equals(supervisorId))
+                        port = workerSlots.getPort();
+                }
+                WorkerSlot victimSlot = new WorkerSlot(supervisorId, port);
+                LOG.info(status + " the slot we're trying to create slot port: " + victimSlot.getPort() + "slot host: " + victimSlot.getNodeId() + " \n");
+                ArrayList<ExecutorDetails> victimSlotExecutors = victimSchedule.get(victimSlot); // these are the executors on the victim slot
+                if (victimSlotExecutors != null) {
+                    Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedAssignment = flipMap(assignmentFromCluster);
+                    Map<WorkerSlot, ArrayList<ExecutorDetails>> newAssignment = flipMap(assignmentFromCluster);
+                    Map <ExecutorDetails, String> executorsToComponents =  victim.getExecutorToComponent();
+
+                    LOG.info("we want flipped assignment to contain the executors of the component we want on all slots");
+                    for (Map.Entry<ExecutorDetails, String> entry : executorsToComponents.entrySet())  {
+                        LOG.info("status entry.key {} entry.component {}", status, entry.getKey(), entry.getValue());
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> slotToExecutor :flippedAssignment.entrySet()) {
+                            ArrayList <ExecutorDetails> details = slotToExecutor.getValue();
+                            LOG.info("Looking at flipped assignment. Worker slot {} ", slotToExecutor.getKey().toString());
+                            LOG.info("details.contains(entry.getKey()) {}  entry.getValue().equals(component) {}", details.contains(entry.getKey()) , entry.getValue().equals(component));
+                            if (details.contains(entry.getKey()) && !entry.getValue().equals(component)) {
+                                details.remove(entry.getKey());
+                                LOG.info("Entry key removed from details {}", entry.getKey());
+                                flippedAssignment.put(slotToExecutor.getKey(),details);
+                            }
+                        }
+                    }
+                    LOG.info("flipped assignment contains the executors of the component we want on all slots");
+                    // flipped assignment contains the executors of the component we want on all slots
+
+                    ArrayList <ExecutorDetails> compExecutorsOnSlot = flippedAssignment.get(victimSlot);
+                    LOG.info("New expected number of executors on slot {}", newNumExecutorsOnSlot);
+                    LOG.info("New actual number of executors on slot {}", oldNumExecutorsOnSlot);
+                    if (compExecutorsOnSlot.size() == newNumExecutorsOnSlot) {
+                        LOG.info("WE are good to go. Don't do anything else");
+                    } else {
+                        LOG.info("finding executor slot to exchange with");
+                        WorkerSlot slotToExchangeWith = new WorkerSlot("", 0);
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: flippedAssignment.entrySet()) {
+                            if (!entry.getKey().equals(victimSlot)) {
+                                int numExecutorsOnSlot = entry.getValue().size();
+                                LOG.info("slot {} executors of component on slot {}", entry.getKey().toString(), numExecutorsOnSlot);
+                                if (numExecutorsOnSlot <= newNumExecutorsOnSlot) {
+                                    slotToExchangeWith = entry.getKey();
+                                    LOG.info("chosen slot {}", slotToExchangeWith.toString());
+                                    break;
+                                }
+                            }
+                        }
+                        LOG.info("Slot chosen {}", slotToExchangeWith.toString());
+                        // taking an executor from chosen slot and giving it to the target/victim slot
+                        // print schedule before
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: newAssignment.entrySet()) {
+                            for (ExecutorDetails ed :  entry.getValue()) {
+                                LOG.info(" Slot {} executor {} victim slot {} slot exchanged with {}", entry.getKey().toString(), ed.toString(), victimSlot.toString(), slotToExchangeWith.toString());
+                            }
+                        }
+                        ArrayList<ExecutorDetails> slotToExchangeWithExecutors = flippedAssignment.get(victimSlot);
+                        ExecutorDetails executorToBeGiven = slotToExchangeWithExecutors.get(0);
+                        newAssignment.get(victimSlot).remove(executorToBeGiven);
+                        newAssignment.get(slotToExchangeWith).add(executorToBeGiven);
+
+                        LOG.info("Num of executors on victim slot {} ", flippedAssignment.get(victimSlot).size());
+                        LOG.info("Num of executors on other slot {} ", flippedAssignment.get(slotToExchangeWith).size());
+
+                        // print schedule after
+                        for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: newAssignment.entrySet()) {
+                            for (ExecutorDetails ed :  entry.getValue()) {
+                                LOG.info(" Slot {} executor {} victim slot {} slot exchanged with {}", entry.getKey().toString(), ed.toString(), victimSlot.toString(), slotToExchangeWith.toString());
+                            }
+                        }
+                        cluster.assign(slotToExchangeWith, victim.getId(), newAssignment.get(slotToExchangeWith));
+                        cluster.assign(victimSlot, victim.getId(), newAssignment.get(victimSlot));
+
+                    }
+                } else {
+                    LOG.info("Num of new executors is now zero for {}", status);
+                }
+            }
+        }
+    }
 
     private void printSchedule(SchedulerAssignment currentTargetAssignment, String tag) {
         if (currentTargetAssignment == null || currentTargetAssignment.getExecutorToSlot() == null) {
@@ -572,7 +785,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         Map<ExecutorDetails, WorkerSlot> map = currentTargetAssignment.getExecutorToSlot();
         LOG.info("Logging for " + tag + "\n");
         for (Entry<ExecutorDetails, WorkerSlot> e : map.entrySet()) {
-            LOG.info("Host : " + globalState.getSupervisorToNode().get(e.getValue().getNodeId()).hostname + "Port: " + e.getValue().getPort()+ " Executor {}" + e.getKey().toString() + "\n");
+            LOG.info("Host : " + globalState.getSupervisorToNode().get(e.getValue().getNodeId()).hostname + "Port: " + e.getValue().getPort() + " Executor {}" + e.getKey().toString() + "\n");
         }
     }
 
@@ -609,15 +822,29 @@ public class AdvancedStelaScheduler implements IScheduler {
         return null;
     }
 
-    public Map<WorkerSlot, ArrayList<ExecutorDetails>> flipMap(Map<ExecutorDetails, WorkerSlot> map){
+    public Map<WorkerSlot, ArrayList<ExecutorDetails>> flipMap(Map<ExecutorDetails, WorkerSlot> map) {
         Map<WorkerSlot, ArrayList<ExecutorDetails>> flippedMap = new HashMap<>();
         for (Map.Entry<ExecutorDetails, WorkerSlot> entry : map.entrySet()) {
-            if (!flippedMap.containsKey(entry.getValue())){
+            if (!flippedMap.containsKey(entry.getValue())) {
                 flippedMap.put(entry.getValue(), new ArrayList<ExecutorDetails>());
             }
             flippedMap.get(entry.getValue()).add(entry.getKey());
             LOG.info("Flipped map contains {} {}", entry.getValue(), entry.getKey());
         }
         return flippedMap;
+    }
+
+    public Integer findNumOfExecutorsOnSlot(TopologyDetails topologyDetails, TopologySchedule schedule, ExecutorSummary executorSummary) {
+        Map<ExecutorDetails, String> executorToComponent = topologyDetails.getExecutorToComponent();
+        ArrayList<ExecutorDetails> executors = new ArrayList<>();
+        for (Map.Entry<ExecutorDetails, String> entry : executorToComponent.entrySet()) {
+            if (entry.getValue().equals(executorSummary.get_component_id())) {
+                executors.add(entry.getKey());
+            }
+        }
+        String supId = getSupervisorIdFromNodeName(globalState.getSupervisorToNode(), executorSummary.get_host());
+        ArrayList<ExecutorDetails> executorsOnSlot = schedule.getAssignment().get(new WorkerSlot(supId, executorSummary.get_port()));
+        executorsOnSlot.retainAll(executors);
+        return executorsOnSlot.size();
     }
 }
