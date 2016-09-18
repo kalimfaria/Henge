@@ -30,8 +30,10 @@ public class AdvancedStelaScheduler implements IScheduler {
     private GlobalStatistics globalStatistics;
     private Selector selector;
     private HashMap<String, ExecutorPair> targets, victims;
+    private HashMap<String, Integer> targetsExecutorsCount, victimsExecutorsCount;
     private File juice_log;
     private File same_top;
+    private int count;
     // final int numExecutorsExchanged = 1;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -44,12 +46,15 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new Selector();
         victims = new HashMap<String, ExecutorPair>();
         targets = new HashMap<String, ExecutorPair>();
+        targetsExecutorsCount = new HashMap<String, Integer>();
+        victimsExecutorsCount = new HashMap<String, Integer>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         int numTopologies = topologies.getTopologies().size();
+
         for (String target : targets.keySet()) {
             LOG.info("target {} ", target);
         }
@@ -57,13 +62,14 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("victim {} ", victim);
         }
 
-        if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0) {
+        runAdvancedStelaComponents(cluster, topologies);
+        if (/*victims.isEmpty() && targets.isEmpty() &&*/ numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
+            LOG.info("Phase 2");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            //runAdvancedStelaComponents(cluster, topologies);
-        } else if (/*numTopologiesThatNeedScheduling == 0 &&*/ numTopologies > 0) {
-            runAdvancedStelaComponents(cluster, topologies);
-
+        } else if ((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0) {
+            LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
+            LOG.info("Phase 1");
             LOG.info("Printing topology schedules");
             Collection<TopologyDetails> topologyDetails = topologies.getTopologies();
             for (TopologyDetails detail : topologyDetails) {
@@ -145,7 +151,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 if (executorSummaries != null && executorSummaries.bothPopulated()) {
                     LOG.info("target host {} target port {} before rebalance", executorSummaries.getTargetExecutorSummary().get_host(), executorSummaries.getTargetExecutorSummary().get_port());
-                    rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries, cluster);
+                        rebalanceTwoTopologies(target, targetSchedule, victim, victimSchedule, executorSummaries, cluster);
                 }
             } else if (giver_topologies.size() == 0) {
                 StringBuffer sb = new StringBuffer();
@@ -164,6 +170,34 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(giver_topologies.get(i).getId() + "\n");
 
             }
+        } else if ((!victims.isEmpty() || !targets.isEmpty()) && numTopologies > 0  && numTopologiesThatNeedScheduling == 0) {
+            LOG.info("((!victims.isEmpty() || !targets.isEmpty()) && numTopologies > 0  && numTopologiesThatNeedScheduling == 0)");
+            LOG.info("Phase 3");
+            // do the rebalancing the way we want it
+
+            for (Map.Entry<String, ExecutorPair> victim: victims.entrySet()) {
+                LOG.info("Looping through victims : {}", victim);
+                String victimName = victim.getKey();
+                if (victimsExecutorsCount.containsKey(victim)) {
+                    LOG.info("Looping through victims : {}", victimsExecutorsCount.get(victimName));
+                    int newExecutors = cluster.getAssignments().get(victimName).getExecutors().size();
+                    if (newExecutors > victimsExecutorsCount.get(victimName)) {
+                        findAssignmentForVictim(topologies.getById(victimName), cluster, victimName);
+                    }
+                }
+            }
+
+            for (Map.Entry<String, ExecutorPair> target: targets.entrySet()) {
+                LOG.info("Looping through targets : {}", target);
+                String targetName = target.getKey();
+                if (targetsExecutorsCount.containsKey(target)) {
+                    LOG.info("Looping through targets : {}", targetsExecutorsCount.get(targetName));
+                    int newExecutors = cluster.getAssignments().get(targetName).getExecutors().size();
+                    if (newExecutors > victimsExecutorsCount.get(targetName)) {
+                        findAssignmentForTarget(topologies.getById(targetName), cluster, targetName);
+                    }
+                }
+            }
         }
     }
 
@@ -172,6 +206,8 @@ public class AdvancedStelaScheduler implements IScheduler {
             ExecutorPair executorPair = targets.get(topologyId);
             LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
             reassignNewScheduling(target, cluster, 1, "target", executorPair.getTargetExecutorSummary());
+            targets.remove((target.getId()));
+            targetsExecutorsCount.remove((target.getId()));
         } catch (Exception e) {
             LOG.info("Exception in findAssignment for target {}", e.toString());
         }
@@ -183,6 +219,8 @@ public class AdvancedStelaScheduler implements IScheduler {
             ExecutorPair executorPair = victims.get(topologyId);
             LOG.info("findAssignment for Victim " + executorPair.getVictimExecutorSummary().get_host() + " " + executorPair.getVictimExecutorSummary().get_port() + "\n");
             reassignNewScheduling(victim, cluster, -1, "victim", executorPair.getVictimExecutorSummary());
+            victims.remove((victim.getId()));
+            victimsExecutorsCount.remove((victim.getId()));
         } catch (Exception e) {
             LOG.info("Exception in find assignment for victim {}", e.toString());
         }
@@ -198,6 +236,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
         for (TopologyDetails topologyDetails : topologiesScheduled) {
+            LOG.info("Logging unassigned executors", topologyDetails.getName());
+            LOG.info("Topology name{}", topologyDetails.getName());
             Collection<ExecutorDetails> unassignedExecutors = cluster.getUnassignedExecutors(topologyDetails);
 
             if (unassignedExecutors.size() > 0) {
@@ -254,7 +294,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                 Integer targetNewParallelism = targetOldParallelism + one;
                 String targetCommand = "/var/nimbus/storm/bin/storm " +
-                        "rebalance " + targetDetails.getName() + " -e " +
+                        "rebalance " + targetDetails.getName() + " -w 0 -e " +
                         targetComponent + "=" + targetNewParallelism;
                 target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
 
@@ -262,7 +302,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 Integer victimOldParallelism = victim.getComponents().get(victimComponent).getParallelism();
                 Integer victimNewParallelism = victimOldParallelism - one;
                 String victimCommand = "/var/nimbus/storm/bin/storm " +
-                        "rebalance " + victimDetails.getName() + " -e " +
+                        "rebalance " + victimDetails.getName() + " -w 0 -e " +
                         victimComponent + "=" + victimNewParallelism;
 
                 victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
@@ -276,14 +316,17 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(System.currentTimeMillis() + "\n");
                     LOG.info(victimCommand + "\n");
 
-                    //   Runtime.getRuntime().exec(targetCommand);
-                    //   Runtime.getRuntime().exec(victimCommand);
-
+                    LOG.info("running the rebalance using storm's rebalance command \n");
                     targets.put(targetDetails.getId(), executorSummaries);
                     victims.put(victimDetails.getId(), executorSummaries);
 
-                    findAssignmentForTarget(targetDetails, cluster, targetDetails.getId());
-                    findAssignmentForVictim(victimDetails, cluster, victimDetails.getId());
+                    LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
+                    targetsExecutorsCount.put(targetDetails.getId(), targetDetails.getExecutors().size());
+                    LOG.info("Victim old executors count {}", victimDetails.getExecutors().size());
+                    victimsExecutorsCount.put(victimDetails.getId(), victimDetails.getExecutors().size());
+
+                    Runtime.getRuntime().exec(targetCommand);
+                    Runtime.getRuntime().exec(victimCommand);
 
                     sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.updateLastRebalancedTime(victim.getId(), System.currentTimeMillis() / 1000);
@@ -511,8 +554,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         }
                         index++;
                     }
-                    targets.remove((target.getId()));
-
                 } else {
                     LOG.info("Num of new executors is now zero for {}", status);
                 }
@@ -524,6 +565,10 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
     private void printSchedule(SchedulerAssignment currentTargetAssignment, String tag) {
+        if (currentTargetAssignment == null || currentTargetAssignment.getExecutorToSlot() == null) {
+            LOG.info("Assignment is null");
+            return;
+        }
         Map<ExecutorDetails, WorkerSlot> map = currentTargetAssignment.getExecutorToSlot();
         LOG.info("Logging for " + tag + "\n");
         for (Entry<ExecutorDetails, WorkerSlot> e : map.entrySet()) {
