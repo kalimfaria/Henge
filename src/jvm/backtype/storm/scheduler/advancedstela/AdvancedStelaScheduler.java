@@ -32,6 +32,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
     private File same_top;
+    private Cluster backupCluster;
     // final int numExecutorsExchanged = 1;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -44,9 +45,11 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new Selector();
         victims = new HashMap<String, ExecutorPair>();
         targets = new HashMap<String, ExecutorPair>();
+
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         int numTopologies = topologies.getTopologies().size();
@@ -59,7 +62,13 @@ public class AdvancedStelaScheduler implements IScheduler {
 
         if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
-            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            if (backupCluster != null) {
+                printCluster(backupCluster);
+                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, backupCluster);
+                backupCluster = null;
+            } else {
+                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            }
             //runAdvancedStelaComponents(cluster, topologies);
         } else if (/*numTopologiesThatNeedScheduling == 0 &&*/ numTopologies > 0) {
             runAdvancedStelaComponents(cluster, topologies);
@@ -172,6 +181,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             ExecutorPair executorPair = targets.get(topologyId);
             LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
             reassignNewScheduling(target, cluster, 1, "target", executorPair.getTargetExecutorSummary());
+            targets.remove((target.getId()));
         } catch (Exception e) {
             LOG.info("Exception in findAssignment for target {}", e.toString());
         }
@@ -183,6 +193,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             ExecutorPair executorPair = victims.get(topologyId);
             LOG.info("findAssignment for Victim " + executorPair.getVictimExecutorSummary().get_host() + " " + executorPair.getVictimExecutorSummary().get_port() + "\n");
             reassignNewScheduling(victim, cluster, -1, "victim", executorPair.getVictimExecutorSummary());
+            victims.remove((victim.getId()));
         } catch (Exception e) {
             LOG.info("Exception in find assignment for victim {}", e.toString());
         }
@@ -279,6 +290,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     //   Runtime.getRuntime().exec(targetCommand);
                     //   Runtime.getRuntime().exec(victimCommand);
 
+                    backupCluster = deepCopyCluster(cluster);
                     targets.put(targetDetails.getId(), executorSummaries);
                     victims.put(victimDetails.getId(), executorSummaries);
 
@@ -318,7 +330,16 @@ public class AdvancedStelaScheduler implements IScheduler {
              }
          }
      }
+
+
  */
+
+
+    private Cluster deepCopyCluster (Cluster c) {
+        Cluster temp =  c.copyCluster(c);
+        return temp;
+    }
+
     private void
 
     reassignNewScheduling(TopologyDetails target, Cluster cluster,
@@ -456,9 +477,12 @@ public class AdvancedStelaScheduler implements IScheduler {
                     int remainingExecutors = newTargetComponentExecutors.size() % (targetSchedule.size() - 1);
                     LOG.info("status {} numExecsPerRemainingSlots {} remaining Executors {}", status, numExecsPerRemainingSlots, remainingExecutors);
                     cluster.freeSlots(targetSchedule.keySet());
+                    backupCluster.freeSlots(targetSchedule.keySet());
+
                     //cluster.getAssignmentById(target.getId()).getExecutorToSlot().clear();
 
                     cluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
+                    backupCluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
 
 
                     for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
@@ -477,6 +501,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                             if (cluster.getUsedSlots().contains(slot)) {
                                 LOG.info("slot was already assigned. status {}", status);
                                 cluster.freeSlot(slot);
+                                backupCluster.freeSlot(slot);
                             }
                             LOG.info(" index {} status {}", index, status);
                             if (index < remainingExecutors) {
@@ -496,8 +521,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                                    LOG.info("status {} slot {} topology {} executor {}", status, slot.toString(), target.getId(), ed.toString());
                                }
                                cluster.assign(slot, target.getId(), topologyEntry.getValue());
-
-
+                               backupCluster.assign(slot, target.getId(), topologyEntry.getValue());
                            } catch (Exception e) {
                                LOG.info("Catching already assigned exception {}", e.toString());
                                Map<ExecutorDetails, WorkerSlot>  assignment = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
@@ -511,8 +535,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         }
                         index++;
                     }
-                    targets.remove((target.getId()));
-
                 } else {
                     LOG.info("Num of new executors is now zero for {}", status);
                 }
@@ -575,4 +597,15 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
         return flippedMap;
     }
+
+    public void printCluster (Cluster c) {
+        LOG.info("Printing state of cluster");
+        for (Map.Entry<String, SchedulerAssignment> assignment : c.getAssignments().entrySet()) {
+            LOG.info("Printing topology {} ", assignment.getKey());
+            for (Map.Entry<ExecutorDetails, WorkerSlot> entry: assignment.getValue().getExecutorToSlot().entrySet()) {
+                LOG.info("Executor Details {} Worker Slot {} ", entry.getKey().toString() ,entry.getValue().toString());
+            }
+        }
+    }
 }
+
