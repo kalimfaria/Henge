@@ -33,6 +33,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private File juice_log;
     private File same_top;
     private Cluster backupCluster;
+    private int numSubmittedTopologies;
     // final int numExecutorsExchanged = 1;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -45,7 +46,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new Selector();
         victims = new HashMap<String, ExecutorPair>();
         targets = new HashMap<String, ExecutorPair>();
-
+        numSubmittedTopologies = 4;
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -60,15 +61,19 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("victim {} ", victim);
         }
 
-        if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0) {
+        if (victims.isEmpty() && targets.isEmpty() && numTopologiesThatNeedScheduling > 0 && numSubmittedTopologies > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
-            if (backupCluster != null) {
+           /* if (backupCluster != null) {
                 printCluster(backupCluster);
-                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, backupCluster);
+                new backtype.storm.scheduler.SimpleScheduler().schedule(topologies, backupCluster);
                 backupCluster = null;
-            } else {
-                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            }
+            } else { */
+            LOG.info("NumSubmittedTopologies before even scheduler {}", numSubmittedTopologies);
+            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            numSubmittedTopologies --;
+            LOG.info("NumSubmittedTopologies after even scheduler {}", numSubmittedTopologies);
+
+            //}
             //runAdvancedStelaComponents(cluster, topologies);
         } else if (/*numTopologiesThatNeedScheduling == 0 &&*/ numTopologies > 0) {
             runAdvancedStelaComponents(cluster, topologies);
@@ -290,12 +295,13 @@ public class AdvancedStelaScheduler implements IScheduler {
                     //   Runtime.getRuntime().exec(targetCommand);
                     //   Runtime.getRuntime().exec(victimCommand);
 
-                    backupCluster = deepCopyCluster(cluster);
                     targets.put(targetDetails.getId(), executorSummaries);
                     victims.put(victimDetails.getId(), executorSummaries);
 
                     findAssignmentForTarget(targetDetails, cluster, targetDetails.getId());
                     findAssignmentForVictim(victimDetails, cluster, victimDetails.getId());
+
+                    backupCluster = new Cluster(cluster);
 
                     sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.updateLastRebalancedTime(victim.getId(), System.currentTimeMillis() / 1000);
@@ -333,12 +339,6 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
  */
-
-
-    private Cluster deepCopyCluster (Cluster c) {
-        Cluster temp =  c.copyCluster(c);
-        return temp;
-    }
 
     private void
 
@@ -477,13 +477,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                     int remainingExecutors = newTargetComponentExecutors.size() % (targetSchedule.size() - 1);
                     LOG.info("status {} numExecsPerRemainingSlots {} remaining Executors {}", status, numExecsPerRemainingSlots, remainingExecutors);
                     cluster.freeSlots(targetSchedule.keySet());
-                    backupCluster.freeSlots(targetSchedule.keySet());
-
                     //cluster.getAssignmentById(target.getId()).getExecutorToSlot().clear();
 
                     cluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
-                    backupCluster.assign(targetSlot, target.getId(), newTargetSlotExecutors);
-
 
                     for(Map.Entry<ExecutorDetails, WorkerSlot> entry: assignmentFromCluster.entrySet()){
                         LOG.info("assignmentFromCluster before printing 2: executor: {}, workerslot: {}", entry.getKey().toString(), entry.getValue().toString());
@@ -501,7 +497,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                             if (cluster.getUsedSlots().contains(slot)) {
                                 LOG.info("slot was already assigned. status {}", status);
                                 cluster.freeSlot(slot);
-                                backupCluster.freeSlot(slot);
                             }
                             LOG.info(" index {} status {}", index, status);
                             if (index < remainingExecutors) {
@@ -521,7 +516,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                                    LOG.info("status {} slot {} topology {} executor {}", status, slot.toString(), target.getId(), ed.toString());
                                }
                                cluster.assign(slot, target.getId(), topologyEntry.getValue());
-                               backupCluster.assign(slot, target.getId(), topologyEntry.getValue());
                            } catch (Exception e) {
                                LOG.info("Catching already assigned exception {}", e.toString());
                                Map<ExecutorDetails, WorkerSlot>  assignment = cluster.getAssignmentById(target.getId()).getExecutorToSlot();
