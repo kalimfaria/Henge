@@ -190,7 +190,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         } catch (Exception e) {
             LOG.info("Exception in findAssignment for target {}", e.toString());
         }
-
     }
 
     private void findAssignmentForVictim(TopologyDetails victim, Cluster cluster, String topologyId) {
@@ -202,7 +201,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         } catch (Exception e) {
             LOG.info("Exception in find assignment for victim {}", e.toString());
         }
-
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
@@ -602,4 +600,3 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 }
-
