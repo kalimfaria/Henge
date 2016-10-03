@@ -32,9 +32,10 @@ public class AdvancedStelaScheduler implements IScheduler {
     private HashMap<String, ExecutorPair> targets, victims;
     private HashMap<String, Integer> targetsExecutorsCount, victimsExecutorsCount;
     private HashMap<String, Integer> targetsExecutorsCountOnSlot, victimsExecutorsCountOnSlot;
+    private HashMap<String, Integer> targetsExecutorsTotal, victimsExecutorsTotal;
     private File juice_log;
     private File same_top;
-    private int count;
+
     // final int numExecutorsExchanged = 1;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -51,6 +52,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         victimsExecutorsCount = new HashMap<String, Integer>();
         targetsExecutorsCountOnSlot = new HashMap<String, Integer>();
         victimsExecutorsCountOnSlot = new HashMap<String, Integer>();
+        targetsExecutorsTotal = new HashMap<>();
+        victimsExecutorsTotal = new HashMap<>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -207,10 +210,11 @@ public class AdvancedStelaScheduler implements IScheduler {
         try {
             ExecutorPair executorPair = targets.get(topologyId);
             LOG.info("findAssignment for Target " + executorPair.getTargetExecutorSummary().get_host() + " " + executorPair.getTargetExecutorSummary().get_port() + "\n");
-            reassignNewTargetScheduling(target, cluster, "target", executorPair.getTargetExecutorSummary(), targetsExecutorsCountOnSlot.get(target.getId()), targetsExecutorsCountOnSlot.get(target.getId()) + 1);
+            reassignNewTargetScheduling(target, cluster, "target", executorPair.getTargetExecutorSummary(), targetsExecutorsCountOnSlot.get(target.getId()), targetsExecutorsCountOnSlot.get(target.getId()) + 1, targetsExecutorsTotal.get(target.getId()));
             targets.remove((target.getId()));
             targetsExecutorsCount.remove(target.getId());
             targetsExecutorsCountOnSlot.remove(target.getId());
+            targetsExecutorsTotal.remove(target.getId());
         } catch (Exception e) {
             LOG.info("Exception in findAssignment for target {}", e.toString());
         }
@@ -221,10 +225,11 @@ public class AdvancedStelaScheduler implements IScheduler {
         try {
             ExecutorPair executorPair = victims.get(topologyId);
             LOG.info("findAssignment for Victim " + executorPair.getVictimExecutorSummary().get_host() + " " + executorPair.getVictimExecutorSummary().get_port() + "\n");
-            reassignNewVictimScheduling(victim, cluster, "victim", executorPair.getVictimExecutorSummary(), victimsExecutorsCountOnSlot.get(victim.getId()), victimsExecutorsCountOnSlot.get(victim.getId()) - 1);
+            reassignNewVictimScheduling(victim, cluster, "victim", executorPair.getVictimExecutorSummary(), victimsExecutorsCountOnSlot.get(victim.getId()), victimsExecutorsCountOnSlot.get(victim.getId()) - 1, victimsExecutorsTotal.get(victim.getId()));
             victims.remove((victim.getId()));
             victimsExecutorsCount.remove((victim.getId()));
             victimsExecutorsCountOnSlot.remove(victim.getId());
+            victimsExecutorsTotal.remove(victim.getId());
         } catch (Exception e) {
             LOG.info("Exception in find assignment for victim {}", e.toString());
         }
@@ -325,11 +330,13 @@ public class AdvancedStelaScheduler implements IScheduler {
                     int numExecutorsOnTargetSlot = findNumOfExecutorsOnSlot(targetDetails, target, executorSummaries.getTargetExecutorSummary());
                     targetsExecutorsCount.put(targetDetails.getId(), targetDetails.getExecutors().size());
                     targetsExecutorsCountOnSlot.put(targetDetails.getId(), numExecutorsOnTargetSlot);
+                    targetsExecutorsTotal.put(targetDetails.getId(), targetNewParallelism);
 
                     LOG.info("Victim old executors count {}", victimDetails.getExecutors().size());
                     int numExecutorsOnVictimSlot = findNumOfExecutorsOnSlot(victimDetails, victim, executorSummaries.getVictimExecutorSummary());
                     victimsExecutorsCountOnSlot.put(victimDetails.getId(), numExecutorsOnVictimSlot);
                     victimsExecutorsCount.put(victimDetails.getId(), victimDetails.getExecutors().size());
+                    victimsExecutorsTotal.put(victimDetails.getId(), victimNewParallelism);
 
                     Runtime.getRuntime().exec(targetCommand);
                     Runtime.getRuntime().exec(victimCommand);
@@ -369,7 +376,7 @@ public class AdvancedStelaScheduler implements IScheduler {
      }
  */
 
-    private void reassignNewTargetScheduling (TopologyDetails target, Cluster cluster, String status, ExecutorSummary targetExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot) {
+    private void reassignNewTargetScheduling (TopologyDetails target, Cluster cluster, String status, ExecutorSummary targetExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot, int totalNewExecs) {
         LOG.info("In reassignNewTargetScheduling status {}", status);
         LOG.info("{} topology {}", status, target.getId());
         Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot>();
@@ -432,6 +439,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                         LOG.info("WE are good to go. Don't do anything else");
                     } else {
                         LOG.info("finding executor slot to exchange with");
+                        LOG.info("target newNumExecutorOnSlot {} totalNewExecs {} num workers {}", newNumExecutorsOnSlot, totalNewExecs, flippedAssignment.size());
+                        if (totalNewExecs < flippedAssignment.size())
+                            newNumExecutorsOnSlot = newNumExecutorsOnSlot - 1;
+                        LOG.info("target After the if condition newNumExecutorOnSlot {} totalNewExecs {} num workers {}", newNumExecutorsOnSlot, totalNewExecs, flippedAssignment.size());
                         WorkerSlot slotToExchangeWith = new WorkerSlot("", 0);
                         for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: flippedAssignment.entrySet()) {
                             if (!entry.getKey().equals(targetSlot)) {
@@ -467,11 +478,15 @@ public class AdvancedStelaScheduler implements IScheduler {
                                 LOG.info(" Slot {} executor {} target slot {} slot exchanged with {}", entry.getKey().toString(), ed.toString(), targetSlot.toString(), slotToExchangeWith.toString());
                             }
                         }
+                        LOG.info("Did we get a null pointer exception yet? ");
                         cluster.freeSlot(targetSlot);
+                        LOG.info("Did we get a null pointer exception yet? 1");
                         cluster.freeSlot(slotToExchangeWith);
+                        LOG.info("Did we get a null pointer exception yet? 2");
                         cluster.assign(slotToExchangeWith, target.getId(), newAssignment.get(slotToExchangeWith));
+                        LOG.info("Did we get a null pointer exception yet? 3");
                         cluster.assign(targetSlot, target.getId(), newAssignment.get(targetSlot));
-
+                        LOG.info("Did we get a null pointer exception yet? 4");
                     }
                 } else {
                     LOG.info("Num of new executors is now zero for {}", status);
@@ -481,7 +496,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
 
-    private void reassignNewVictimScheduling (TopologyDetails victim, Cluster cluster, String status, ExecutorSummary victimExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot) {
+    private void reassignNewVictimScheduling (TopologyDetails victim, Cluster cluster, String status, ExecutorSummary victimExecutorSummary, int oldNumExecutorsOnSlot, int newNumExecutorsOnSlot, int numExecutorsTotal) {
         LOG.info("In reassignNewVictimScheduling status {}", status);
         LOG.info("{} topology {}", status, victim.getId());
         Map<ExecutorDetails, WorkerSlot> assignmentFromCluster = new HashMap<ExecutorDetails, WorkerSlot>();
@@ -543,6 +558,11 @@ public class AdvancedStelaScheduler implements IScheduler {
                     if (compExecutorsOnSlot.size() == newNumExecutorsOnSlot) {
                         LOG.info("WE are good to go. Don't do anything else");
                     } else {
+
+                        LOG.info("victim newNumExecutorsOnSlot on victim {}, ExecutorsTotal {} Num of workers {}", newNumExecutorsOnSlot, numExecutorsTotal, flippedAssignment.size());
+                        if (numExecutorsTotal > flippedAssignment.size())
+                            newNumExecutorsOnSlot += 1;
+                        LOG.info("victim newNumExecutorsOnSlot on victim {}, ExecutorsTotal {} Num of workers {}", newNumExecutorsOnSlot, numExecutorsTotal, flippedAssignment.size());
                         LOG.info("finding executor slot to exchange with");
                         WorkerSlot slotToExchangeWith = new WorkerSlot("", 0);
                         for (Map.Entry <WorkerSlot, ArrayList<ExecutorDetails>> entry: flippedAssignment.entrySet()) {
