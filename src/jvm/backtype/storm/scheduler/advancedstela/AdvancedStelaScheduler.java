@@ -440,7 +440,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     } else {
                         LOG.info("finding executor slot to exchange with");
                         LOG.info("target newNumExecutorOnSlot {} totalNewExecs {} num workers {}", newNumExecutorsOnSlot, totalNewExecs, flippedAssignment.size());
-                        if (totalNewExecs < flippedAssignment.size())
+                        if (totalNewExecs <= flippedAssignment.size())
                             newNumExecutorsOnSlot = newNumExecutorsOnSlot - 1;
                         LOG.info("target After the if condition newNumExecutorOnSlot {} totalNewExecs {} num workers {}", newNumExecutorsOnSlot, totalNewExecs, flippedAssignment.size());
                         WorkerSlot slotToExchangeWith = new WorkerSlot("", 0);
@@ -560,7 +560,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     } else {
 
                         LOG.info("victim newNumExecutorsOnSlot on victim {}, ExecutorsTotal {} Num of workers {}", newNumExecutorsOnSlot, numExecutorsTotal, flippedAssignment.size());
-                        if (numExecutorsTotal > flippedAssignment.size())
+                        if (numExecutorsTotal >= flippedAssignment.size())
                             newNumExecutorsOnSlot += 1;
                         LOG.info("victim newNumExecutorsOnSlot on victim {}, ExecutorsTotal {} Num of workers {}", newNumExecutorsOnSlot, numExecutorsTotal, flippedAssignment.size());
                         LOG.info("finding executor slot to exchange with");
