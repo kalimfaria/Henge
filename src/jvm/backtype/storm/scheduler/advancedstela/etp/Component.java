@@ -23,13 +23,6 @@ public class Component implements Comparable<Component>{
     private Double capacity;
     private long lastRebalancedAt;
 
-
-
-  /*  public int compareTo(Component other) { // ascending order
-            return (this.capacity.compareTo(other.getCapacity()));
-    }
-    */
-
     public int compareTo(Component other) { // descending order
         return (other.getCapacity().compareTo(this.capacity));
     }
@@ -48,16 +41,11 @@ public class Component implements Comparable<Component>{
         this.complete_msg_avg_latency = 0.0;
         this.capacity = 0.0; // Expectation -> bolts.capacity	String (double value returned in String format)	This value indicates number of messages executed * average execute latency / time window
         this.lastRebalancedAt = 0L;
-
-
     }
 
     public String getId() {
         return id;
     }
-
-
-
 
     public Integer getParallelism() {
         return parallelism;
@@ -83,7 +71,6 @@ public class Component implements Comparable<Component>{
         execute_msg_latency = latency;
 
     }
-
 
     public double getExecuteLatency10mins() {
         return execute_msg_latency_10mins;
