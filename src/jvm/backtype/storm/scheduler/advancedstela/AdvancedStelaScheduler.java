@@ -39,6 +39,9 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
+
+        new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         int numTopologies = topologies.getTopologies().size();
