@@ -13,8 +13,6 @@ public class Topology implements Comparable<Topology> {
 
     private String id;
     private String sensitivity;
-    
-
 	private Double userSpecifiedSLO;
     private Double userSpecifiedLatencySLO;
     private Queue<Double> measuredSLOs;
@@ -27,8 +25,6 @@ public class Topology implements Comparable<Topology> {
     private Double tailLatency;
     private Long numWorkers;
     static public String sortingStrategy;
-
-
     private File same_top;
 
     public Topology(String topologyId, Double slo, Double latency_slo, String sensitivity, Long numWorkers) {
@@ -119,8 +115,7 @@ public class Topology implements Comparable<Topology> {
         for (Double value : measuredSLOs) {
             result += value;
         }
-        return 0.9;
-        //return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
+        return measuredSLOs.size() == 0 ? 0.0 : (result / measuredSLOs.size());
     }
 
     public boolean allReadingsViolateSLO() {
@@ -139,7 +134,6 @@ public class Topology implements Comparable<Topology> {
             if (value < userSpecifiedLatencySLO)
                 return false;
         }
-
         return true;
     }
 
