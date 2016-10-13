@@ -6,6 +6,7 @@ import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
+import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private OperatorSelector selector;
     private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
+    private ArrayList <History> history;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -38,6 +40,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         selector = new OperatorSelector();
         victims = new HashMap<String, ExecutorPair>();
         targets = new HashMap<String, ExecutorPair>();
+        history = new ArrayList<>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -89,7 +92,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 if (targetComponent != null) {
                     LOG.info("topology {} target component", receiver, targetComponent.getId());
-                    rebalanceTopology(target, targetSchedule, targetComponent, cluster);
+                    rebalanceTopology(target, targetSchedule, targetComponent, topologies);
                 }
             } else if (giver_topologies.size() == 0) {
                 StringBuffer sb = new StringBuffer();
@@ -114,7 +117,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTopology(TopologyDetails targetDetails,
                                         TopologySchedule target,
                                         Component component,
-                                        Cluster cluster) {
+                                   Topologies topologies) {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
@@ -133,6 +136,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(System.currentTimeMillis() + "\n");
                     LOG.info("running the rebalance using storm's rebalance command \n");
                     LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
+
+                    saveHistory (topologies);
+
                     Runtime.getRuntime().exec(targetCommand);
                     sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(target.getId());
@@ -169,65 +175,38 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void rebalanceTwoTopologies(TopologyDetails targetDetails,
-                                        TopologySchedule target,
-                                        TopologyDetails victimDetails,
-                                        TopologySchedule victim,
-                                        ExecutorPair executorSummaries,
-                                        Cluster cluster) {
-        LOG.info("In rebalance two topologies");
-        if (config != null) {
-            try {
-                int one = 1;
-                String targetComponent = executorSummaries.getTargetExecutorSummary().get_component_id();
-                Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
-                Integer targetNewParallelism = targetOldParallelism + one;
-                String targetCommand = "/var/nimbus/storm/bin/storm " +
-                        "rebalance " + targetDetails.getName() + " -e " +
-                        targetComponent + "=" + targetNewParallelism;
-                target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
 
-                String victimComponent = executorSummaries.getVictimExecutorSummary().get_component_id();
-                Integer victimOldParallelism = victim.getComponents().get(victimComponent).getParallelism();
-                Integer victimNewParallelism = victimOldParallelism - one;
-                String victimCommand = "/var/nimbus/storm/bin/storm " +
-                        "rebalance " + victimDetails.getName() + " -e " +
-                        victimComponent + "=" + victimNewParallelism;
+   public void saveHistory(Topologies topologies) {
+       LOG.info("save History");
+       HashMap <String, TopologyDetails> tops = new HashMap<> ();
 
-                victim.getComponents().get(victimComponent).setParallelism(victimNewParallelism);
-                // FORMAT /var/nimbus/storm/bin/storm henge-rebalance  production-topology1 -e bolt_output_sink=13 xyz production-topology2 -e spout_head=12 xyz  production-topology3 -e bolt_output_sink=13 xyz production-topology4 -e spout_head=12
-                try {
-                    writeToFile(juice_log, targetCommand + "\n");
-                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
-                    writeToFile(juice_log, victimCommand + "\n");
+       for (TopologyDetails t : topologies.getTopologies()) {
+           tops.put(t.getId(), t);
+       }
+       History h = new History(tops, sloObserver.getAllTopologies());
+       history.add(h);
 
-                    LOG.info(targetCommand + "\n");
-                    LOG.info(System.currentTimeMillis() + "\n");
-                    LOG.info(victimCommand + "\n");
+       HashMap<String, Topology> topologiesPerformance = h.getTopologiesPerformance();
+       HashMap<String, TopologyDetails> topologySchedules = h.getTopologiesSchedule();
 
-                    Runtime.getRuntime().exec(targetCommand);
-                    Runtime.getRuntime().exec(victimCommand);
+       for (Map.Entry<String, Topology> entry : topologiesPerformance.entrySet()) {
+           Topology t = entry.getValue();
+           LOG.info(" name {} topology {} average latency {} latency slo {} juice {} throughput slo {} ", entry.getKey(), t.getId(), t.getAverageLatency(), t.getUserSpecifiedLatencySLO(), t.getUserSpecifiedSLO(), t.getMeasuredSLO());
+       }
 
-                    targets.put(targetDetails.getId(), executorSummaries);
-                    victims.put(victimDetails.getId(), executorSummaries);
-
-                    sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
-                    sloObserver.updateLastRebalancedTime(victim.getId(), System.currentTimeMillis() / 1000);
-
-                    sloObserver.clearTopologySLOs(target.getId());
-                    sloObserver.clearTopologySLOs(victim.getId());
-                } catch (Exception e) {
-                    LOG.info(e.toString());
-                    LOG.info("In first exception");
-                }
-            } catch (Exception e) {
-                LOG.info(e.toString());
-                LOG.info("In second exception");
-                return;
-            }
-        }
-    }
-
+       for (Map.Entry<String, TopologyDetails> entry : topologySchedules.entrySet()) {
+           TopologyDetails t = entry.getValue();
+           LOG.info(" name {} topology {} workers {} conf {} num of executors {}" +
+                           " executors {} ",
+                   entry.getKey(),
+                   t.getId(),
+                   t.getNumWorkers(),
+                   t.getConf(),
+                   t.getExecutorToComponent().size(),
+                   t.getExecutors());
+       }
+       
+   }
 
     public void writeToFile(File file, String data) {
         try {

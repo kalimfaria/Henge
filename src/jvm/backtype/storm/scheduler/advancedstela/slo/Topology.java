@@ -86,6 +86,10 @@ public class Topology implements Comparable<Topology> {
         return userSpecifiedSLO;
     }
 
+    public Double getUserSpecifiedLatencySLO() {
+        return userSpecifiedLatencySLO;
+    }
+
   /*  public void setMeasuredLatency(Double value) {
         if (measuredLatency.size() == SLO_WINDOW) {
             measuredLatency.remove();
