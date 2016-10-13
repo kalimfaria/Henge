@@ -450,7 +450,7 @@ public class Topologies {
 
         //   System.out.println("In function: ReadFiles()");
 
-        final File folder = new File("/users/kalim2/output/");
+        final File folder = new File("/proj/Stella/latency-logs/");
 
         try {
             for (final File file : folder.listFiles()) {

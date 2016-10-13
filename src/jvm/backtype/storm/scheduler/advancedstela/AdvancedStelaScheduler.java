@@ -6,7 +6,6 @@ import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
-import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,6 @@ import java.util.*;
 
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
-    private static final Integer OBSERVER_RUN_INTERVAL = 30;
 
     @SuppressWarnings("rawtypes")
     private Map config;
@@ -29,7 +27,9 @@ public class AdvancedStelaScheduler implements IScheduler {
     private OperatorSelector selector;
     private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
-    private ArrayList <History> history;
+    private ArrayList<History> history;
+    Long time;
+    boolean didWeDoRebalance, doWeStop;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -41,6 +41,9 @@ public class AdvancedStelaScheduler implements IScheduler {
         victims = new HashMap<String, ExecutorPair>();
         targets = new HashMap<String, ExecutorPair>();
         history = new ArrayList<>();
+        time = System.currentTimeMillis();
+        didWeDoRebalance = false;
+        doWeStop = false;
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -52,71 +55,118 @@ public class AdvancedStelaScheduler implements IScheduler {
         for (String victim : victims.keySet()) {
             LOG.info("victim {} ", victim);
         }
-
         runAdvancedStelaComponents(cluster, topologies);
         if (numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (numTopologiesThatNeedScheduling == 0) {
+        } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 15 * 60) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-            LOG.info("Printing topology schedules");
-            Collection<TopologyDetails> topologyDetails = topologies.getTopologies();
-            TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
 
+            TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
             ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
             ArrayList<String> givers = topologiesToBeRescaled.getGivers();
-
             ArrayList<Topology> receiver_topologies = new ArrayList<Topology>();
             ArrayList<Topology> giver_topologies = new ArrayList<Topology>();
 
-            for (int i = 0; i < receivers.size(); i++)
-                receiver_topologies.add(sloObserver.getTopologyById(receivers.get(i)));
+            History now = createHistory(topologies, receiver_topologies, giver_topologies);
 
-            for (int i = 0; i < givers.size(); i++)
-                giver_topologies.add(sloObserver.getTopologyById(givers.get(i)));
-
-            LOG.info("Length of givers {}", giver_topologies.size());
-            LOG.info("Length of receivers {}", receiver_topologies.size());
-
-            if (receiver_topologies.size() > 0 && giver_topologies.size() > 0) {
-
-                ArrayList<String> topologyPair = new TopologyPicker().classBasedStrategy(receiver_topologies, giver_topologies);//unifiedStrategy(receiver_topologies, giver_topologies);//.worstTargetBestVictim(receivers, givers);
-                String receiver = topologyPair.get(0);
-
-                LOG.info("Picked the first two topologies for rebalance");
-
-                TopologyDetails target = topologies.getById(receiver);
-                TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver);
-                Component targetComponent = selector.selectOperator(globalState, globalStatistics, sloObserver.getTopologyById(receiver));
-                LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
-
-                if (targetComponent != null) {
-                    LOG.info("topology {} target component", receiver, targetComponent.getId());
-                    rebalanceTopology(target, targetSchedule, targetComponent, topologies);
+            if (didWeDoRebalance) { // check if there is a need to revert and then revert
+                LOG.info("Did we do rebalance? Yes");
+                if (history.get(history.size() - 1).doWeNeedToRevert(now)) {
+                    History bestHistory = findBestHistory();
+                    revertHistory(bestHistory);
+                    doWeStop = true;
+                    LOG.info("Finished reverting");
+                    LOG.info("Now stopping all rebalance");
                 }
-            } else if (giver_topologies.size() == 0) {
-                StringBuffer sb = new StringBuffer();
-                LOG.info("There are no givers! *Sob* \n");
-                LOG.info("Receivers:  \n");
+                didWeDoRebalance = false;
+            }
+            if (!doWeStop) {
+                for (int i = 0; i < receivers.size(); i++)
+                    receiver_topologies.add(sloObserver.getTopologyById(receivers.get(i)));
 
-                for (int i = 0; i < receiver_topologies.size(); i++)
-                    LOG.info(receiver_topologies.get(i).getId() + "\n");
+                for (int i = 0; i < givers.size(); i++)
+                    giver_topologies.add(sloObserver.getTopologyById(givers.get(i)));
 
-            } else if (receiver_topologies.size() == 0) {
-                StringBuffer sb = new StringBuffer();
-                LOG.info("There are no receivers! *Sob* \n");
-                LOG.info("Givers:  \n");
+                LOG.info("Length of givers {}", giver_topologies.size());
+                LOG.info("Length of receivers {}", receiver_topologies.size());
 
-                for (int i = 0; i < giver_topologies.size(); i++)
-                    LOG.info(giver_topologies.get(i).getId() + "\n");
+                if (receiver_topologies.size() > 0 && giver_topologies.size() > 0) {
 
+                    ArrayList<String> topologyPair = new TopologyPicker().classBasedStrategy(receiver_topologies, giver_topologies);//unifiedStrategy(receiver_topologies, giver_topologies);//.worstTargetBestVictim(receivers, givers);
+                    String receiver = topologyPair.get(0);
+
+                    LOG.info("Picked the first two topologies for rebalance");
+
+                    TopologyDetails target = topologies.getById(receiver);
+                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver);
+                    Component targetComponent = selector.selectOperator(globalState, globalStatistics, sloObserver.getTopologyById(receiver));
+                    LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
+
+                    if (targetComponent != null) {
+                        LOG.info("topology {} target component", receiver, targetComponent.getId());
+                        saveHistory(now);
+                        rebalanceTopology(target, targetSchedule, targetComponent, topologies);
+                        didWeDoRebalance = true;
+                    }
+                } else if (giver_topologies.size() == 0) {
+                    StringBuffer sb = new StringBuffer();
+                    LOG.info("There are no givers! *Sob* \n");
+                    LOG.info("Receivers:  \n");
+
+                    for (int i = 0; i < receiver_topologies.size(); i++)
+                        LOG.info(receiver_topologies.get(i).getId() + "\n");
+
+                } else if (receiver_topologies.size() == 0) {
+                    StringBuffer sb = new StringBuffer();
+                    LOG.info("There are no receivers! *Sob* \n");
+                    LOG.info("Givers:  \n");
+
+                    for (int i = 0; i < giver_topologies.size(); i++)
+                        LOG.info(giver_topologies.get(i).getId() + "\n");
+                }
+            }
+
+            time = System.currentTimeMillis();
+        }
+    }
+
+
+    private void revertHistory(History bestHistory) {
+        LOG.info("Revert history");
+        if (config != null) {
+            try {
+                HashMap<String, TopologyDetails> topologySchedules = bestHistory.getTopologiesSchedule();
+                for (Map.Entry<String, TopologyDetails> schedule : topologySchedules.entrySet()) {
+                    String topologyName = schedule.getKey();
+                    TopologyDetails details = schedule.getValue();
+                    LOG.info("Reverting :) topology name {}", topologyName);
+                    writeToFile(juice_log, "Reverting\n");
+                    String targetCommand = "/var/nimbus/storm/bin/storm " +
+                            "rebalance " + topologyName + " -w 0 ";
+
+                    Map<String, Integer> componentToExecutor = flipExecsMap(details.getExecutorToComponent());
+                    for (Map.Entry<String, Integer> entry : componentToExecutor.entrySet()) {
+                        targetCommand += " -e " + entry.getKey() + "=" + entry.getValue();
+                    }
+                    writeToFile(juice_log, targetCommand + "\n");
+                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                    LOG.info(targetCommand + "\n");
+                    LOG.info(System.currentTimeMillis() + "\n");
+                    Runtime.getRuntime().exec(targetCommand);
+                    //sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                    sloObserver.clearTopologySLOs(topologyName);
+                }
+            } catch (Exception e) {
+                LOG.info(e.toString());
+                LOG.info("Revert history in only exception");
             }
         }
     }
 
     private void rebalanceTopology(TopologyDetails targetDetails,
-                                        TopologySchedule target,
-                                        Component component,
+                                   TopologySchedule target,
+                                   Component component,
                                    Topologies topologies) {
         LOG.info("In rebalance topology");
         if (config != null) {
@@ -128,6 +178,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 String targetCommand = "/var/nimbus/storm/bin/storm " +
                         "rebalance " + targetDetails.getName() + " -w 0 -e " +
                         targetComponent + "=" + targetNewParallelism;
+
                 target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
                 try {
                     writeToFile(juice_log, targetCommand + "\n");
@@ -137,10 +188,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("running the rebalance using storm's rebalance command \n");
                     LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
 
-                    saveHistory (topologies);
-
                     Runtime.getRuntime().exec(targetCommand);
-                    sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                 //   sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(target.getId());
                 } catch (Exception e) {
                     LOG.info(e.toString());
@@ -176,37 +225,123 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
 
-   public void saveHistory(Topologies topologies) {
-       LOG.info("save History");
-       HashMap <String, TopologyDetails> tops = new HashMap<> ();
+    public History findBestHistory() {
+        Collections.sort(history);
+        LOG.info("Finding best histories");
+        for (History h : history) {
+            LOG.info("Num of LS Satisfying Topologies {}, Number of TS Satisfying Topologies {}",
+                    h.getLSTMeetSLOs().size(), h.getTSTMeetSLOs().size());
+        }
+        if (history.size() > 0) {
+            History currentBest = history.get(history.size() - 1);
+            LOG.info("Num of LS Satisfying Topologies {}, Number of TS Satisfying Topologies {}",
+                    currentBest.getLSTMeetSLOs().size(), currentBest.getTSTMeetSLOs().size());
+            return currentBest;
+        }
+        return null;
+    }
 
-       for (TopologyDetails t : topologies.getTopologies()) {
-           tops.put(t.getId(), t);
-       }
-       History h = new History(tops, sloObserver.getAllTopologies());
-       history.add(h);
+    public History createHistory(Topologies topologies, ArrayList<Topology> receiver_topologies, ArrayList<Topology> giver_topologies) {
+        LOG.info("create History");
 
-       HashMap<String, Topology> topologiesPerformance = h.getTopologiesPerformance();
-       HashMap<String, TopologyDetails> topologySchedules = h.getTopologiesSchedule();
+        HashMap<String, TopologyDetails> tops = new HashMap<>();
 
-       for (Map.Entry<String, Topology> entry : topologiesPerformance.entrySet()) {
-           Topology t = entry.getValue();
-           LOG.info(" name {} topology {} average latency {} latency slo {} juice {} throughput slo {} ", entry.getKey(), t.getId(), t.getAverageLatency(), t.getUserSpecifiedLatencySLO(), t.getUserSpecifiedSLO(), t.getMeasuredSLO());
-       }
+        for (TopologyDetails t : topologies.getTopologies()) {
+            tops.put(t.getId(), t);
+        }
+        History h = new History(tops, sloObserver.getAllTopologies(), receiver_topologies, giver_topologies);
 
-       for (Map.Entry<String, TopologyDetails> entry : topologySchedules.entrySet()) {
-           TopologyDetails t = entry.getValue();
-           LOG.info(" name {} topology {} workers {} conf {} num of executors {}" +
-                           " executors {} ",
-                   entry.getKey(),
-                   t.getId(),
-                   t.getNumWorkers(),
-                   t.getConf(),
-                   t.getExecutorToComponent().size(),
-                   t.getExecutors());
-       }
-       
-   }
+        // LOGGING INFO
+        HashMap<String, Topology> topologiesPerformance = h.getTopologiesPerformance();
+        HashMap<String, TopologyDetails> topologySchedules = h.getTopologiesSchedule();
+
+        for (Map.Entry<String, Topology> entry : topologiesPerformance.entrySet()) {
+            Topology t = entry.getValue();
+            LOG.info(" name {} topology {} average latency {} latency slo {} juice {} throughput slo {} ", entry.getKey(), t.getId(), t.getAverageLatency(), t.getUserSpecifiedLatencySLO(), t.getUserSpecifiedSLO(), t.getMeasuredSLO());
+        }
+
+        for (Map.Entry<String, TopologyDetails> entry : topologySchedules.entrySet()) {
+            TopologyDetails t = entry.getValue();
+            LOG.info(" name {} topology {} workers {} conf {} num of executors {}" +
+                            " executors {} ",
+                    entry.getKey(),
+                    t.getId(),
+                    t.getNumWorkers(),
+                    t.getConf(),
+                    t.getExecutorToComponent().size(),
+                    t.getExecutors());
+        }
+        // LOGGING Performance of topologies
+        ArrayList<String> LSMeetSLOs = h.getLSTMeetSLOs();
+        ArrayList<String> LSDontMeetSLOs = h.getLSTDontMeetSLOs();
+        ArrayList<String> TSMeetSLOs = h.getTSTMeetSLOs();
+        ArrayList<String> TSDontMeetSLOs = h.getTSTDontMeetSLOs();
+        LOG.info(" LSMeetSLOs ");
+        for (String LSTMeetSLO : LSMeetSLOs) {
+            LOG.info("{}", LSTMeetSLO);
+        }
+        LOG.info(" LSDontMeetSLOs ");
+        for (String LSTDontMeetSLO : LSDontMeetSLOs) {
+            LOG.info("{}", LSTDontMeetSLO);
+        }
+        LOG.info(" TSMeetSLOs ");
+        for (String TSTMeetSLO : TSMeetSLOs) {
+            LOG.info("{}", TSTMeetSLO);
+        }
+        LOG.info(" TSDontMeetSLOs ");
+        for (String TSTDontMeetSLO : TSDontMeetSLOs) {
+            LOG.info("{}", TSTDontMeetSLO);
+        }
+        return h;
+    }
+
+    public void saveHistory(History h) {
+        LOG.info("save History");
+
+        history.add(h);
+
+        // LOGGING INFO
+        HashMap<String, Topology> topologiesPerformance = h.getTopologiesPerformance();
+        HashMap<String, TopologyDetails> topologySchedules = h.getTopologiesSchedule();
+
+        for (Map.Entry<String, Topology> entry : topologiesPerformance.entrySet()) {
+            Topology t = entry.getValue();
+            LOG.info(" name {} topology {} average latency {} latency slo {} juice {} throughput slo {} ", entry.getKey(), t.getId(), t.getAverageLatency(), t.getUserSpecifiedLatencySLO(), t.getUserSpecifiedSLO(), t.getMeasuredSLO());
+        }
+
+        for (Map.Entry<String, TopologyDetails> entry : topologySchedules.entrySet()) {
+            TopologyDetails t = entry.getValue();
+            LOG.info(" name {} topology {} workers {} conf {} num of executors {}" +
+                            " executors {} ",
+                    entry.getKey(),
+                    t.getId(),
+                    t.getNumWorkers(),
+                    t.getConf(),
+                    t.getExecutorToComponent().size(),
+                    t.getExecutors());
+        }
+        // LOGGING Performance of topologies
+        ArrayList<String> LSMeetSLOs = h.getLSTMeetSLOs();
+        ArrayList<String> LSDontMeetSLOs = h.getLSTDontMeetSLOs();
+        ArrayList<String> TSMeetSLOs = h.getTSTMeetSLOs();
+        ArrayList<String> TSDontMeetSLOs = h.getTSTDontMeetSLOs();
+        LOG.info(" LSMeetSLOs ");
+        for (String LSTMeetSLO : LSMeetSLOs) {
+            LOG.info("{}", LSTMeetSLO);
+        }
+        LOG.info(" LSDontMeetSLOs ");
+        for (String LSTDontMeetSLO : LSDontMeetSLOs) {
+            LOG.info("{}", LSTDontMeetSLO);
+        }
+        LOG.info(" TSMeetSLOs ");
+        for (String TSTMeetSLO : TSMeetSLOs) {
+            LOG.info("{}", TSTMeetSLO);
+        }
+        LOG.info(" TSDontMeetSLOs ");
+        for (String TSTDontMeetSLO : TSDontMeetSLOs) {
+            LOG.info("{}", TSTDontMeetSLO);
+        }
+    }
 
     public void writeToFile(File file, String data) {
         try {
@@ -218,5 +353,17 @@ public class AdvancedStelaScheduler implements IScheduler {
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }
+    }
+
+    public Map<String, Integer> flipExecsMap(Map<ExecutorDetails, String> ExecutorsToComponents) {
+        HashMap<String, Integer> flippedMap = new HashMap<>();
+        for (Map.Entry<ExecutorDetails, String> entry : ExecutorsToComponents.entrySet()) {
+            if (flippedMap.containsKey(entry.getValue())) {
+                flippedMap.put(entry.getValue(), (flippedMap.get(entry.getValue()) + 1));
+            } else {
+                flippedMap.put(entry.getValue(), 1);
+            }
+        }
+        return flippedMap;
     }
 }
