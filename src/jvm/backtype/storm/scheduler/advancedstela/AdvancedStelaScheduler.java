@@ -91,7 +91,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info("Length of givers {}", giver_topologies.size());
                 LOG.info("Length of receivers {}", receiver_topologies.size());
 
-                if (receiver_topologies.size() > 0 && giver_topologies.size() > 0) {
+                if (receiver_topologies.size() > 0) { //&& giver_topologies.size() > 0
 
                     ArrayList<String> topologyPair = new TopologyPicker().classBasedStrategy(receiver_topologies, giver_topologies);//unifiedStrategy(receiver_topologies, giver_topologies);//.worstTargetBestVictim(receivers, givers);
                     String receiver = topologyPair.get(0);
