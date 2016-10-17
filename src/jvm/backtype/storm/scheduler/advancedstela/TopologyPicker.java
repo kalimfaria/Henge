@@ -96,7 +96,7 @@ public class TopologyPicker {
 */
         ArrayList<String> topologies = new ArrayList<>();
         topologies.add(receiver_topologies.get(0).getId());
-        topologies.add(giver_topologies.get(0).getId());
+       // topologies.add(giver_topologies.get(0).getId()); // we just need the top receiver :)
         return topologies;
     }
 
