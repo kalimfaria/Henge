@@ -49,9 +49,9 @@ public class Topology implements Comparable<Topology> {
         userSpecifiedSLO = slo;
         userSpecifiedLatencySLO = latency_slo;
         this.utility = utility;
-        if (slo > 0 && latency_slo > 0)
+        if (slo > 0.0001 && latency_slo > 0)
             sensitivity = Sensitivity.BOTH;
-        else if (slo > 0)
+        else if (slo > 0.0001)
             sensitivity = Sensitivity.JUICE;
         else if (latency_slo > 0)
             sensitivity = Sensitivity.LATENCY;
@@ -207,7 +207,7 @@ public class Topology implements Comparable<Topology> {
     public Double getLatencyUtility() {
         Double utilityOfLatencySLO = userSpecifiedLatencySLO / (getAverageLatency());
         if (utilityOfLatencySLO > 1) utilityOfLatencySLO = 1.0;
-
+        LOG.info("user spec latency SLO {} average latency {} topology {} utility {} calcutility {}", userSpecifiedLatencySLO, getAverageLatency(), id, utility, utilityOfLatencySLO * utility);
         return utilityOfLatencySLO * utility;
     }
 
@@ -238,6 +238,7 @@ public class Topology implements Comparable<Topology> {
     }
 
     public Double getCurrentUtility() {
+        LOG.info("Sensitivity: {} {} ", id, sensitivity);
         if (sensitivity == Sensitivity.BOTH) {
             Double latencyUtility = getLatencyUtility();
             Double throughputUtility = getThroughputUtility();

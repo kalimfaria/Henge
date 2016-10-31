@@ -223,7 +223,7 @@ public class Topologies {
             e.printStackTrace();
         }
         //   return topologyLatencySLO;
-        return (topologyLatencySLO == null ? 50.0 : topologyLatencySLO);
+        return (topologyLatencySLO == null ? 0.0 : topologyLatencySLO);
     }
 
     private void addSpoutsAndBolts(StormTopology stormTopology, Topology topology) {
