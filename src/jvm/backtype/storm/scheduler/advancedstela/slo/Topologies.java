@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class Topologies {
     private static final Integer UP_TIME =  60 * 15;
-    private static final Integer REBALANCING_INTERVAL = 60 * 15;// to 10 mins for faster response
+    private static final Integer REBALANCING_INTERVAL = 60 * 15;
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;

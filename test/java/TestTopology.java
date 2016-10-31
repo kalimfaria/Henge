@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -116,12 +115,13 @@ public class TestTopology {
         assertEquals(list.get(0).getId(), "T1");
         assertEquals(list.get(1).getId(), "T2");
         assertEquals(list.get(2).getId(), "T3");
-        Topology.sortingStrategy = "descending";
+        Topology.sortingStrategy = "descending-current-utility";
         Collections.sort(list);
         assertEquals(list.get(0).getId(), "T3");
         assertEquals(list.get(1).getId(), "T2");
         assertEquals(list.get(2).getId(), "T1");
     }
+
 
     @Test
     public void testPickTopologySimple() {
@@ -134,6 +134,29 @@ public class TestTopology {
         t3.setAverageLatency(70.0);
         t3.setMeasuredSLOs(0.5);
         t3.setMeasuredSLOs(1.0);
+        list.add(t3);
+        list.add(t1);
+        list.add(t2);
+
+        TopologyPicker picker = new TopologyPicker();
+        Topology topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
+        assertEquals(topology.getId(), "T3");
+
+    }
+
+    @Test
+    public void testPickTopologyNotRemoveRebalanced() {
+        ArrayList<Topology> list = new ArrayList<>();
+        t1.setMeasuredSLOs(0.5);
+        t1.setMeasuredSLOs(1.0);
+
+        t2.setAverageLatency(70.0);
+
+        t3.setAverageLatency(70.0);
+        t3.setMeasuredSLOs(0.5);
+        t3.setMeasuredSLOs(1.0);
+
+
         list.add(t3);
         list.add(t1);
         list.add(t2);
@@ -160,17 +183,17 @@ public class TestTopology {
         list.add(t2);
 
         TopologyPicker picker = new TopologyPicker();
-        BriefHistory history = new BriefHistory("T3", System.currentTimeMillis(), 26.25);
+        BriefHistory history = new BriefHistory("T3", System.currentTimeMillis(), 25.625);
         ArrayList<BriefHistory> briefHistory = new ArrayList<BriefHistory>();
         briefHistory.add(history);
         Topology topology = picker.pickTopology(list, briefHistory);
         assertEquals(topology.getId(), "T2");
-
     }
 
 
+
     @Test
-    public void testPickTopologyNotRemoveRebalanced() {
+    public void testPickTopologySimpleSameSLOs () {
         ArrayList<Topology> list = new ArrayList<>();
         t1.setMeasuredSLOs(0.5);
         t1.setMeasuredSLOs(1.0);
@@ -180,17 +203,35 @@ public class TestTopology {
         t3.setAverageLatency(70.0);
         t3.setMeasuredSLOs(0.5);
         t3.setMeasuredSLOs(1.0);
+
+        Topology t4 = new Topology("T4", 1.0, 50.0, 35.0, 5L); // both
+        t4.setAverageLatency(55.0);
+        t4.setMeasuredSLOs(0.5);
+        t4.setMeasuredSLOs(1.0);
+
         list.add(t3);
         list.add(t1);
         list.add(t2);
+        list.add(t4);
 
         TopologyPicker picker = new TopologyPicker();
-        BriefHistory history = new BriefHistory("T3", System.currentTimeMillis(), 10.0);
-        ArrayList<BriefHistory> briefHistory = new ArrayList<BriefHistory>();
-        briefHistory.add(history);
-        Topology topology = picker.pickTopology(list, briefHistory);
+        Topology topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
         assertEquals(topology.getId(), "T3");
 
+        t4 = new Topology("T4", 1.0, 50.0, 35.0, 5L); // both
+        t4.setAverageLatency(100.0);
+        t4.setMeasuredSLOs(0.5);
+        t4.setMeasuredSLOs(1.0);
+
+        list = new ArrayList<>();
+        list.add(t3);
+        list.add(t1);
+        list.add(t2);
+        list.add(t4);
+
+        picker = new TopologyPicker();
+        topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
+        assertEquals(topology.getId(), "T4");
     }
 
 }

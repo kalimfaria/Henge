@@ -43,7 +43,7 @@ public class Topology implements Comparable<Topology> {
         same_top = new File("/tmp/same_top.log");
         tailLatency = Double.MAX_VALUE;
         averageLatency = 0.0;
-        sortingStrategy = "ascending";
+        sortingStrategy = "ascending-current-utility";
         this.numWorkers = numWorkers;
 
         userSpecifiedSLO = slo;
@@ -173,22 +173,52 @@ public class Topology implements Comparable<Topology> {
 
     public int compareTo(Topology other) {
         switch (sortingStrategy) {
-            case "ascending":
-                return ascending(other);
-            case "descending":
-                return descending(other);
+            case "ascending-current-utility":
+                return ascendingCurrentUtility(other);
+            case "descending-current-utility":
+                return descendingCurrentUtility(other);
+            case "ascending-specified-utility":
+                return ascendingSpecifiedUtility(other);
+            case "descending-specified-utility":
+                return descendingSpecifiedUtility(other);
+            case "descending-specified-ascending-current-utility":
+                return descendingSpecAscendingCurrentUtility(other);
             default:
                 return 0;
         }
     }
 
-    public int ascending(Topology other) {
+    public int descendingSpecAscendingCurrentUtility(Topology other) {
+        Double my_utility = this.getCurrentUtility(), other_utility = other.getCurrentUtility();
+        Double my_specified_utility = this.getTopologyUtility(),
+                other_specified_utility = other.getTopologyUtility();
+        // if not equal, sort by specified utility only
+        System.out.println(my_utility + " " + other_utility + " " + my_specified_utility + " " + other_specified_utility + " " + my_utility.compareTo(other_utility) + " " +  my_specified_utility.compareTo(other_specified_utility));
+        if (my_specified_utility.compareTo(other_specified_utility) != 0) return other_specified_utility.compareTo(my_specified_utility); // desc order by utility
+        System.out.println("Potatoes");
+        return my_utility.compareTo(other_utility); // ascending order by current utility
+
+    }
+
+    public int ascendingCurrentUtility(Topology other) {
         Double my_utility = this.getCurrentUtility(), other_utility = other.getCurrentUtility();
         return my_utility.compareTo(other_utility);
     }
 
-    public int descending(Topology other) {
+    public int descendingCurrentUtility(Topology other) {
         Double my_utility = this.getCurrentUtility(), other_utility = other.getCurrentUtility();
+        return other_utility.compareTo(my_utility);
+    }
+
+    public int ascendingSpecifiedUtility(Topology other) {
+        Double my_utility = this.getTopologyUtility(),
+                other_utility = other.getTopologyUtility();
+        return my_utility.compareTo(other_utility);
+    }
+
+    public int descendingSpecifiedUtility(Topology other) {
+        Double my_utility = this.getTopologyUtility(),
+                other_utility = other.getTopologyUtility();
         return other_utility.compareTo(my_utility);
     }
 

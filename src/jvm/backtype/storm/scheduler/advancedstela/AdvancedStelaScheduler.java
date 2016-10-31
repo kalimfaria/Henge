@@ -67,7 +67,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             History now = createHistory(topologies, receiver_topologies);
 
-            if (didWeDoRebalance) { // check if there is a need to revert and then revert
+            /*if (didWeDoRebalance) { // check if there is a need to revert and then revert
                 LOG.info("Did we do rebalance? Yes");
                 if (history.get(history.size() - 1).doWeNeedToRevert(now)) {
                     History bestHistory = findBestHistory();
@@ -77,7 +77,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("Now stopping all rebalance");
                 }
                 didWeDoRebalance = false;
-            }
+            } */
             if (!doWeStop) {
 
                 LOG.info("Length of receivers {}", receiver_topologies.size());

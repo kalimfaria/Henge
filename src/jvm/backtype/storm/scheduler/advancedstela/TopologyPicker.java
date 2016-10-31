@@ -17,12 +17,18 @@ public class TopologyPicker {
         switch(strategy_name)
         {
             case "WT": {
-                Topology.sortingStrategy = "descending";
+                Topology.sortingStrategy = "descending-specified-ascending-current-utility";
                 Collections.sort(receiver_topologies);
+               /* Topology.sortingStrategy = "ascending-current-utility";
+                Collections.sort(receiver_topologies); */
+
+                for (Topology t : receiver_topologies) {
+                    System.out.println(t.getId() + " " + t.getCurrentUtility() + " " + t.getTopologyUtility());
+                }
                 break;
             }
             case "BT": {
-                Topology.sortingStrategy = "ascending";
+                Topology.sortingStrategy = "ascending-current-utility";
                 Collections.sort(receiver_topologies);
                 break;
             }
