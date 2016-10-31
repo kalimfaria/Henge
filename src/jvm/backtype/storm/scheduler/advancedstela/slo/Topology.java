@@ -193,13 +193,6 @@ public class Topology implements Comparable<Topology> {
     }
 
     public boolean sloViolated() {
-        writeToFile(same_top, "In the function: sloViolated() \n");
-        writeToFile(same_top, "Topology name: " + id + "\n");
-        writeToFile(same_top, "Topology SLO: " + userSpecifiedSLO + "\n");
-        writeToFile(same_top, "Topology Measured SLO: " + getMeasuredSLO() + "\n");
-        writeToFile(same_top, "Topology Latency SLO: " + userSpecifiedLatencySLO + "\n");
-        writeToFile(same_top, "Topology Measured Latency SLO: " + getAverageLatency() + "\n");
-
         if (sensitivity != null) {
             if (sensitivity == Sensitivity.JUICE) {
                 return getMeasuredSLO() < userSpecifiedSLO;
@@ -214,6 +207,7 @@ public class Topology implements Comparable<Topology> {
     public Double getLatencyUtility() {
         Double utilityOfLatencySLO = userSpecifiedLatencySLO / (getAverageLatency());
         if (utilityOfLatencySLO > 1) utilityOfLatencySLO = 1.0;
+
         return utilityOfLatencySLO * utility;
     }
 

@@ -19,10 +19,12 @@ public class TopologyPicker {
             case "WT": {
                 Topology.sortingStrategy = "descending";
                 Collections.sort(receiver_topologies);
+                break;
             }
             case "BT": {
                 Topology.sortingStrategy = "ascending";
                 Collections.sort(receiver_topologies);
+                break;
             }
         }
 

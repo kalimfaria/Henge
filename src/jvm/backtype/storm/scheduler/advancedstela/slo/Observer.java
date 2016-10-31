@@ -118,7 +118,6 @@ public class Observer {
     }
 
     private void cleanUpSLOMap(HashMap<String, Topology> allTopologies) {
-        // TODO Auto-generated method stub
         for (String topologyId : allTopologies.keySet()) {
             Topology topology = allTopologies.get(topologyId);
             HashMap<String, Component> spouts = topology.getSpouts();
@@ -148,7 +147,7 @@ public class Observer {
             HashMap<String, HashMap<String, Integer>> temporaryExecuted_10Mins = new HashMap<>();
             HashMap<String, Long> temporaryFailed = new HashMap<>();
             HashMap<String, Long> temporaryAcked = new HashMap<>();
-            //   HashMap<String, Double> temporaryCompleteLatency = new HashMap<>();
+
             for (ExecutorSummary executor : executorSummaries) {
                 String componentId = executor.get_component_id();
                 Component component = topology.getAllComponents().get(componentId);
@@ -405,8 +404,8 @@ public class Observer {
             }
             topology.setMeasuredSLOs(calculatedSLO);
             long time_now = System.currentTimeMillis();
-            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getAverageLatency() + ","  + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
-            writeToFile(same_top, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO() + "," + topology.getAverageLatency() + "," + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
+            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getAverageLatency() + "," + topology.getCurrentUtility() + "," +  topology.getTopologyUtility() + ","  + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
+
         }
 
     }
