@@ -4,7 +4,6 @@ import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
-import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,13 +59,12 @@ public class Observer {
         return hostToUsedWorkerSlots;
     }
 
-    public TopologyPairs getTopologiesToBeRescaled() {
+    public ArrayList<Topology> getTopologiesToBeRescaled() {
         return topologies.getTopologyPairScaling();
     }
 
     public Topology getTopologyById(String id) {
         Topology topology = topologies.getStelaTopologies().get(id);
-
         if (topology == null)
         {
             writeToFile(same_top, id + " is null (asked for by advancedstela for rescheduling)" + "\n");
@@ -168,22 +166,6 @@ public class Observer {
                     SpoutStats spout = specific.get_spout();
 
 
-               /*     if (spout.is_set_complete_ms_avg()) {
-                        Map<String, Map<String, Double>> complete_msg_avg = spout.get_complete_ms_avg();
-                        Map<String, Double> statValues = complete_msg_avg.get(ALL_TIME);
-
-                        for (String key : statValues.keySet()) {
-                            if (DEFAULT.equals(key)) {
-                                if (!temporaryCompleteLatency.containsKey(componentId)) {
-                                    temporaryCompleteLatency.put(componentId, 0.0);
-                                }
-                                temporaryCompleteLatency.put(componentId, temporaryCompleteLatency.get(componentId) +
-                                        statValues.get(key).doubleValue());
-                            }
-                        }
-                    }
-                    */
-
                     Map<String, Long> statValues = transferred.get(ALL_TIME);
                     for (String key : statValues.keySet()) {
                         if (DEFAULT.equals(key)) {
@@ -271,8 +253,6 @@ public class Observer {
                 }
             }
 
-            //double totalLatency = 0;
-            //int count = 0;
             for (String componentId : topology.getAllComponents().keySet()) {
                 Component component = topology.getAllComponents().get(componentId);
                 if (temporaryTransferred.containsKey(componentId)) {
@@ -305,13 +285,7 @@ public class Observer {
                     component.setTotalFailed(temporaryFailed.get(componentId));
                 }
 
-              /*  if (temporaryCompleteLatency.containsKey(componentId)) {
-                    totalLatency += temporaryCompleteLatency.get(componentId);
-                    count ++;
-                } */
             }
-         /*   if (count > 0)
-                topology.setMeasuredLatency(totalLatency/count); */
         }
     }
 
@@ -449,7 +423,7 @@ public class Observer {
             bufferWriter.close();
             fileWriter.close();
         } catch (IOException ex) {
-            System.out.println(ex.toString());
+            LOG.info(ex.toString());
         }
     }
 

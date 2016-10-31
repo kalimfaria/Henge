@@ -5,7 +5,6 @@ import backtype.storm.scheduler.Topologies;
 import backtype.storm.scheduler.advancedstela.etp.*;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
-import backtype.storm.scheduler.advancedstela.slo.TopologyPairs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,8 @@ import java.util.*;
 
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
-
+    Long time;
+    boolean didWeDoRebalance, doWeStop;
     @SuppressWarnings("rawtypes")
     private Map config;
     private Observer sloObserver;
@@ -28,8 +28,8 @@ public class AdvancedStelaScheduler implements IScheduler {
     private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
     private ArrayList<History> history;
-    Long time;
-    boolean didWeDoRebalance, doWeStop;
+    private ArrayList <BriefHistory> briefHistory;
+
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -44,6 +44,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         time = System.currentTimeMillis();
         didWeDoRebalance = false;
         doWeStop = false;
+        briefHistory = new ArrayList<>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -62,13 +63,9 @@ public class AdvancedStelaScheduler implements IScheduler {
         } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 15 * 60) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
 
-            TopologyPairs topologiesToBeRescaled = sloObserver.getTopologiesToBeRescaled();
-            ArrayList<String> receivers = topologiesToBeRescaled.getReceivers();
-            ArrayList<String> givers = topologiesToBeRescaled.getGivers();
-            ArrayList<Topology> receiver_topologies = new ArrayList<Topology>();
-            ArrayList<Topology> giver_topologies = new ArrayList<Topology>();
+            ArrayList<Topology> receiver_topologies =  sloObserver.getTopologiesToBeRescaled();
 
-            History now = createHistory(topologies, receiver_topologies, giver_topologies);
+            History now = createHistory(topologies, receiver_topologies);
 
             if (didWeDoRebalance) { // check if there is a need to revert and then revert
                 LOG.info("Did we do rebalance? Yes");
@@ -82,48 +79,28 @@ public class AdvancedStelaScheduler implements IScheduler {
                 didWeDoRebalance = false;
             }
             if (!doWeStop) {
-                for (int i = 0; i < receivers.size(); i++)
-                    receiver_topologies.add(sloObserver.getTopologyById(receivers.get(i)));
 
-                for (int i = 0; i < givers.size(); i++)
-                    giver_topologies.add(sloObserver.getTopologyById(givers.get(i)));
-
-                LOG.info("Length of givers {}", giver_topologies.size());
                 LOG.info("Length of receivers {}", receiver_topologies.size());
+                if (receiver_topologies.size() > 0) {
 
-                if (receiver_topologies.size() > 0) { //&& giver_topologies.size() > 0
+                    Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+                    LOG.info("Picked the topology for rebalance");
 
-                    ArrayList<String> topologyPair = new TopologyPicker().classBasedStrategy(receiver_topologies, giver_topologies);//unifiedStrategy(receiver_topologies, giver_topologies);//.worstTargetBestVictim(receivers, givers);
-                    String receiver = topologyPair.get(0);
-
-                    LOG.info("Picked the first two topologies for rebalance");
-
-                    TopologyDetails target = topologies.getById(receiver);
-                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver);
-                    Component targetComponent = selector.selectOperator(globalState, globalStatistics, sloObserver.getTopologyById(receiver));
+                    TopologyDetails target = topologies.getById(receiver.getId());
+                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
+                    Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
                     LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
 
                     if (targetComponent != null) {
                         LOG.info("topology {} target component", receiver, targetComponent.getId());
                         saveHistory(now);
-                        rebalanceTopology(target, targetSchedule, targetComponent, topologies);
+                        rebalanceTopology(target, targetSchedule, targetComponent, topologies, receiver);
                         didWeDoRebalance = true;
                     }
-                } else if (giver_topologies.size() == 0) {
-                    StringBuffer sb = new StringBuffer();
-                    LOG.info("There are no givers! *Sob* \n");
-                    LOG.info("Receivers:  \n");
-
-                    for (int i = 0; i < receiver_topologies.size(); i++)
-                        LOG.info(receiver_topologies.get(i).getId() + "\n");
-
                 } else if (receiver_topologies.size() == 0) {
                     StringBuffer sb = new StringBuffer();
                     LOG.info("There are no receivers! *Sob* \n");
                     LOG.info("Givers:  \n");
-
-                    for (int i = 0; i < giver_topologies.size(); i++)
-                        LOG.info(giver_topologies.get(i).getId() + "\n");
                 }
             }
 
@@ -167,11 +144,14 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
                                    Component component,
-                                   Topologies topologies) {
+                                   Topologies topologies,
+                                   Topology targetTopology) {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
-                int one = 1;
+                //int one = 1;
+                //int one = 2;
+                int one = 4;
                 String targetComponent = component.getId();
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                 Integer targetNewParallelism = targetOldParallelism + one;
@@ -188,8 +168,10 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("running the rebalance using storm's rebalance command \n");
                     LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
 
+                    briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
                     Runtime.getRuntime().exec(targetCommand);
-                 //   sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+
+                   // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(target.getId());
                 } catch (Exception e) {
                     LOG.info(e.toString());
@@ -226,22 +208,19 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
     public History findBestHistory() {
+        // TODO -- based on maximum history
+
         Collections.sort(history);
         LOG.info("Finding best histories");
-        for (History h : history) {
-            LOG.info("Num of LS Satisfying Topologies {}, Number of TS Satisfying Topologies {}",
-                    h.getLSTMeetSLOs().size(), h.getTSTMeetSLOs().size());
-        }
+
         if (history.size() > 0) {
             History currentBest = history.get(history.size() - 1);
-            LOG.info("Num of LS Satisfying Topologies {}, Number of TS Satisfying Topologies {}",
-                    currentBest.getLSTMeetSLOs().size(), currentBest.getTSTMeetSLOs().size());
-            return currentBest;
+            return currentBest; // getting the last one
         }
         return null;
     }
 
-    public History createHistory(Topologies topologies, ArrayList<Topology> receiver_topologies, ArrayList<Topology> giver_topologies) {
+    public History createHistory(Topologies topologies, ArrayList<Topology> receiver_topologies) {
         LOG.info("create History");
 
         HashMap<String, TopologyDetails> tops = new HashMap<>();
@@ -249,7 +228,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         for (TopologyDetails t : topologies.getTopologies()) {
             tops.put(t.getId(), t);
         }
-        History h = new History(tops, sloObserver.getAllTopologies(), receiver_topologies, giver_topologies);
+        History h = new History(tops, sloObserver.getAllTopologies(), receiver_topologies);
 
         // LOGGING INFO
         HashMap<String, Topology> topologiesPerformance = h.getTopologiesPerformance();
@@ -272,22 +251,22 @@ public class AdvancedStelaScheduler implements IScheduler {
                     t.getExecutors());
         }
         // LOGGING Performance of topologies
-        ArrayList<String> LSMeetSLOs = h.getLSTMeetSLOs();
         ArrayList<String> LSDontMeetSLOs = h.getLSTDontMeetSLOs();
-        ArrayList<String> TSMeetSLOs = h.getTSTMeetSLOs();
+        ArrayList<String> BothDontMeetSLOs = h.getLTSTDontMeetSLOs();
         ArrayList<String> TSDontMeetSLOs = h.getTSTDontMeetSLOs();
-        LOG.info(" LSMeetSLOs ");
-        for (String LSTMeetSLO : LSMeetSLOs) {
-            LOG.info("{}", LSTMeetSLO);
+
+
+        LOG.info(" BothDontMeetSLOs ");
+        for (String LSTDontMeetSLO : BothDontMeetSLOs) {
+            LOG.info("{}", LSTDontMeetSLO);
         }
+
         LOG.info(" LSDontMeetSLOs ");
         for (String LSTDontMeetSLO : LSDontMeetSLOs) {
             LOG.info("{}", LSTDontMeetSLO);
         }
-        LOG.info(" TSMeetSLOs ");
-        for (String TSTMeetSLO : TSMeetSLOs) {
-            LOG.info("{}", TSTMeetSLO);
-        }
+
+
         LOG.info(" TSDontMeetSLOs ");
         for (String TSTDontMeetSLO : TSDontMeetSLOs) {
             LOG.info("{}", TSTDontMeetSLO);
@@ -321,23 +300,22 @@ public class AdvancedStelaScheduler implements IScheduler {
                     t.getExecutors());
         }
         // LOGGING Performance of topologies
-        ArrayList<String> LSMeetSLOs = h.getLSTMeetSLOs();
+
         ArrayList<String> LSDontMeetSLOs = h.getLSTDontMeetSLOs();
-        ArrayList<String> TSMeetSLOs = h.getTSTMeetSLOs();
+        ArrayList<String> LTSTDontMeetSLOs = h.getLTSTDontMeetSLOs();
         ArrayList<String> TSDontMeetSLOs = h.getTSTDontMeetSLOs();
-        LOG.info(" LSMeetSLOs ");
-        for (String LSTMeetSLO : LSMeetSLOs) {
-            LOG.info("{}", LSTMeetSLO);
-        }
-        LOG.info(" LSDontMeetSLOs ");
+
+        LOG.info("LSDontMeetSLOs");
         for (String LSTDontMeetSLO : LSDontMeetSLOs) {
             LOG.info("{}", LSTDontMeetSLO);
         }
-        LOG.info(" TSMeetSLOs ");
-        for (String TSTMeetSLO : TSMeetSLOs) {
-            LOG.info("{}", TSTMeetSLO);
+
+        LOG.info("LTSTDontMeetSLOs ");
+        for (String LSTDontMeetSLO : LTSTDontMeetSLOs) {
+            LOG.info("{}", LSTDontMeetSLO);
         }
-        LOG.info(" TSDontMeetSLOs ");
+
+        LOG.info("TSDontMeetSLOs ");
         for (String TSTDontMeetSLO : TSDontMeetSLOs) {
             LOG.info("{}", TSTDontMeetSLO);
         }

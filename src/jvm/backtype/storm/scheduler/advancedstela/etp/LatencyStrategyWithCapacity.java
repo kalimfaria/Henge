@@ -56,8 +56,7 @@ public class LatencyStrategyWithCapacity {
     public boolean isThereCongestion()
     {
         String topologyId = topologySchedule.getId();
-        System.out.println("------Figuring out the sorted order for components based on their capacity for: " + topologyId + "----" + "\n");
-        //System.out.println("------Figuring out if the congestion Map is empty for: " + topologyId + " to see if we require crazy compaction----" + "\n");
+
         //collectRates();
         //congestionDetection();
         //return congestionMap.isEmpty();
@@ -68,7 +67,6 @@ public class LatencyStrategyWithCapacity {
         Collections.sort(comp);
         for (int i = 0; i < comp.size(); i++)
         {
-            System.out.println("Component ID: " + comp.get(i).getId() + " Capacity: " + comp.get(i).getCapacity() +" \n");
             if (comp.get(i).getCapacity() > 0.2)
                 return true;
         }
@@ -458,9 +456,6 @@ public class LatencyStrategyWithCapacity {
                     in += expectedEmitRates.get(parent);
                 }
             }
-            System.out.println("Component name: " + componentRate.getKey());
-            System.out.println("in: " + in);
-            System.out.println("out: " + out);
             if (in > 1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
@@ -589,7 +584,7 @@ public class LatencyStrategyWithCapacity {
             bufferWritter.close();
             fileWritter.close();
         } catch (IOException ex) {
-          System.out.println(ex.toString());
+          LOG.info(ex.toString());
         }
     }
 

@@ -294,7 +294,7 @@ public class GlobalStatistics {
             bufferWriter.close();
             fileWriter.close();
         } catch (IOException ex) {
-            System.out.println(ex.toString());
+            LOG.info(ex.toString());
         }
     }
 }

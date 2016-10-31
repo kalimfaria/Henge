@@ -58,7 +58,6 @@ public class LatencyStrategy {
     {
         String topologyId = topologySchedule.getId();
         writeToFile(latency_log, "------Figuring out if the congestion Map is empty for: " + topologyId + " to see if we require crazy compaction----" + "\n");
-        System.out.println("------Figuring out if the congestion Map is empty for: " + topologyId + " to see if we require crazy compaction----" + "\n");
         collectRates();
         congestionDetection();
         return congestionMap.isEmpty();
@@ -416,9 +415,6 @@ public class LatencyStrategy {
                     in += expectedEmitRates.get(parent);
                 }
             }
-            System.out.println("Component name: " + componentRate.getKey());
-            System.out.println("in: " + in);
-            System.out.println("out: " + out);
             if (in > 1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
@@ -547,7 +543,7 @@ public class LatencyStrategy {
             bufferWritter.close();
             fileWritter.close();
         } catch (IOException ex) {
-          System.out.println(ex.toString());
+          LOG.info(ex.toString());
         }
     }
 

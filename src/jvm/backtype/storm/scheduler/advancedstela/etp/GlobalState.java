@@ -25,22 +25,18 @@ public class GlobalState {
     private Map config;
     private NimbusClient nimbusClient;
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
-    // private File advanced_scheduling_log;
     private File latency_log;
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
 
     /* Supervisor to node mapping. */
     private HashMap<String, Node> supervisorToNode;
-    private Long lastTime;
-    private SupervisorInfo supervisorInfo;
 
     public GlobalState(Map conf) {
         config = conf;
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
         latency_log = new File("/tmp/latency.log");
-       // lastTime = System.currentTimeMillis();
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -50,42 +46,26 @@ public class GlobalState {
 
     public void setCapacities(HashMap<String, backtype.storm.scheduler.advancedstela.slo.Topology> Topologies)
     {
-       // Long now = System.currentTimeMillis();
         for (String ID: Topologies.keySet())
         {
-            System.out.println("Topology: " + ID);
             TopologySchedule topologySchedule = topologySchedules.get(ID);
             HashMap <String, Component> etpComponents = topologySchedule.getComponents();
             HashMap <String, backtype.storm.scheduler.advancedstela.slo.Component> sloComponents = Topologies.get(ID).getAllComponents();
 
             for (String etpCompID : etpComponents.keySet())
             {
-
-//                if (now > (lastTime + 60000)) {
                     double execute_latency = etpComponents.get(etpCompID).getExecuteLatency10mins();
-
-                    System.out.println(" Component ID: " + etpCompID + " Execute Latency: " + execute_latency);
-
                     double totalExecutedTuples = 0.0;
                     for (double val : sloComponents.get(etpCompID).getCurrentExecuted_10MINS().values()) {
                         totalExecutedTuples = totalExecutedTuples + val;
                     }
-
-                    System.out.println(" Component ID: " + etpCompID + " Total Executed Tuples: " + totalExecutedTuples + " Average Executed Tuples: " + totalExecutedTuples / sloComponents.get(etpCompID).getParallelism());
-
-                   // System.out.println("Now: " + now);
-                   // System.out.println("Last Time: " + lastTime);
                     totalExecutedTuples = totalExecutedTuples / sloComponents.get(etpCompID).getParallelism();
 
-                   // System.out.println("Difference:  " + (now - lastTime));
                     double capacity = (totalExecutedTuples * execute_latency) / 600000;
                     etpComponents.get(etpCompID).setCapacity(capacity);
 
-                    System.out.println("Topology: " + ID + " Component ID: " + etpCompID + " Capacity: " + capacity);
-                //}
-
             }
-         //   lastTime = now;
+
         }
     }
 
@@ -102,7 +82,6 @@ public class GlobalState {
                 return;
             }
         }
-      //  supervisorInfo.GetSupervisorInfo(); // TODO later complete implementation :)
         populateNodeToExecutorMapping(cluster);
         populateAssignmentForTopologies(cluster, topologies);
     }
@@ -230,15 +209,6 @@ public class GlobalState {
                         SpoutStats spoutStats = stats.get_specific().get_spout();
                         if (spoutStats.is_set_complete_ms_avg()) {
                             Map<String, Map<String, Double>> complete_msg_avg = spoutStats.get_complete_ms_avg();
-                         /*   for (String key : complete_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the complete_msg_avg.keySet() map?");
-                                for (String inner_key : complete_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key : " + inner_key);
-                                    System.out.println("The inner value : " + complete_msg_avg.get(key).get(inner_key).toString());
-                                      }
-                            } */
-                            // been through the loop
 
                             Map<String, Double> statValues = complete_msg_avg.get(ALL_TIME);
 
@@ -251,22 +221,13 @@ public class GlobalState {
                                             statValues.get(key).doubleValue());
                                 }
                             }
-                          //  System.out.println("In temporaryCompleteLatency.get("+ componentId+ "):  "  + temporaryCompleteLatency.get(componentId));
+
                         }
                     } else if (stats.get_specific().is_set_bolt()) {
                         BoltStats boltStats = stats.get_specific().get_bolt();
                         if (boltStats.is_set_execute_ms_avg()) {
                             Map<String, Map<GlobalStreamId, Double>> execute_msg_avg = boltStats.get_execute_ms_avg();
 
-                          /*  for (String key : execute_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the execute_msg_avg.keySet() map?");
-                                for (GlobalStreamId inner_key : execute_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key stream ID : " + inner_key.get_streamId());
-                                    System.out.println("The inner key component ID : " + inner_key.get_componentId());
-                                    System.out.println("The inner value : " + execute_msg_avg.get(key).get(inner_key).toString());
-                                }
-                            }*/
 
                             Map<GlobalStreamId, Double> statValues = execute_msg_avg.get(ALL_TIME);
                             Map<GlobalStreamId, Double> statValues_10Mins = execute_msg_avg.get(TEN_MINS);
@@ -278,7 +239,7 @@ public class GlobalState {
                                     }
                                     temporaryExecuteLatency.put(componentId, temporaryExecuteLatency.get(componentId) +
                                             statValues.get(key).doubleValue());
-                              //      System.out.println("In temporaryExecuteLatency.get(" + componentId + "):  " + temporaryExecuteLatency.get(componentId));
+
                                 }
                             }
 
@@ -291,25 +252,13 @@ public class GlobalState {
                                     }
                                     temporaryExecuteLatency_10Mins.put(componentId, temporaryExecuteLatency_10Mins.get(componentId) +
                                             statValues_10Mins.get(key).doubleValue());
-                                    //      System.out.println("In temporaryExecuteLatency.get(" + componentId + "):  " + temporaryExecuteLatency.get(componentId));
+
                                 }
                             }
                         }
 
                         if (boltStats.is_set_process_ms_avg()) {
                             Map<String, Map<GlobalStreamId, Double>> process_msg_avg = boltStats.get_process_ms_avg();
-                          /*  for (String key : process_msg_avg.keySet()) {
-                                System.out.println("Key: " + key);
-                                System.out.println("What's in the process_msg_avg.keySet() map?");
-                                for (GlobalStreamId inner_key : process_msg_avg.get(key).keySet()) {
-                                    System.out.println("The inner key stream ID : " + inner_key.get_streamId());
-                                    System.out.println("The inner key component ID : " + inner_key.get_componentId());
-                                    System.out.println("The inner value : " + process_msg_avg.get(key).get(inner_key).toString());
-                                }
-                            } */
-                            // been through the loop
-                            // component.setCompleteLatency(component.getCompleteLatency() / complete_msg_avg.keySet().size()); // COME BACK TO THIS LATER
-
                             Map<GlobalStreamId, Double> statValues = process_msg_avg.get(ALL_TIME);
 
                             for (GlobalStreamId key : statValues.keySet()) {
@@ -321,7 +270,6 @@ public class GlobalState {
                                             statValues.get(key).doubleValue());
                                 }
                             }
-                        //    System.out.println("In temporaryProcessLatency.get(" + componentId + "):  " + temporaryProcessLatency.get(componentId));
                         }
                         /*(defn compute-executor-capacity
                           [^ExecutorSummary e]
@@ -349,14 +297,10 @@ public class GlobalState {
 
                     if (temporaryExecuteLatency.containsKey(componentId)) {
                         component.setExecuteLatency(temporaryExecuteLatency.get(componentId) / (double) component.getParallelism());
-                        // CALCULATING CAPACITY
-                        //CRAP --> Gotta multiple executed tuples with latency and then divide with uptime. WT... :/ Why is this a problem? Executed tuples are hanging out in SLO.component -_-
                     }
 
                     if (temporaryExecuteLatency_10Mins.containsKey(componentId)) {
                         component.setExecuteLatency10mins(temporaryExecuteLatency_10Mins.get(componentId) / (double) component.getParallelism());
-                        // CALCULATING CAPACITY
-                        //CRAP --> Gotta multiple executed tuples with latency and then divide with uptime. WT... :/ Why is this a problem? Executed tuples are hanging out in SLO.component -_-
                     }
 
                     if (temporaryCompleteLatency.containsKey(componentId))

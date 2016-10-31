@@ -9,21 +9,17 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 
-import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class Topologies {
     private static final Integer UP_TIME =  60 * 15;
-    private static final Integer REBALANCING_INTERVAL = 60 * 15;
+    private static final Integer REBALANCING_INTERVAL = 60 * 15;// to 10 mins for faster response
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;
@@ -32,7 +28,6 @@ public class Topologies {
     private HashMap<String, Long> lastRebalancedAt;
     private File flatline_log;
     private File same_top;
-    private int numHosts;
 
     public Topologies(Map conf) {
         config = conf;
@@ -47,7 +42,7 @@ public class Topologies {
         return stelaTopologies;
     }
 
-    public TopologyPairs getTopologyPairScaling() { // when trying to add topologies to either of these
+    public ArrayList<Topology> getTopologyPairScaling() { // when trying to add topologies to either of these
 
         writeToFile(same_top, "In topologies:  getTopologyPairScaling\n");
 
@@ -85,19 +80,11 @@ public class Topologies {
         for (Topology t : successfulTopologies)
             LOG.info("Successful : " + t.getId() + "\n");
 
-        TopologyPairs topologyPair = new TopologyPairs();
-        topologyPair.setReceivers(failingTopologies);
-        topologyPair.setGivers(successfulTopologies);
 
         LOG.info("Checking after topologies are set into the variables\n");
-        LOG.info("Givers:\n");
-        for (String t : topologyPair.getGivers())
-            LOG.info("topology: " + t + "\n");
-        LOG.info("Receivers:\n");
-        for (String t : topologyPair.getReceivers())
-            LOG.info("topology: " + t + "\n");
 
-        return topologyPair;
+
+        return failingTopologies;
     }
 
     public void updateLastRebalancedTime(String topologyId, Long time) {
@@ -131,9 +118,10 @@ public class Topologies {
                         //String sortingStrategy = "Unified"; // other - Class-Based
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
                         Double userLatencySLO = getUserSpecifiedLatencySLOFromConfig(id);
-                        String sensitivity = getUserSLOSensitivityFromConfig(id);
+                        Double utility = getUserSpecifiedUtilityFromConfig(id);
+                       // String sensitivity = getUserSLOSensitivityFromConfig(id);
                         Long numWorkers = getNumWorkersFromConfig(id);
-                        Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, sensitivity, numWorkers);
+                        Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, utility, numWorkers);
 
                         addSpoutsAndBolts(stormTopology, topology);
                         constructTopologyGraph(stormTopology, topology);
@@ -190,30 +178,8 @@ public class Topologies {
             e.printStackTrace();
         }
 
-        /*DEBUG*/
         return (topologySLO == null ? 1.0 : topologySLO);
-//        return topologySLO;
-    }
-
-    private String getUserSLOSensitivityFromConfig(String id) {
-        String sensitivity = new String();
-        JSONParser parser = new JSONParser();
-        try {
-            Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
-            sensitivity = (String) conf.get(Config.TOPOLOGY_SENSITIVITY);
-            writeToFile(same_top, "In the function:  getUserSLOSensitivityFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology Sensitivity: " + sensitivity + "\n");
-        } catch (ParseException e) {
-            e.printStackTrace();
-        } catch (AuthorizationException e) {
-            e.printStackTrace();
-        } catch (NotAliveException e) {
-            e.printStackTrace();
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-        return sensitivity;
+        //return topologySLO;
     }
 
     private Long getNumWorkersFromConfig(String id) {
@@ -236,7 +202,6 @@ public class Topologies {
         }
         return workers;
     }
-
 
     private Double getUserSpecifiedLatencySLOFromConfig(String id) {
         Double topologyLatencySLO = 1.0;
@@ -277,6 +242,29 @@ public class Topologies {
         }
     }
 
+    private Double getUserSpecifiedUtilityFromConfig(String id) {
+        Double topologyUtility = 0.0;
+        JSONParser parser = new JSONParser();
+        try {
+            Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
+
+            topologyUtility = (Double) conf.get(Config.TOPOLOGY_UTILITY);
+            writeToFile(same_top, "In the function: getUserSpecifiedUtilityFromConfig\n");
+            writeToFile(same_top, "Topology name: " + id + "\n");
+            writeToFile(same_top, "Topology utility: " +  topologyUtility + "\n");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (AuthorizationException e) {
+            e.printStackTrace();
+        } catch (NotAliveException e) {
+            e.printStackTrace();
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        //   return topologyLatencySLO;
+        return ( topologyUtility == null ? 50.0 :  topologyUtility);
+    }
+
     private void constructTopologyGraph(StormTopology topology, Topology stelaTopology) {
         for (Map.Entry<String, Bolt> bolt : topology.get_bolts().entrySet()) {
             if (!bolt.getKey().matches("(__).*")) {
@@ -307,7 +295,6 @@ public class Topologies {
             else
                 parallelism_hints.put(execSummary.get(i).get_component_id(), 1);
         }
-
         Topology topology = stelaTopologies.get(topologyId);
         HashMap<String, Component> allComponents = topology.getAllComponents();
 
@@ -351,7 +338,6 @@ public class Topologies {
     }
 
     public void getLatencies() {
-
 
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = ReadFiles();
 
@@ -533,7 +519,7 @@ public class Topologies {
             }
 
         } catch (Exception ex) {
-            System.out.println(ex.toString());
+            LOG.info(ex.toString());
         }
 
     /*    System.out.println("Reading the file :D");
@@ -567,10 +553,8 @@ public class Topologies {
             bufferWriter.append(data);
             bufferWriter.close();
             fileWriter.close();
-            //LOG.info("wrote to slo file {}",  data);
         } catch (IOException ex) {
-            // LOG.info("error! writing to file {}", ex);
-            System.out.println(ex.toString());
+            LOG.info(ex.toString());
         }
     }
 }

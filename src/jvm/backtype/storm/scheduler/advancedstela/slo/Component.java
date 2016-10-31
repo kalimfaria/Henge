@@ -152,7 +152,6 @@ public class Component {
 
     public void addSpoutTransfer(String key, Double value) {
         //   spoutTransfer.put(key, value);
-
         if (spoutTransfer.get(key) == null) {
             spoutTransfer.put(key, value);
         } else if (spoutTransfer.get(key) > 0.0) {
@@ -183,16 +182,11 @@ public class Component {
     }
 
     public void setCurrentExecuted_10MINS(String key, Integer value) {
-
         currentExecuted_10Mins.put(key, value );
-
-
     }
 
     public HashMap<String, Integer> getCurrentExecuted_10MINS() {
         return currentExecuted_10Mins;
-
-
     }
 
     public void updateParallelism(int parallelismHint) {
@@ -255,5 +249,4 @@ public class Component {
                 ", sloValue=" + printSLOValue() +
                 '}';
     }
-
 }
