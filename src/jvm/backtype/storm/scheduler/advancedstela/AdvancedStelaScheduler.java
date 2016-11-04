@@ -25,10 +25,9 @@ public class AdvancedStelaScheduler implements IScheduler {
     private GlobalState globalState;
     private GlobalStatistics globalStatistics;
     private OperatorSelector selector;
-    private HashMap<String, ExecutorPair> targets, victims;
     private File juice_log;
     private ArrayList<History> history;
-    private ArrayList <BriefHistory> briefHistory;
+    private ArrayList<BriefHistory> briefHistory;
 
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -38,8 +37,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         globalState = new GlobalState(conf);
         globalStatistics = new GlobalStatistics(conf);
         selector = new OperatorSelector();
-        victims = new HashMap<String, ExecutorPair>();
-        targets = new HashMap<String, ExecutorPair>();
         history = new ArrayList<>();
         time = System.currentTimeMillis();
         didWeDoRebalance = false;
@@ -50,26 +47,21 @@ public class AdvancedStelaScheduler implements IScheduler {
     public void schedule(Topologies topologies, Cluster cluster) {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
-        for (String target : targets.keySet()) {
-            LOG.info("target {} ", target);
-        }
-        for (String victim : victims.keySet()) {
-            LOG.info("victim {} ", victim);
-        }
         runAdvancedStelaComponents(cluster, topologies);
         if (numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 15 * 60) {
+        } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
 
-            ArrayList<Topology> receiver_topologies =  sloObserver.getTopologiesToBeRescaled();
+            ArrayList<Topology> receiver_topologies = sloObserver.getTopologiesToBeRescaled();
 
             History now = createHistory(topologies);
 
-            if (didWeDoRebalance) { // check if there is a need to revert and then revert
+            boolean doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
+            if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
                 LOG.info("Did we do rebalance? Yes");
-                if (history.get(history.size() - 1).doWeNeedToRevert(now)) {
+                if (doWeNeedToRevert && !doWeStop) {
                     History bestHistory = findBestHistory();
                     revertHistory(bestHistory);
                     doWeStop = true;
@@ -78,11 +70,21 @@ public class AdvancedStelaScheduler implements IScheduler {
                 }
                 didWeDoRebalance = false;
             }
-            if (!doWeStop) {
 
+            if (doWeStop && doWeNeedToRevert) {
+                LOG.info("We stopped rebalancing earlier but it " +
+                        "looks like workload has changed doWeStop {} doWeNeedToRevert {}", doWeStop, doWeNeedToRevert);
+                LOG.info("Flushing history");
+                history.clear();
+                doWeStop = false;
+                // if we have stopped rebalancing, and yet system utility falls suddenly.
+                // now, this could happen because of two reasons. 1) We see poor performance because of increasing latency etc without changing workload
+                // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
+                // we go with 2) and flush history so no reversions can happen and start again
+            }
+            if (!doWeStop) {
                 LOG.info("Length of receivers {}", receiver_topologies.size());
                 if (receiver_topologies.size() > 0) {
-
                     Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
                     LOG.info("Picked the topology for rebalance");
 
@@ -93,24 +95,22 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                     if (targetComponent != null) {
                         LOG.info("topology {} target component", receiver, targetComponent.getId());
-                        saveHistory(now);
-                        rebalanceTopology(target, targetSchedule, targetComponent, topologies, receiver);
+
+                        rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
                         didWeDoRebalance = true;
                     }
                 } else if (receiver_topologies.size() == 0) {
                     StringBuffer sb = new StringBuffer();
                     LOG.info("There are no receivers! *Sob* \n");
-                    LOG.info("Givers:  \n");
                 }
             }
-
-            time = System.currentTimeMillis();
+            time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
         }
     }
 
 
     private void revertHistory(History bestHistory) {
-        LOG.info("Revert history");
+
         if (config != null) {
             try {
                 HashMap<String, TopologyDetails> topologySchedules = bestHistory.getTopologiesSchedule();
@@ -144,44 +144,44 @@ public class AdvancedStelaScheduler implements IScheduler {
     private void rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
                                    Component component,
-                                   Topologies topologies,
-                                   Topology targetTopology) {
+                                   Topology targetTopology,
+                                   History now) {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
-                //int one = 1;
-                //int one = 2;
                 int one = 4;
                 String targetComponent = component.getId();
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                 Integer targetNewParallelism = targetOldParallelism + one;
-                String targetCommand = "/var/nimbus/storm/bin/storm " +
-                        "rebalance " + targetDetails.getName() + " -w 0 -e " +
-                        targetComponent + "=" + targetNewParallelism;
+                Integer targetTasks = target.getNumTasks(targetComponent);
+                LOG.info("Num of tasks {} new Parallelism {}", targetTasks, targetNewParallelism);
+                if (targetTasks >= targetNewParallelism) {
+                    saveHistory(now); // There is no point in saving history if you don't plan on doing rebalance
+                    String targetCommand = "/var/nimbus/storm/bin/storm " +
+                            "rebalance " + targetDetails.getName() + " -w 0 -e " +
+                            targetComponent + "=" + targetNewParallelism;
+                    target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
+                    try {
+                        writeToFile(juice_log, targetCommand + "\n");
+                        writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                        LOG.info(targetCommand + "\n");
+                        LOG.info(System.currentTimeMillis() + "\n");
+                        LOG.info("running the rebalance using storm's rebalance command \n");
+                        LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
 
-                target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
-                try {
-                    writeToFile(juice_log, targetCommand + "\n");
-                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
-                    LOG.info(targetCommand + "\n");
-                    LOG.info(System.currentTimeMillis() + "\n");
-                    LOG.info("running the rebalance using storm's rebalance command \n");
-                    LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
-
-                    briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
-                    Runtime.getRuntime().exec(targetCommand);
-
-                   // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
-                    sloObserver.clearTopologySLOs(target.getId());
-                } catch (Exception e) {
-                    LOG.info(e.toString());
-                    LOG.info("In first exception");
-                    //e.printStackTrace();
+                        briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
+                        Runtime.getRuntime().exec(targetCommand);
+                        // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                        sloObserver.clearTopologySLOs(target.getId());
+                    } catch (Exception e) {
+                        LOG.info(e.toString());
+                        LOG.info("In first exception");
+                        //e.printStackTrace();
+                    }
                 }
             } catch (Exception e) {
                 LOG.info(e.toString());
                 LOG.info("In second exception");
-                //e.printStackTrace();
                 return;
             }
         }
@@ -208,11 +208,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
     public History findBestHistory() {
-        // TODO -- based on maximum history
-
         Collections.sort(history);
         LOG.info("Finding best histories");
-
         if (history.size() > 0) {
             History currentBest = history.get(history.size() - 1);
             return currentBest; // getting the last one

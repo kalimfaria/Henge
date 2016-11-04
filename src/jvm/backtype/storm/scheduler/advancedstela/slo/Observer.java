@@ -28,7 +28,6 @@ public class Observer {
     private static final String FAILED = "failed";
     private static final String ACKED = "acked";
 
-
     private Map config;
     private Topologies topologies;
     private NimbusClient nimbusClient;
