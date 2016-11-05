@@ -1,5 +1,10 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
+import backtype.storm.generated.SupervisorSummary;
+import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -11,6 +16,7 @@ public class SupervisorInfo {
     private final String USER_AGENT = "Mozilla/5.0";
     String [] supervisors;
     HashMap<String, Info> supInfo;
+    private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
     public void GetSupervisors () throws  Exception {
 
@@ -26,8 +32,8 @@ public class SupervisorInfo {
         con.setRequestProperty("User-Agent", USER_AGENT);
 
         int responseCode = con.getResponseCode();
-        System.out.println("\nSending 'GET' request to URL : " + url);
-        System.out.println("Response Code : " + responseCode);
+        LOG.info("\nSending 'GET' request to URL : " + url);
+        LOG.info("Response Code : " + responseCode);
 
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(con.getInputStream()));
@@ -38,57 +44,20 @@ public class SupervisorInfo {
             response.append(inputLine);
         }
         in.close();
-        //print result
-        System.out.println(response.toString());
-       // parse to JSON
-        // parse and place in string array
-        // refresh each time
+        supervisors = getSupervisorHosts(response.toString());
+
     }
-     /*
-     {
-         "supervisors": [
-         {
-             "id": "21dee14c-b2c3-4a41-a7a0-dff6fcf4fa34",
-                 "host": "pc427.emulab.net",
-                 "uptime": "36m 40s",
-                 "slotsTotal": 4,
-                 "slotsUsed": 2,
-                 "version": "0.10.1-SNAPSHOT"
-         },
-         {
-             "id": "6c741fe4-3cf8-4153-b363-0ab4d21d3b99",
-                 "host": "pc557.emulab.net",
-                 "uptime": "36m 37s",
-                 "slotsTotal": 4,
-                 "slotsUsed": 1,
-                 "version": "0.10.1-SNAPSHOT"
-         },
-         {
-             "id": "d81c5f22-ee13-4ba7-bdc7-9b39192c6666",
-                 "host": "pc436.emulab.net",
-                 "uptime": "36m 46s",
-                 "slotsTotal": 4,
-                 "slotsUsed": 1,
-                 "version": "0.10.1-SNAPSHOT"
-         },
-         {
-             "id": "7c0f6b70-8438-4387-988f-ba08bdcc4f17",
-                 "host": "pc538.emulab.net",
-                 "uptime": "36m 54s",
-                 "slotsTotal": 4,
-                 "slotsUsed": 1,
-                 "version": "0.10.1-SNAPSHOT"
-         },
-         {
-             "id": "675925af-c7b9-4e4e-8c7b-ba11f618ca97",
-                 "host": "pc553.emulab.net",
-                 "uptime": "36m 58s",
-                 "slotsTotal": 4,
-                 "slotsUsed": 1,
-                 "version": "0.10.1-SNAPSHOT"
-         }
-         ]
-     } */
+
+    public String [] getSupervisorHosts (String input) {
+        Gson gson = new Gson();
+        Summaries summaries = gson.fromJson(input, Summaries.class);
+        supervisors = new String[summaries.supervisors.length];
+        for (int i = 0; i < summaries.supervisors.length; i++) {
+            supervisors[i] = summaries.supervisors[i].get_host();
+
+        }
+        return supervisors;
+    }
 
     public void GetInfo () throws  Exception
     {
@@ -104,8 +73,8 @@ public class SupervisorInfo {
             con.setRequestProperty("User-Agent", USER_AGENT);
 
             int responseCode = con.getResponseCode();
-            System.out.println("\nSending 'GET' request to URL : " + url);
-            System.out.println("Response Code : " + responseCode);
+            LOG.info("\nSending 'GET' request to URL : " + url);
+            LOG.info("Response Code : " + responseCode);
 
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(con.getInputStream()));
@@ -116,8 +85,10 @@ public class SupervisorInfo {
                 response.append(inputLine);
             }
             in.close();
-            System.out.println(response.toString());
             // parse the object and make it in the form of Info
+            Gson gson = new Gson();
+            Info info  = gson.fromJson(response.toString(), Info.class);
+            LOG.info(info.toString());
         }
     }
 
@@ -131,13 +102,24 @@ public class SupervisorInfo {
       }
     }
 
+    public class Summaries {
+        SupervisorSummary [] supervisors;
+    }
+
     public class Info {
-        Double recentLoad;
-        Double minuteLoad;
-        Double fiveMinsLoad;
-        Double freeMem;
-        Double usedMemory;
-        Double usedMemPercent;
-        Long time;
+        public Double recentLoad;
+        public Double minLoad;
+        public Double fiveMinsLoad;
+        public Double freeMem;
+        public Double usedMemory;
+        public Double usedMemPercent;
+        public Long time;
+
+        @Override
+        public String toString(){
+            return new String(recentLoad + " " + minLoad + " " + " " + fiveMinsLoad + " " + freeMem + " " + usedMemory +
+            usedMemPercent + " " + time);
+        }
+
     }
 }

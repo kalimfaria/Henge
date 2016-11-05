@@ -2,8 +2,10 @@
 
 import backtype.storm.scheduler.advancedstela.BriefHistory;
 import backtype.storm.scheduler.advancedstela.TopologyPicker;
+import backtype.storm.scheduler.advancedstela.etp.SupervisorInfo;
 import backtype.storm.scheduler.advancedstela.slo.Sensitivity;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
+import com.google.gson.Gson;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -23,7 +25,7 @@ public class TestTopology {
     Topology t3;
 
     @Before
-    public void setup () {
+    public void setup() {
         t1 = new Topology("T1", 1.0, 0.0, 5.0, 5L); // throughput sensitive
         t2 = new Topology("T2", 0.0, 50.0, 25.0, 5L); // latency sensitive
         t3 = new Topology("T3", 1.0, 50.0, 35.0, 5L); // both
@@ -41,7 +43,7 @@ public class TestTopology {
     }
 
     @Test
-     public void testJuiceUtilityCalculations() {
+    public void testJuiceUtilityCalculations() {
         t1.setMeasuredSLOs(0.5);
         t1.setMeasuredSLOs(1.0);
         Double measuredUtility = t1.getCurrentUtility();
@@ -61,7 +63,7 @@ public class TestTopology {
         t3.setMeasuredSLOs(0.5);
         t3.setMeasuredSLOs(1.0);
         Double measuredUtility = t3.getCurrentUtility();
-        assertEquals((Double) (25.0 * 0.5  + 0.5 * 26.25), measuredUtility);
+        assertEquals((Double) (25.0 * 0.5 + 0.5 * 26.25), measuredUtility);
     }
 
     @Test
@@ -92,7 +94,7 @@ public class TestTopology {
         t3.setAverageLatency(49.0);
         assertEquals(Sensitivity.JUICE, t3.whichSLOToSatisfyFirst());
         t3.setAverageLatency(60.0);
-        for (int i = 0; i < 40 ; i++)
+        for (int i = 0; i < 40; i++)
             t3.setMeasuredSLOs(1.0);
         assertEquals(Sensitivity.LATENCY, t3.whichSLOToSatisfyFirst());
     }
@@ -191,9 +193,8 @@ public class TestTopology {
     }
 
 
-
     @Test
-    public void testPickTopologySimpleSameSLOs () {
+    public void testPickTopologySimpleSameSLOs() {
         ArrayList<Topology> list = new ArrayList<>();
         t1.setMeasuredSLOs(0.5);
         t1.setMeasuredSLOs(1.0);
@@ -234,4 +235,78 @@ public class TestTopology {
         assertEquals(topology.getId(), "T4");
     }
 
+    @Test
+    public void testParseSupervisorHosts() {
+        String response = "{\n" +
+                "         \"supervisors\": [\n" +
+                "         {\n" +
+                "             \"id\": \"21dee14c-b2c3-4a41-a7a0-dff6fcf4fa34\",\n" +
+                "                 \"host\": \"pc427.emulab.net\",\n" +
+                "                 \"uptime\": \"36m 40s\",\n" +
+                "                 \"slotsTotal\": 4,\n" +
+                "                 \"slotsUsed\": 2,\n" +
+                "                 \"version\": \"0.10.1-SNAPSHOT\"\n" +
+                "         },\n" +
+                "         {\n" +
+                "             \"id\": \"6c741fe4-3cf8-4153-b363-0ab4d21d3b99\",\n" +
+                "                 \"host\": \"pc557.emulab.net\",\n" +
+                "                 \"uptime\": \"36m 37s\",\n" +
+                "                 \"slotsTotal\": 4,\n" +
+                "                 \"slotsUsed\": 1,\n" +
+                "                 \"version\": \"0.10.1-SNAPSHOT\"\n" +
+                "         },\n" +
+                "         {\n" +
+                "             \"id\": \"d81c5f22-ee13-4ba7-bdc7-9b39192c6666\",\n" +
+                "                 \"host\": \"pc436.emulab.net\",\n" +
+                "                 \"uptime\": \"36m 46s\",\n" +
+                "                 \"slotsTotal\": 4,\n" +
+                "                 \"slotsUsed\": 1,\n" +
+                "                 \"version\": \"0.10.1-SNAPSHOT\"\n" +
+                "         },\n" +
+                "         {\n" +
+                "             \"id\": \"7c0f6b70-8438-4387-988f-ba08bdcc4f17\",\n" +
+                "                 \"host\": \"pc538.emulab.net\",\n" +
+                "                 \"uptime\": \"36m 54s\",\n" +
+                "                 \"slotsTotal\": 4,\n" +
+                "                 \"slotsUsed\": 1,\n" +
+                "                 \"version\": \"0.10.1-SNAPSHOT\"\n" +
+                "         },\n" +
+                "         {\n" +
+                "             \"id\": \"675925af-c7b9-4e4e-8c7b-ba11f618ca97\",\n" +
+                "                 \"host\": \"pc553.emulab.net\",\n" +
+                "                 \"uptime\": \"36m 58s\",\n" +
+                "                 \"slotsTotal\": 4,\n" +
+                "                 \"slotsUsed\": 1,\n" +
+                "                 \"version\": \"0.10.1-SNAPSHOT\"\n" +
+                "         }\n" +
+                "         ]}";
+        SupervisorInfo supervisorInfo = new SupervisorInfo();
+        String[] supervisors = supervisorInfo.getSupervisorHosts(response);
+
+        assertEquals(supervisors[0], "pc427.emulab.net");
+        assertEquals(supervisors[1], "pc557.emulab.net");
+        assertEquals(supervisors[2], "pc436.emulab.net");
+        assertEquals(supervisors[3], "pc538.emulab.net");
+        assertEquals(supervisors[4], "pc553.emulab.net");
+    }
+
+    @Test
+    public void testSupervisorInfos() {
+        String response = "{\"recentLoad\": \"1.2\"," +
+                "         \"minLoad\": \"1.2\"," +
+                "         \"fiveMinsLoad\": \"1.4\"," +
+                "         \"freeMem\": \"4.0\"," +
+                "         \"usedMemory\":\"4.0\",\n" +
+                "         \"usedMemPercent\": \"4.0\"," +
+                "         \"time\": \"12312434434\"}";
+        Gson gson = new Gson();
+        SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
+        assertEquals(info.fiveMinsLoad, new Double(1.4));
+        assertEquals(info.freeMem, new Double(4.0));
+        assertEquals(info.minLoad, new Double(1.2));
+        assertEquals(info.recentLoad, new Double(1.2));
+        assertEquals(info.time, new Long(12312434434L));
+        assertEquals(info.usedMemory, new Double(4.0));
+        assertEquals(info.usedMemPercent, new Double(4.0));
+    }
 }
