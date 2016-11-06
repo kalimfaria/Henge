@@ -82,6 +82,7 @@ public class Observer {
         writeToFile(same_top, "In Observer * \n");
         writeToFile(same_top, "In Run\n");
 
+
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));

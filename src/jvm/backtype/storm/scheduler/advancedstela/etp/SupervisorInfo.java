@@ -9,14 +9,23 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
+
 
 public class SupervisorInfo {
 
     private final String USER_AGENT = "Mozilla/5.0";
     String [] supervisors;
-    HashMap<String, Info> supInfo;
+    Queue <Info> infoHistory;
+    final int HISTORY_SIZE = 30;
+
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
+
+    public SupervisorInfo() {
+        infoHistory = new LinkedList<>();
+    }
 
     public void GetSupervisors () throws  Exception {
 
@@ -54,7 +63,7 @@ public class SupervisorInfo {
         supervisors = new String[summaries.supervisors.length];
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors[i] = summaries.supervisors[i].get_host();
-
+            LOG.info("Supervisor " + supervisors[i]);
         }
         return supervisors;
     }
@@ -64,6 +73,8 @@ public class SupervisorInfo {
         for (String supervisor: supervisors){
             String url = "http://" + supervisor + ":8000/info";
             URL obj = new URL(url);
+
+            LOG.info(" Supervisor : " + supervisor + " url " + url);
             HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
             // optional default is GET
@@ -92,6 +103,14 @@ public class SupervisorInfo {
         }
     }
 
+    public void insertInfo (Info info) {
+        if (infoHistory.size() >= HISTORY_SIZE) {
+            // pop the oldest guy and push the new one :)
+            infoHistory.remove();
+        }
+        infoHistory.add(info);
+    }
+
     public void GetSupervisorInfo () {
       try {
           this.GetSupervisors();
@@ -117,7 +136,7 @@ public class SupervisorInfo {
 
         @Override
         public String toString(){
-            return new String(recentLoad + " " + minLoad + " " + " " + fiveMinsLoad + " " + freeMem + " " + usedMemory +
+            return new String(recentLoad + " " + minLoad + " " + " " + fiveMinsLoad + " " + freeMem + " " + usedMemory + " " +
             usedMemPercent + " " + time);
         }
 

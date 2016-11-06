@@ -74,6 +74,8 @@ public class GlobalState {
     }
 
     public void collect(Cluster cluster, Topologies topologies) {
+        SupervisorInfo info = new SupervisorInfo();
+        info.GetSupervisorInfo();
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));

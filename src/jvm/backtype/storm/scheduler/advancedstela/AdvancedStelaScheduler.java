@@ -58,7 +58,11 @@ public class AdvancedStelaScheduler implements IScheduler {
 
             History now = createHistory(topologies);
 
-            boolean doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
+            boolean doWeNeedToRevert = false;
+            if (history.size() > 0) {
+                doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
+            }
+
             if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
                 LOG.info("Did we do rebalance? Yes");
                 if (doWeNeedToRevert && !doWeStop) {
