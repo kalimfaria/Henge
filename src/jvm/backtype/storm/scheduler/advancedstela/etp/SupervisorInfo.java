@@ -9,22 +9,23 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 
 public class SupervisorInfo {
 
     private final String USER_AGENT = "Mozilla/5.0";
     String [] supervisors;
-    Queue <Info> infoHistory;
-    final int HISTORY_SIZE = 30;
+    HashMap<String, Info> supervisorsInfo;
+    public Queue <HashMap<String, Info>> infoHistory;
+    public final int HISTORY_SIZE = 30;
+    public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
 
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
     public SupervisorInfo() {
         infoHistory = new LinkedList<>();
+        supervisorsInfo = new HashMap<String, Info>();
     }
 
     public void GetSupervisors () throws  Exception {
@@ -70,6 +71,7 @@ public class SupervisorInfo {
 
     public void GetInfo () throws  Exception
     {
+        supervisorsInfo = new HashMap<String, Info>();
         for (String supervisor: supervisors){
             String url = "http://" + supervisor + ":8000/info";
             URL obj = new URL(url);
@@ -99,11 +101,13 @@ public class SupervisorInfo {
             // parse the object and make it in the form of Info
             Gson gson = new Gson();
             Info info  = gson.fromJson(response.toString(), Info.class);
-            LOG.info(info.toString());
+            supervisorsInfo.put(supervisor, info);
+
         }
+        insertInfo(supervisorsInfo);
     }
 
-    public void insertInfo (Info info) {
+    public void insertInfo (HashMap <String, Info> info) {
         if (infoHistory.size() >= HISTORY_SIZE) {
             // pop the oldest guy and push the new one :)
             infoHistory.remove();
@@ -111,7 +115,30 @@ public class SupervisorInfo {
         infoHistory.add(info);
     }
 
-    public void GetSupervisorInfo () {
+
+    public boolean areSupervisorsOverUtilized() {
+        // if across all of history, in all objects, even one info item says that one supervisor is overloaded, we say
+        // that supervisors are overutilised
+        boolean [] decisions = new boolean[infoHistory.size()];
+        int i = 0;
+        for (HashMap <String, Info> history :infoHistory) {
+            boolean decision = false;
+            for (Map.Entry <String, Info> infoItem : history.entrySet()) {
+                if (infoItem.getValue().recentLoad >= MAXIMUM_LOAD_PER_MACHINE) {
+                    decision = true;
+                }
+            }
+            decisions[i] = decision;
+            i++;
+        }
+        for (boolean decision: decisions)
+            if (!decision){ // this should be false
+                return decision;
+            }
+        return true;
+    }
+
+    public boolean GetSupervisorInfo () {
       try {
           this.GetSupervisors();
           this.GetInfo();
@@ -119,6 +146,7 @@ public class SupervisorInfo {
       {
           System.out.println("Error in getting info about supervisor machines : " + e.toString());
       }
+        return areSupervisorsOverUtilized();
     }
 
     public class Summaries {

@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -124,7 +125,6 @@ public class TestTopology {
         assertEquals(list.get(2).getId(), "T1");
     }
 
-
     @Test
     public void testPickTopologySimple() {
         ArrayList<Topology> list = new ArrayList<>();
@@ -191,7 +191,6 @@ public class TestTopology {
         Topology topology = picker.pickTopology(list, briefHistory);
         assertEquals(topology.getId(), "T2");
     }
-
 
     @Test
     public void testPickTopologySimpleSameSLOs() {
@@ -308,5 +307,42 @@ public class TestTopology {
         assertEquals(info.time, new Long(12312434434L));
         assertEquals(info.usedMemory, new Double(4.0));
         assertEquals(info.usedMemPercent, new Double(4.0));
+    }
+
+    @Test
+    public void testSupervisorOverUtilization (){
+        SupervisorInfo supervisorInfo = new SupervisorInfo();
+        HashMap<String, SupervisorInfo.Info> infos = new HashMap <>();
+
+        String response = "{\"recentLoad\": \"4.0\"," +
+                "         \"minLoad\": \"1.2\"," +
+                "         \"fiveMinsLoad\": \"1.4\"," +
+                "         \"freeMem\": \"4.0\"," +
+                "         \"usedMemory\":\"4.0\",\n" +
+                "         \"usedMemPercent\": \"4.0\"," +
+                "         \"time\": \"12312434434\"}";
+        Gson gson = new Gson();
+        SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
+
+        String [] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
+        for (int i = 0; i < supervisorInfo.HISTORY_SIZE; i++) {
+            int j = 0;
+            for (String supervisor : supervisors){
+                if (j == 0) info.recentLoad = supervisorInfo.MAXIMUM_LOAD_PER_MACHINE;
+                else info.recentLoad = 0.0;
+                infos.put(supervisor, info);
+                info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
+                j++;
+            }
+            supervisorInfo.insertInfo(infos);
+        }
+
+        for (HashMap<String, SupervisorInfo.Info> information : supervisorInfo.infoHistory) {
+            for (String supervisor : supervisors){
+                System.err.println("Supervisor: " + supervisor + " recent load: " + information.get(supervisor).recentLoad);
+            }
+        }
+
+        assertEquals(true, supervisorInfo.areSupervisorsOverUtilized());
     }
 }
