@@ -102,7 +102,6 @@ public class SupervisorInfo {
             Gson gson = new Gson();
             Info info  = gson.fromJson(response.toString(), Info.class);
             supervisorsInfo.put(supervisor, info);
-
         }
         insertInfo(supervisorsInfo);
     }

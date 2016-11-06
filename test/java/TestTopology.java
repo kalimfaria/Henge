@@ -323,7 +323,6 @@ public class TestTopology {
                 "         \"time\": \"12312434434\"}";
         Gson gson = new Gson();
         SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
-
         String [] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
         for (int i = 0; i < supervisorInfo.HISTORY_SIZE; i++) {
             int j = 0;
@@ -336,13 +335,11 @@ public class TestTopology {
             }
             supervisorInfo.insertInfo(infos);
         }
-
-        for (HashMap<String, SupervisorInfo.Info> information : supervisorInfo.infoHistory) {
+        /*for (HashMap<String, SupervisorInfo.Info> information : supervisorInfo.infoHistory) {
             for (String supervisor : supervisors){
                 System.err.println("Supervisor: " + supervisor + " recent load: " + information.get(supervisor).recentLoad);
             }
-        }
-
+        }*/
         assertEquals(true, supervisorInfo.areSupervisorsOverUtilized());
     }
 }

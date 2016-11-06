@@ -28,7 +28,16 @@ public class GlobalState {
     private File latency_log;
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
+    private boolean isClusterOverUtilized;
 
+
+    public void setClusterUtilization(boolean isOverUtilized) {
+        isClusterOverUtilized = isOverUtilized;
+    }
+
+    public boolean getClusterUtilization () {
+        return isClusterOverUtilized;
+    }
     /* Supervisor to node mapping. */
     private HashMap<String, Node> supervisorToNode;
 
@@ -63,7 +72,6 @@ public class GlobalState {
 
                     double capacity = (totalExecutedTuples * execute_latency) / 600000;
                     etpComponents.get(etpCompID).setCapacity(capacity);
-
             }
 
         }
@@ -75,7 +83,7 @@ public class GlobalState {
 
     public void collect(Cluster cluster, Topologies topologies) {
         SupervisorInfo info = new SupervisorInfo();
-        info.GetSupervisorInfo();
+        setClusterUtilization(info.GetSupervisorInfo());
         if (config != null) {
             try {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
