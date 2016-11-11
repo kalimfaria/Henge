@@ -33,7 +33,6 @@ public class ETPStrategy {
     private File etpLog;
 
 
-
     public ETPStrategy(TopologySchedule tS, TopologyStatistics tStats) {
         id = tS.getId();
         topologySchedule = tS;
@@ -56,48 +55,47 @@ public class ETPStrategy {
         collectRates();
         congestionDetection();
 
-        Double totalThroughput = 0.0;
-        for (Component component: topologySchedule.getComponents().values()) {
-            if (component.getChildren().size() == 0) {
-                totalThroughput += expectedEmitRates.get(component.getId());
+        if (!expectedEmitRates.isEmpty()) {
+
+            Double totalThroughput = 0.0;
+            for (Component component : topologySchedule.getComponents().values()) {
+                if (component.getChildren().size() == 0) {
+                    totalThroughput += expectedEmitRates.get(component.getId());
+                }
             }
-        }
 
-        if (totalThroughput == 0.0) {
-            LOG.info("Nothing to do as throughput is 0.");
-            new TreeMap<>();
-        }
-
-        HashMap<String, Double> sinksMap = new HashMap<String, Double>();
-        for (Component component: topologySchedule.getComponents().values()) {
-            if (component.getChildren().size() == 0) {
-                Double throughputOfSink = expectedEmitRates.get(component.getId());
-                sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
-                System.out.println("topology " + topologySchedule.getId() + " component Id " + component.getId() + " throughputOfSink "
-                        + throughputOfSink + " totalThroughput " + totalThroughput);
+            if (totalThroughput == 0.0) {
+                LOG.info("Nothing to do as throughput is 0.");
             }
-        }
 
-        for (Component component : topologySchedule.getComponents().values()) {
-            Double score = etpCalculation(component, sinksMap);
-            topologyETPMap.put(component, score);
-            writeToFile(etpLog, topologySchedule.getId() + " " + component.getId() + " " + score + " " + System.currentTimeMillis() + "\n");
-        }
+            HashMap<String, Double> sinksMap = new HashMap<String, Double>();
+            for (Component component : topologySchedule.getComponents().values()) {
+                if (component.getChildren().size() == 0) {
+                    Double throughputOfSink = expectedEmitRates.get(component.getId());
+                    sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
+                }
+            }
 
-        ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: topologyETPMap.keySet()) {
-        	if(this.congestionMap.containsKey(component)){
-        		//only benefiting congested component
-        		Long curTime = System.currentTimeMillis();
-        		if(curTime-component.getLastRebalancedAt()>300000){
-        			resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
-        			//component.setLastRebalancedAt(curTime);
-        		}
-        	}
-        }
+            for (Component component : topologySchedule.getComponents().values()) {
+                Double score = etpCalculation(component, sinksMap);
+                topologyETPMap.put(component, score);
+                writeToFile(etpLog, topologySchedule.getId() + " " + component.getId() + " " + score + " " + System.currentTimeMillis() + "\n");
+            }
 
-        Collections.sort(resultComponents, Collections.reverseOrder());
-        return resultComponents;
+            ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
+            for (Component component : topologyETPMap.keySet()) {
+                if (this.congestionMap.containsKey(component)) {
+                    //only benefiting congested component
+                    //Long curTime = System.currentTimeMillis();
+                    //if(curTime-component.getLastRebalancedAt()>300000){
+                    resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+                    //component.setLastRebalancedAt(curTime);
+                    //}
+                }
+            }
+            Collections.sort(resultComponents, Collections.reverseOrder());
+            return resultComponents;
+        } else return null;
     }
 
     public ArrayList<ResultComponent> topologyETPRankAscending() { //used by victims
@@ -105,7 +103,7 @@ public class ETPStrategy {
         congestionDetection();
 
         Double totalThroughput = 0.0;
-        for (Component component: topologySchedule.getComponents().values()) {
+        for (Component component : topologySchedule.getComponents().values()) {
             if (component.getChildren().size() == 0) {
                 totalThroughput += expectedEmitRates.get(component.getId());
             }
@@ -117,7 +115,7 @@ public class ETPStrategy {
         }
 
         HashMap<String, Double> sinksMap = new HashMap<String, Double>();
-        for (Component component: topologySchedule.getComponents().values()) {
+        for (Component component : topologySchedule.getComponents().values()) {
             if (component.getChildren().size() == 0) {
                 Double throughputOfSink = expectedEmitRates.get(component.getId());
                 sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
@@ -131,16 +129,16 @@ public class ETPStrategy {
         }
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
-        for (Component component: topologyETPMap.keySet()) {
-        	if(!this.congestionMap.containsKey(component)){ 
-		    	Long curTime = System.currentTimeMillis();
-				if(curTime-component.getLastRebalancedAt()>300000){
-					resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
-					component.setLastRebalancedAt(curTime);
-				}
-        	}
+        for (Component component : topologyETPMap.keySet()) {
+            if (!this.congestionMap.containsKey(component)) {
+                Long curTime = System.currentTimeMillis();
+                if (curTime - component.getLastRebalancedAt() > 300000) {
+                    resultComponents.add(new ResultComponent(component, topologyETPMap.get(component)));
+                    component.setLastRebalancedAt(curTime);
+                }
+            }
         }
-        
+
 
         Collections.sort(resultComponents);
         return resultComponents;
@@ -160,17 +158,19 @@ public class ETPStrategy {
                 }
             }
 
+            writeToFile(etpLog, "component: " + self.getId() + " in: " + in + " 1.2 * out " + 1.2 * out + "\n");
             if (in > 1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
             }
+            writeToFile(etpLog, "component: " + self.getId() + " congestionMap value: " + congestionMap.get(self) + "\n");
         }
     }
 
     private Double etpCalculation(Component component, HashMap<String, Double> sinksMap) {
         Double ret = 0.0;
         if (component.getChildren().size() == 0) {
-            return sinksMap.get(component.getId());
+            return sinksMap.get(component.getId()); // for the sink, this will always be 1 (in a linear topology) because of ratio
         }
 
         HashMap<String, Component> components = topologySchedule.getComponents();
@@ -180,7 +180,7 @@ public class ETPStrategy {
                 ret = ret + etpCalculation(child, sinksMap);
             }
         }
-        System.out.println("topology " + topologySchedule.getId() + " component Id " + component.getId() + " ret " + ret);
+        //System.out.println("topology " + topologySchedule.getId() + " component Id " + component.getId() + " ret " + ret);
         return ret;
     }
 
@@ -197,7 +197,7 @@ public class ETPStrategy {
         expectedExecutedRates.putAll(componentExecuteRates);
 
         /**------not using window right now, maybe later----**/
-        	
+
         for (Map.Entry<String, Component> component : topologySchedule.getComponents().entrySet()) {
             parallelism.put(component.getKey(), component.getValue().getParallelism());
         }
@@ -207,13 +207,13 @@ public class ETPStrategy {
                 sourceList.add(component);
             }
         }
-        
+
         for (Component component : topologySchedule.getComponents().values()) {
             if (component.getChildren().size() == 0) {
                 sinkList.add(component);
             }
         }
-        
+
     }
 
     private Double computeMovingAverage(List<Integer> rates) {
@@ -236,5 +236,5 @@ public class ETPStrategy {
             LOG.info("error! writing to file {}", ex);
         }
     }
-	
+
 }

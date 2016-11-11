@@ -73,11 +73,12 @@ public class LatencyStrategyWithCapacity {
         return false;
     }
 
+
     public ArrayList<ResultComponent> topologyCapacityDescending()
     {
         HashMap<String, Component> components = topologySchedule.getComponents();
         List<Component> comp  = new ArrayList<Component>(components.values());
-        Collections.sort(comp);
+        Collections.sort(comp, Collections.reverseOrder());
         ArrayList <ResultComponent> resultComponent = new ArrayList<ResultComponent>();
 
         for (int i = 0; i < comp.size(); i++)

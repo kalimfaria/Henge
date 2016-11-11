@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 
 public class Topologies {
-    private static final Integer UP_TIME =  60 * 15;
+    private static final Integer UP_TIME = 60 * 15;
     private static final Integer REBALANCING_INTERVAL = 60 * 15;// should be 15 mins for faster response
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
@@ -42,9 +42,9 @@ public class Topologies {
         return stelaTopologies;
     }
 
-    public ArrayList<Topology> getTopologyPairScaling() { // when trying to add topologies to either of these
+    public ArrayList<Topology> getFailingTopologies() { // when trying to add topologies to either of these
 
-        writeToFile(same_top, "In topologies:  getTopologyPairScaling\n");
+        writeToFile(same_top, "In topologies:  getFailingTopologies\n");
 
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
@@ -59,7 +59,7 @@ public class Topologies {
 
 
             if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
-                LOG.info( "The topology can be successful or failed \n");
+                LOG.info("The topology can be successful or failed \n");
                 LOG.info("Topology name: " + topology.getId() + "\n");
                 boolean violated = topology.sloViolated();
 
@@ -85,6 +85,29 @@ public class Topologies {
 
 
         return failingTopologies;
+    }
+
+    public ArrayList<Topology> getSuccessfulTopologies() { // when trying to add topologies to either of these
+        writeToFile(same_top, "In topologies:  getSuccessfulTopologies\n");
+        ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
+        for (Topology topology : stelaTopologies.values()) {
+            long lastRebalancedAtTime = 0;
+            if (lastRebalancedAt.containsKey(topology.getId()))
+                lastRebalancedAtTime = lastRebalancedAt.get(topology.getId());
+            if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
+                LOG.info("The topology can be successful or failed \n");
+                LOG.info("Topology name: " + topology.getId() + "\n");
+                boolean violated = topology.sloViolated();
+                if (!violated) {
+                    LOG.info(topology.getId() + " did not violate the SLO \n");
+                    successfulTopologies.add(topology);
+                }
+            }
+        }
+        LOG.info("Successful Topologies: \n");
+        for (Topology t : successfulTopologies)
+            LOG.info("Successful : " + t.getId() + "\n");
+        return successfulTopologies;
     }
 
     public void updateLastRebalancedTime(String topologyId, Long time) {
@@ -119,7 +142,7 @@ public class Topologies {
                         Double userSpecifiedSlo = getUserSpecifiedSLOFromConfig(id);
                         Double userLatencySLO = getUserSpecifiedLatencySLOFromConfig(id);
                         Double utility = getUserSpecifiedUtilityFromConfig(id);
-                       // String sensitivity = getUserSLOSensitivityFromConfig(id);
+                        // String sensitivity = getUserSLOSensitivityFromConfig(id);
                         Long numWorkers = getNumWorkersFromConfig(id);
                         Topology topology = new Topology(id, userSpecifiedSlo, userLatencySLO, utility, numWorkers);
 
@@ -251,7 +274,7 @@ public class Topologies {
             topologyUtility = (Double) conf.get(Config.TOPOLOGY_UTILITY);
             writeToFile(same_top, "In the function: getUserSpecifiedUtilityFromConfig\n");
             writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology utility: " +  topologyUtility + "\n");
+            writeToFile(same_top, "Topology utility: " + topologyUtility + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -262,7 +285,7 @@ public class Topologies {
             e.printStackTrace();
         }
         //   return topologyLatencySLO;
-        return ( topologyUtility == null ? 50.0 :  topologyUtility);
+        return (topologyUtility == null ? 50.0 : topologyUtility);
     }
 
     private void constructTopologyGraph(StormTopology topology, Topology stelaTopology) {
@@ -436,7 +459,7 @@ public class Topologies {
 
         //   System.out.println("In function: ReadFiles()");
 
-        final File folder = new File("/proj/Stella/latency-logs/");
+        final File folder = new File("/proj/Stella/latency-logs/");//new File("/proj/Stella/latency-logs/");
 
         try {
             for (final File file : folder.listFiles()) {

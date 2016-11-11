@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Component implements Comparable<Component>{
+
+
     private String id;
     private Integer parallelism;
     private List<String> parents;
@@ -16,13 +18,13 @@ public class Component implements Comparable<Component>{
     private double process_msg_latency;
     private double execute_msg_latency;
     private double execute_msg_latency_10mins;
-
     private double complete_msg_avg_latency;
     private Double capacity;
     private long lastRebalancedAt;
 
-    public int compareTo(Component other) { // descending order
-        return (other.getCapacity().compareTo(this.capacity));
+    public int compareTo(Component other) {
+        //return (other.getCapacity().compareTo(this.capacity)); //// descending order
+        return this.capacity.compareTo(other.getCapacity());
     }
 
 

@@ -29,9 +29,12 @@ public class AdvancedStelaScheduler implements IScheduler {
     private ArrayList<History> history;
     private ArrayList<BriefHistory> briefHistory;
 
+    private File etpLog;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
+        etpLog = new File("/tmp/etp.log");
+
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
@@ -49,7 +52,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         runAdvancedStelaComponents(cluster, topologies);
         if (globalState.getClusterUtilization()) {
-            doReduction();
+            doReduction(topologies);
         } else {
             if (numTopologiesThatNeedScheduling > 0) {
                 LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
@@ -57,7 +60,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
                 LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
 
-                ArrayList<Topology> receiver_topologies = sloObserver.getTopologiesToBeRescaled();
+                ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
 
                 History now = createHistory(topologies);
 
@@ -150,9 +153,43 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void doReduction () {
+    private void doReduction (Topologies topologies) {
+        LOG.info("do reduction");
+        ArrayList<Topology> successfulTopologies = sloObserver.getSuccesfulTopologies();
+        HashMap<String, TopologySchedule> topologySchedules = globalState.getTopologySchedules();
 
+        for (Topology successfulTopology : successfulTopologies) {
+            TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
+            ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
+
+
+            String targetCommand = "/var/nimbus/storm/bin/storm " +
+                    "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 -e ";
+            for (Component comp : uncongestedComponents) {
+                int reducedExecutors = (int) (comp.getParallelism() * 0.2);
+                if (reducedExecutors <= 0) reducedExecutors = 1;
+                targetCommand += comp.getId() + "=" + reducedExecutors;
+                schedule.getComponents().get(comp).setParallelism(reducedExecutors);
+                try {
+                    writeToFile(juice_log, targetCommand + "\n");
+                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                    LOG.info("Reduced executors " + targetCommand + "\n");
+                    LOG.info(System.currentTimeMillis() + "\n");
+                    LOG.info("running the rebalance using storm's rebalance command \n");
+
+                    Runtime.getRuntime().exec(targetCommand);
+                    // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                    sloObserver.clearTopologySLOs(schedule.getId());
+
+                } catch (Exception e) {
+                    LOG.info(e.toString());
+                }
+            }
+        }
+        history.clear();
+        briefHistory.clear(); // DO WE NEED TO DO THIS?
     }
+
     private void rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
                                    Component component,
@@ -161,7 +198,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
-                int one = 4;
+                int one = 2;
                 String targetComponent = component.getId();
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                 Integer targetNewParallelism = targetOldParallelism + one;
@@ -210,9 +247,15 @@ public class AdvancedStelaScheduler implements IScheduler {
             TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(t.getId());
 
             ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
-            targetStrategy.topologyETPRankDescending();
-        }
+            ArrayList<ResultComponent> component = targetStrategy.topologyETPRankDescending();
 
+            if (component != null) {
+                for (ResultComponent comp: component) {
+                    writeToFile(etpLog, "topology name " + t.getId() + " " +
+                            "congested chosen component: " +  comp.component.getId() + " "  + comp.etpValue + "\n");
+                }
+            }
+        }
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {

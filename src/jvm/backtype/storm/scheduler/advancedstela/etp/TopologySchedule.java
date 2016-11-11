@@ -6,16 +6,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 public class TopologySchedule {
+    private final double CAPACITY_CONGESTION_THRESHOLD = 0.3; // all capacities above this value are "congested"
     private String id;
     private Integer numberOFWorkers;
     private HashMap<ExecutorDetails, Component> executorToComponent;
     private HashMap<WorkerSlot, ArrayList<ExecutorDetails>> assignment;
     private HashMap<String, Component> components;
     private static final Logger LOG = LoggerFactory.getLogger(TopologySchedule.class);
+
+    public ArrayList<Component> getCapacityWiseCongestedOperators () {
+        ArrayList<Component> result = new ArrayList<>();
+        for (Map.Entry<String, Component> component:  components.entrySet()) {
+            if (component.getValue().getCapacity() > CAPACITY_CONGESTION_THRESHOLD)
+                result.add(component.getValue());
+        }
+
+        return result;
+    }
+
+
+    public ArrayList<Component> getCapacityWiseUncongestedOperators () {
+        ArrayList<Component> result = new ArrayList<>();
+        for (Map.Entry<String, Component> component:  components.entrySet()) {
+            if (component.getValue().getCapacity() < CAPACITY_CONGESTION_THRESHOLD)
+                result.add(component.getValue());
+        }
+
+        return result;
+    }
 
     public TopologySchedule(String identifier, int workerCount) {
         id = identifier;

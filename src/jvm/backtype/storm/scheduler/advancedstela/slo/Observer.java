@@ -58,8 +58,12 @@ public class Observer {
         return hostToUsedWorkerSlots;
     }
 
-    public ArrayList<Topology> getTopologiesToBeRescaled() {
-        return topologies.getTopologyPairScaling();
+    public ArrayList<Topology> getFailingTopologies() {
+        return topologies.getFailingTopologies();
+    }
+
+    public ArrayList<Topology> getSuccesfulTopologies() {
+        return topologies.getSuccessfulTopologies();
     }
 
     public Topology getTopologyById(String id) {
