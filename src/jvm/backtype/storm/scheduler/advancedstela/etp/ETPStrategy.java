@@ -1,6 +1,9 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,6 +30,8 @@ public class ETPStrategy {
     private HashMap<Component, Double> congestionMap;
     private HashMap<Component, Double> topologyETPMap;
 
+    private File etpLog;
+
 
 
     public ETPStrategy(TopologySchedule tS, TopologyStatistics tStats) {
@@ -42,6 +47,8 @@ public class ETPStrategy {
         sourceList = new ArrayList<Component>();
         sinkList = new ArrayList<Component>();
         topologyETPMap = new HashMap<Component, Double>();
+
+        etpLog = new File("/tmp/etp.log");
 
     }
 
@@ -66,12 +73,15 @@ public class ETPStrategy {
             if (component.getChildren().size() == 0) {
                 Double throughputOfSink = expectedEmitRates.get(component.getId());
                 sinksMap.put(component.getId(), throughputOfSink / totalThroughput);
+                System.out.println("topology " + topologySchedule.getId() + " component Id " + component.getId() + " throughputOfSink "
+                        + throughputOfSink + " totalThroughput " + totalThroughput);
             }
         }
 
         for (Component component : topologySchedule.getComponents().values()) {
             Double score = etpCalculation(component, sinksMap);
             topologyETPMap.put(component, score);
+            writeToFile(etpLog, topologySchedule.getId() + " " + component.getId() + " " + score + " " + System.currentTimeMillis() + "\n");
         }
 
         ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
@@ -170,7 +180,7 @@ public class ETPStrategy {
                 ret = ret + etpCalculation(child, sinksMap);
             }
         }
-
+        System.out.println("topology " + topologySchedule.getId() + " component Id " + component.getId() + " ret " + ret);
         return ret;
     }
 
@@ -214,5 +224,17 @@ public class ETPStrategy {
         return sum / (rates.size() * 1.0);
     }
 
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
+
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
+        }
+    }
 	
 }

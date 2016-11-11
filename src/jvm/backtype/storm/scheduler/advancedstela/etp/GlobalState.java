@@ -3,16 +3,19 @@ package backtype.storm.scheduler.advancedstela.etp;
 import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.scheduler.*;
+import backtype.storm.scheduler.advancedstela.slo.Topology;
 import backtype.storm.utils.NimbusClient;
+import com.google.gson.Gson;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ public class GlobalState {
     private static final String ALL_TIME = ":all-time";
     private static final String TEN_MINS = "600";
     private static final String DEFAULT = "default";
+    private final String USER_AGENT = "Mozilla/5.0";
 
     private Map config;
     private NimbusClient nimbusClient;
@@ -29,15 +33,17 @@ public class GlobalState {
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
     private boolean isClusterOverUtilized;
+    private File capacityLog;
 
 
     public void setClusterUtilization(boolean isOverUtilized) {
         isClusterOverUtilized = isOverUtilized;
     }
 
-    public boolean getClusterUtilization () {
+    public boolean getClusterUtilization() {
         return isClusterOverUtilized;
     }
+
     /* Supervisor to node mapping. */
     private HashMap<String, Node> supervisorToNode;
 
@@ -46,6 +52,7 @@ public class GlobalState {
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
         latency_log = new File("/tmp/latency.log");
+        capacityLog = new File("/tmp/capacity.log");
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -53,32 +60,61 @@ public class GlobalState {
     }
 
 
-    public void setCapacities(HashMap<String, backtype.storm.scheduler.advancedstela.slo.Topology> Topologies)
-    {
-        for (String ID: Topologies.keySet())
-        {
-            TopologySchedule topologySchedule = topologySchedules.get(ID);
-            HashMap <String, Component> etpComponents = topologySchedule.getComponents();
-            HashMap <String, backtype.storm.scheduler.advancedstela.slo.Component> sloComponents = Topologies.get(ID).getAllComponents();
+    public void setCapacities(HashMap<String, backtype.storm.scheduler.advancedstela.slo.Topology> Topologies) {
+        String url = "http://zookeepernimbus.storm-cluster.stella.emulab.net:8080/api/v1/topology/";
+        for (Map.Entry<String, Topology> topology : Topologies.entrySet()) {
+            ///api/v1/topology/:id
+            String topologyURL = url + topology.getKey();
+            LOG.info("topologyURL {}", topologyURL);
+            try {
+                URL obj = new URL(topologyURL);
+                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
-            for (String etpCompID : etpComponents.keySet())
-            {
-                    double execute_latency = etpComponents.get(etpCompID).getExecuteLatency10mins();
-                    double totalExecutedTuples = 0.0;
-                    for (double val : sloComponents.get(etpCompID).getCurrentExecuted_10MINS().values()) {
-                        totalExecutedTuples = totalExecutedTuples + val;
+                // optional default is GET
+                con.setRequestMethod("GET");
+
+                //add request header
+                con.setRequestProperty("User-Agent", USER_AGENT);
+
+                int responseCode = con.getResponseCode();
+                LOG.info("\nSending 'GET' request to URL : " + url);
+                LOG.info("Response Code : " + responseCode);
+
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(con.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                JSONObject object = new JSONObject(response.toString());
+                String[] keys = JSONObject.getNames(object);
+
+                TopologySchedule topologySchedule = topologySchedules.get(topology.getKey());
+                HashMap<String, Component> etpComponents = topologySchedule.getComponents();
+
+                for (String key : keys) {
+                    if (key.equals("bolts")) {
+                        JSONArray value = (JSONArray) object.get(key);
+                        for (int i = 0; i < value.length(); i++) {
+                            JSONObject jsonObj = (JSONObject) value.get(i);
+                            etpComponents.get(jsonObj.get("boltId")).setCapacity(Double.parseDouble((String) jsonObj.get("capacity")));
+                        }
                     }
-                    totalExecutedTuples = totalExecutedTuples / sloComponents.get(etpCompID).getParallelism();
+                }
 
-                    double capacity = (totalExecutedTuples * execute_latency) / 600000;
-                    etpComponents.get(etpCompID).setCapacity(capacity);
+                for (Map.Entry<String, Component> component: etpComponents.entrySet()) {
+                    LOG.info("Topology {} Component {} Capacity {}", topology.getKey(), component.getKey(), component.getValue().getCapacity());
+                    writeToFile(capacityLog, topology.getKey() + " " + component.getKey() + " " + component.getValue().getCapacity() + " " + System.currentTimeMillis() + "\n");
+                }
+
+            } catch (Exception e) {
+                LOG.info(e.toString());
             }
-
         }
-    }
-
-    public HashMap<String, Node> getSupervisorToNode() {
-        return supervisorToNode;
     }
 
     public void collect(Cluster cluster, Topologies topologies) {
@@ -146,7 +182,7 @@ public class GlobalState {
                 } catch (Exception e) {
                     LOG.info("exception while trying to add spouts and bolts : {}", e.toString());
                     LOG.info("Logging the topology information that we just got");
-                    for (ExecutorSummary execSummary : topologyInfo.get_executors()){
+                    for (ExecutorSummary execSummary : topologyInfo.get_executors()) {
                         LOG.info("Component {} host {} port {}", execSummary.get_component_id(), execSummary.get_host(), execSummary.get_port());
                     }
                 }
@@ -204,7 +240,7 @@ public class GlobalState {
 
                 for (ExecutorSummary executorSummary : topologyInformation.get_executors()) { // SHALL WE PUT THESE TWO LOOPS TOGETHER?
                     String componentId = executorSummary.get_component_id();
-                 //   System.out.println("Component Id: " + componentId);
+                    //   System.out.println("Component Id: " + componentId);
                     Component component = topologySchedule.getComponents().get(componentId);
 
                     if (component == null) {
@@ -252,7 +288,6 @@ public class GlobalState {
 
                                 }
                             }
-
 
 
                             for (GlobalStreamId key : statValues_10Mins.keySet()) {
@@ -314,7 +349,7 @@ public class GlobalState {
                     }
 
                     if (temporaryCompleteLatency.containsKey(componentId))
-                        component.setCompleteLatency(temporaryCompleteLatency.get(componentId)  / (double) component.getParallelism());
+                        component.setCompleteLatency(temporaryCompleteLatency.get(componentId) / (double) component.getParallelism());
 
                     writeToFile(latency_log, topologySchedule.getId() + "," + componentId + "," + component.getCompleteLatency() + "," + component.getExecuteLatency() + "," + component.getProcessLatency() + "," + System.currentTimeMillis() + "\n");
                 }

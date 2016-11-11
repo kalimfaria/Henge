@@ -3,10 +3,6 @@ package backtype.storm.scheduler.advancedstela.slo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -29,7 +25,6 @@ public class Topology implements Comparable<Topology> {
     private Double averageLatency;
     private Double tailLatency;
     private Long numWorkers;
-    private File same_top;
 
     public Topology(String topologyId, Double slo, Double latency_slo, Double utility, Long numWorkers) {
         id = topologyId;
@@ -40,7 +35,6 @@ public class Topology implements Comparable<Topology> {
         measuredLatency = new LinkedList<Double>();
 
         latencies = new HashMap<HashMap<String, String>, Double>();
-        same_top = new File("/tmp/same_top.log");
         tailLatency = Double.MAX_VALUE;
         averageLatency = 0.0;
         sortingStrategy = "ascending-current-utility";
@@ -195,7 +189,6 @@ public class Topology implements Comparable<Topology> {
         // if not equal, sort by specified utility only
         System.out.println(my_utility + " " + other_utility + " " + my_specified_utility + " " + other_specified_utility + " " + my_utility.compareTo(other_utility) + " " +  my_specified_utility.compareTo(other_specified_utility));
         if (my_specified_utility.compareTo(other_specified_utility) != 0) return other_specified_utility.compareTo(my_specified_utility); // desc order by utility
-        System.out.println("Potatoes");
         return my_utility.compareTo(other_utility); // ascending order by current utility
 
     }
@@ -281,17 +274,5 @@ public class Topology implements Comparable<Topology> {
             return getLatencyUtility();
         }
         return 0.0;
-    }
-
-    public void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWriter = new FileWriter(file, true);
-            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
-            bufferWriter.append(data);
-            bufferWriter.close();
-            fileWriter.close();
-        } catch (IOException ex) {
-            LOG.info(ex.toString());
-        }
     }
 }

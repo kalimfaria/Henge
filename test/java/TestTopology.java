@@ -1,11 +1,11 @@
-
-
 import backtype.storm.scheduler.advancedstela.BriefHistory;
 import backtype.storm.scheduler.advancedstela.TopologyPicker;
 import backtype.storm.scheduler.advancedstela.etp.SupervisorInfo;
 import backtype.storm.scheduler.advancedstela.slo.Sensitivity;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import com.google.gson.Gson;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -335,11 +335,147 @@ public class TestTopology {
             }
             supervisorInfo.insertInfo(infos);
         }
-        /*for (HashMap<String, SupervisorInfo.Info> information : supervisorInfo.infoHistory) {
-            for (String supervisor : supervisors){
-                System.err.println("Supervisor: " + supervisor + " recent load: " + information.get(supervisor).recentLoad);
-            }
-        }*/
+
         assertEquals(true, supervisorInfo.areSupervisorsOverUtilized());
+    }
+
+    @Test
+    public void testTopologyCapacityFormat () {
+        String response = " {\n" +
+                " \t\"name\": \"WordCount3\",\n" +
+                " \t\"id\": \"WordCount3-1-1402960825\",\n" +
+                " \t\"workersTotal\": 3,\n" +
+                " \t\"window\": \"600\",\n" +
+                " \t\"status\": \"ACTIVE\",\n" +
+                " \t\"tasksTotal\": 28,\n" +
+                " \t\"executorsTotal\": 28,\n" +
+                " \t\"uptime\": \"29m 19s\",\n" +
+                " \t\"msgTimeout\": 30,\n" +
+                " \t\"windowHint\": \"10m 0s\",\n" +
+                " \t\"topologyStats\": [{\n" +
+                " \t\t\"windowPretty\": \"10m 0s\",\n" +
+                " \t\t\"window\": \"600\",\n" +
+                " \t\t\"emitted\": 397960,\n" +
+                " \t\t\"transferred\": 213380,\n" +
+                " \t\t\"completeLatency\": \"0.000\",\n" +
+                " \t\t\"acked\": 213460,\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}, {\n" +
+                " \t\t\"windowPretty\": \"3h 0m 0s\",\n" +
+                " \t\t\"window\": \"10800\",\n" +
+                " \t\t\"emitted\": 1190260,\n" +
+                " \t\t\"transferred\": 638260,\n" +
+                " \t\t\"completeLatency\": \"0.000\",\n" +
+                " \t\t\"acked\": 638280,\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}, {\n" +
+                " \t\t\"windowPretty\": \"1d 0h 0m 0s\",\n" +
+                " \t\t\"window\": \"86400\",\n" +
+                " \t\t\"emitted\": 1190260,\n" +
+                " \t\t\"transferred\": 638260,\n" +
+                " \t\t\"completeLatency\": \"0.000\",\n" +
+                " \t\t\"acked\": 638280,\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}, {\n" +
+                " \t\t\"windowPretty\": \"All time\",\n" +
+                " \t\t\"window\": \":all-time\",\n" +
+                " \t\t\"emitted\": 1190260,\n" +
+                " \t\t\"transferred\": 638260,\n" +
+                " \t\t\"completeLatency\": \"0.000\",\n" +
+                " \t\t\"acked\": 638280,\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}],\n" +
+                " \t\"spouts\": [{\n" +
+                " \t\t\"executors\": 5,\n" +
+                " \t\t\"emitted\": 28880,\n" +
+                " \t\t\"completeLatency\": \"0.000\",\n" +
+                " \t\t\"transferred\": 28880,\n" +
+                " \t\t\"acked\": 0,\n" +
+                " \t\t\"spoutId\": \"spout\",\n" +
+                " \t\t\"tasks\": 5,\n" +
+                " \t\t\"lastError\": \"\",\n" +
+                " \t\t\"errorLapsedSecs\": null,\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}],\n" +
+                " \t\"bolts\": [{\n" +
+                " \t\t\"executors\": 12,\n" +
+                " \t\t\"emitted\": 184580,\n" +
+                " \t\t\"transferred\": 0,\n" +
+                " \t\t\"acked\": 184640,\n" +
+                " \t\t\"executeLatency\": \"0.048\",\n" +
+                " \t\t\"tasks\": 12,\n" +
+                " \t\t\"executed\": 184620,\n" +
+                " \t\t\"processLatency\": \"0.043\",\n" +
+                " \t\t\"boltId\": \"count\",\n" +
+                " \t\t\"lastError\": \"\",\n" +
+                " \t\t\"errorLapsedSecs\": null,\n" +
+                " \t\t\"capacity\": \"0.003\",\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}, {\n" +
+                " \t\t\"executors\": 8,\n" +
+                " \t\t\"emitted\": 184500,\n" +
+                " \t\t\"transferred\": 184500,\n" +
+                " \t\t\"acked\": 28820,\n" +
+                " \t\t\"executeLatency\": \"0.024\",\n" +
+                " \t\t\"tasks\": 8,\n" +
+                " \t\t\"executed\": 28780,\n" +
+                " \t\t\"processLatency\": \"2.112\",\n" +
+                " \t\t\"boltId\": \"split\",\n" +
+                " \t\t\"lastError\": \"\",\n" +
+                " \t\t\"errorLapsedSecs\": null,\n" +
+                " \t\t\"capacity\": \"0.000\",\n" +
+                " \t\t\"failed\": 0\n" +
+                " \t}],\n" +
+                " \t\"configuration\": {\n" +
+                " \t\t\"storm.id\": \"WordCount3-1-1402960825\",\n" +
+                " \t\t\"dev.zookeeper.path\": \"/tmp/dev-storm-zookeeper\",\n" +
+                " \t\t\"topology.tick.tuple.freq.secs\": null,\n" +
+                " \t\t\"topology.builtin.metrics.bucket.size.secs\": 60,\n" +
+                " \t\t\"topology.fall.back.on.java.serialization\": true,\n" +
+                " \t\t\"topology.max.error.report.per.interval\": 5,\n" +
+                " \t\t\"zmq.linger.millis\": 5000,\n" +
+                " \t\t\"topology.skip.missing.kryo.registrations\": false,\n" +
+                " \t\t\"storm.messaging.netty.client_worker_threads\": 1,\n" +
+                " \t\t\"ui.childopts\": \"-Xmx768m\",\n" +
+                " \t\t\"storm.zookeeper.session.timeout\": 20000,\n" +
+                " \t\t\"nimbus.reassign\": true,\n" +
+                " \t\t\"topology.trident.batch.emit.interval.millis\": 500,\n" +
+                " \t\t\"storm.messaging.netty.flush.check.interval.ms\": 10,\n" +
+                " \t\t\"nimbus.monitor.freq.secs\": 10,\n" +
+                " \t\t\"logviewer.childopts\": \"-Xmx128m\",\n" +
+                " \t\t\"java.library.path\": \"/usr/local/lib:/opt/local/lib:/usr/lib\",\n" +
+                " \t\t\"topology.executor.send.buffer.size\": 1024,\n" +
+                " \t\t\"storm.local.dir\": \"storm-local\",\n" +
+                " \t\t\"storm.messaging.netty.buffer_size\": 5242880,\n" +
+                " \t\t\"supervisor.worker.start.timeout.secs\": 120,\n" +
+                " \t\t\"topology.enable.message.timeouts\": true,\n" +
+                " \t\t\"nimbus.cleanup.inbox.freq.secs\": 600,\n" +
+                " \t\t\"nimbus.inbox.jar.expiration.secs\": 3600,\n" +
+                " \t\t\"drpc.worker.threads\": 64,\n" +
+                " \t\t\"topology.worker.shared.thread.pool.size\": 4,\n" +
+                " \t\t\"nimbus.host\": \"hw10843.local\",\n" +
+                " \t\t\"storm.messaging.netty.min_wait_ms\": 100,\n" +
+                " \t\t\"storm.zookeeper.port\": 2181,\n" +
+                " \t\t\"transactional.zookeeper.port\": null,\n" +
+                " \t\t\"topology.executor.receive.buffer.size\": 1024,\n" +
+                " \t\t\"transactional.zookeeper.servers\": null,\n" +
+                " \t\t\"storm.zookeeper.root\": \"/storm\",\n" +
+                " \t\t\"storm.zookeeper.retry.intervalceiling.millis\": 30000,\n" +
+                " \t\t\"supervisor.enable\": true,\n" +
+                " \t\t\"storm.messaging.netty.server_worker_threads\": 1\n" +
+                " \t}\n" +
+                " }";
+
+        JSONObject object = new JSONObject(response);
+        String[] keys = JSONObject.getNames(object);
+        for (String key : keys) {
+            if (key.equals("bolts")) {
+                JSONArray value = (JSONArray) object.get(key);
+                assertEquals(2, value.length());
+                JSONObject obj = (JSONObject) value.get(0);
+                assertEquals("count", obj.get("boltId"));
+                assertEquals("0.003", obj.get("capacity"));
+            }
+        }
     }
 }

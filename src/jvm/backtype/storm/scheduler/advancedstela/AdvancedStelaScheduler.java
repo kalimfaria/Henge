@@ -151,7 +151,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
     private void doReduction () {
-        
+
     }
     private void rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
@@ -204,6 +204,15 @@ public class AdvancedStelaScheduler implements IScheduler {
         globalState.collect(cluster, topologies);
         globalState.setCapacities(sloObserver.getAllTopologies());
         globalStatistics.collect();
+
+        for (TopologyDetails t : topologies.getTopologies()) {
+            TopologySchedule targetSchedule = globalState.getTopologySchedules().get(t.getId());
+            TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(t.getId());
+
+            ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+            targetStrategy.topologyETPRankDescending();
+        }
+
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
