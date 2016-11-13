@@ -36,7 +36,7 @@ public class TopologySchedule {
             if (component.getValue().getCapacity() < CAPACITY_CONGESTION_THRESHOLD)
                 result.add(component.getValue());
         }
-
+        Collections.sort(result);
         return result;
     }
 
@@ -105,7 +105,7 @@ public class TopologySchedule {
                 end = e.getEndTask();
         }
 
-        LOG.info("Component {} Start {} End {} Range {}", component, start, end, (end-start));
-        return end-start;
+        LOG.info("Component {} Start {} End {} Range {}", component, start, end, (end-start+1));
+        return end-start+1;// offset because tasks start with 1 :)
     }
 }

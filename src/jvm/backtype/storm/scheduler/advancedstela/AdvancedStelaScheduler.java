@@ -81,6 +81,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     didWeDoRebalance = false;
                 }
 
+
                 if (doWeStop && doWeNeedToRevert) {
                     LOG.info("We stopped rebalancing earlier but it " +
                             "looks like workload has changed doWeStop {} doWeNeedToRevert {}", doWeStop, doWeNeedToRevert);
@@ -204,6 +205,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 Integer targetNewParallelism = targetOldParallelism + one;
                 Integer targetTasks = target.getNumTasks(targetComponent);
                 LOG.info("Num of tasks {} new Parallelism {}", targetTasks, targetNewParallelism);
+                if (targetNewParallelism > targetTasks && targetOldParallelism < targetTasks) // so this is the turning point
+                    targetNewParallelism = targetTasks;
                 if (targetTasks >= targetNewParallelism) {
                     saveHistory(now); // There is no point in saving history if you don't plan on doing rebalance
                     String targetCommand = "/var/nimbus/storm/bin/storm " +

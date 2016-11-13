@@ -5,8 +5,7 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
@@ -20,12 +19,14 @@ public class SupervisorInfo {
     public Queue <HashMap<String, Info>> infoHistory;
     public final int HISTORY_SIZE = 30;
     public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
+    private File util_log;
 
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
     public SupervisorInfo() {
         infoHistory = new LinkedList<>();
         supervisorsInfo = new HashMap<String, Info>();
+        util_log = new File("/tmp/util.log");
     }
 
     public void GetSupervisors () throws  Exception {
@@ -112,6 +113,10 @@ public class SupervisorInfo {
             infoHistory.remove();
         }
         infoHistory.add(info);
+        for (Map.Entry<String, Info> entry: info.entrySet()) {
+            writeToFile(util_log, entry.getKey() + " " + entry.getValue().toString() + "\n");
+
+        }
     }
 
 
@@ -167,5 +172,16 @@ public class SupervisorInfo {
             usedMemPercent + " " + time);
         }
 
+    }
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
+        } catch (IOException ex) {
+            LOG.info("error! writing to file {}", ex);
+        }
     }
 }

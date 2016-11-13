@@ -1,6 +1,8 @@
 import backtype.storm.scheduler.advancedstela.BriefHistory;
 import backtype.storm.scheduler.advancedstela.TopologyPicker;
+import backtype.storm.scheduler.advancedstela.etp.Component;
 import backtype.storm.scheduler.advancedstela.etp.SupervisorInfo;
+import backtype.storm.scheduler.advancedstela.etp.TopologySchedule;
 import backtype.storm.scheduler.advancedstela.slo.Sensitivity;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import com.google.gson.Gson;
@@ -477,5 +479,32 @@ public class TestTopology {
                 assertEquals("0.003", obj.get("capacity"));
             }
         }
+    }
+
+    @Test
+    public void testTopologyCapacityWiseUnCongestedOperators () {
+        TopologySchedule schedule = new TopologySchedule("Topology1", 5);
+        schedule.addComponents("spout_head", new Component("spout_head", 10));
+        schedule.addComponents("bolt_aggregate", new Component("bolt_aggregate", 10));
+        schedule.addComponents("bolt_transform", new Component("bolt_transform", 10));
+        schedule.addComponents("bolt_output_sink", new Component("bolt_output_sink", 10));
+        schedule.addComponents("bolt_join", new Component("bolt_join", 10));
+        schedule.addComponents("bolt_filter_2", new Component("bolt_filter_2", 10));
+        schedule.addComponents("bolt_filter", new Component("bolt_filter", 10));
+
+
+        schedule.getComponents().get("spout_head").setCapacity(0.001);
+        schedule.getComponents().get("bolt_aggregate").setCapacity(0.1);
+        schedule.getComponents().get("bolt_transform").setCapacity(0.2);
+        schedule.getComponents().get("bolt_output_sink").setCapacity(0.3);
+        schedule.getComponents().get("bolt_join").setCapacity(0.4);
+        schedule.getComponents().get("bolt_filter_2").setCapacity(0.5);
+        schedule.getComponents().get("bolt_filter").setCapacity(0.6);
+
+        ArrayList<Component> uncongestedComponents =  schedule.getCapacityWiseUncongestedOperators();
+        assertEquals(uncongestedComponents.size(), 3);
+        assertEquals(uncongestedComponents.get(0).getId(), "spout_head");
+        assertEquals(uncongestedComponents.get(1).getId(), "bolt_aggregate");
+        assertEquals(uncongestedComponents.get(2).getId(), "bolt_transform");
     }
 }
