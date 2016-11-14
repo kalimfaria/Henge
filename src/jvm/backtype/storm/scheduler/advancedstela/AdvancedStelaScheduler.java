@@ -51,7 +51,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         runAdvancedStelaComponents(cluster, topologies);
-        if (globalState.getClusterUtilization()) {
+        if (globalState.isClusterUtilization()) {
             doReduction(topologies);
         } else {
             if (numTopologiesThatNeedScheduling > 0) {
@@ -165,19 +165,22 @@ public class AdvancedStelaScheduler implements IScheduler {
 
 
             String targetCommand = "/var/nimbus/storm/bin/storm " +
-                    "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 -e ";
+                    "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
             for (Component comp : uncongestedComponents) {
                 int reducedExecutors = (int) (comp.getParallelism() * 0.2);
                 if (reducedExecutors <= 0) reducedExecutors = 1;
-                targetCommand += comp.getId() + "=" + reducedExecutors;
-                schedule.getComponents().get(comp).setParallelism(reducedExecutors);
+                targetCommand += " -e" + comp.getId() + "=" + reducedExecutors + " ";
+                LOG.info("Reduced executors " + targetCommand + "\n");
+                LOG.info(System.currentTimeMillis() + "\n");
+                LOG.info("running the rebalance using storm's rebalance command \n");
+                LOG.info("Component : {}" , comp);
+                for (Map.Entry <String, Component> print:  schedule.getComponents().entrySet()) {
+                    LOG.info("Name of component {}, Component {} ", print.getKey(), print.getValue().getId());
+                }
+                schedule.getComponents().get(comp.getId()).setParallelism(reducedExecutors);
                 try {
                     writeToFile(juice_log, targetCommand + "\n");
                     writeToFile(juice_log, System.currentTimeMillis() + "\n");
-                    LOG.info("Reduced executors " + targetCommand + "\n");
-                    LOG.info(System.currentTimeMillis() + "\n");
-                    LOG.info("running the rebalance using storm's rebalance command \n");
-
                     Runtime.getRuntime().exec(targetCommand);
                     // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(schedule.getId());

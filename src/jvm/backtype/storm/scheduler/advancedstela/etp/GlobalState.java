@@ -40,7 +40,7 @@ public class GlobalState {
         isClusterOverUtilized = isOverUtilized;
     }
 
-    public boolean getClusterUtilization() {
+    public boolean isClusterUtilization() {
         return isClusterOverUtilized;
     }
 
@@ -53,6 +53,7 @@ public class GlobalState {
         supervisorToNode = new HashMap<String, Node>();
         latency_log = new File("/tmp/latency.log");
         capacityLog = new File("/tmp/capacity.log");
+        isClusterOverUtilized = false;
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
