@@ -18,7 +18,7 @@ import java.util.*;
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
     Long time;
-    boolean didWeDoRebalance, doWeStop;
+    boolean didWeDoRebalance, doWeStop, didWeReduce;
     @SuppressWarnings("rawtypes")
     private Map config;
     private Observer sloObserver;
@@ -44,14 +44,16 @@ public class AdvancedStelaScheduler implements IScheduler {
         time = System.currentTimeMillis();
         didWeDoRebalance = false;
         doWeStop = false;
+        didWeReduce = false;
         briefHistory = new ArrayList<>();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
+        LOG.info("numTopologiesThatNeedScheduling {}", numTopologiesThatNeedScheduling);
         runAdvancedStelaComponents(cluster, topologies);
-        if (globalState.isClusterUtilization()) {
+        if (globalState.isClusterUtilization() && !didWeReduce) {
             doReduction(topologies);
         } else {
             if (numTopologiesThatNeedScheduling > 0) {
@@ -88,6 +90,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("Flushing history");
                     history.clear();
                     doWeStop = false;
+                    didWeReduce = false;
+                    LOG.info("did we stop {} did we reduce {}", doWeStop, didWeReduce);
                     // if we have stopped rebalancing, and yet system utility falls suddenly.
                     // now, this could happen because of two reasons. 1) We see poor performance because of increasing latency etc without changing workload
                     // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
@@ -167,9 +171,12 @@ public class AdvancedStelaScheduler implements IScheduler {
             String targetCommand = "/var/nimbus/storm/bin/storm " +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
             for (Component comp : uncongestedComponents) {
+                LOG.info("Parallelism: {} ", comp.getParallelism());
                 int reducedExecutors = (int) (comp.getParallelism() * 0.2);
+                LOG.info("Before reducing executors to 1 " + reducedExecutors + "\n");
                 if (reducedExecutors <= 0) reducedExecutors = 1;
-                targetCommand += " -e" + comp.getId() + "=" + reducedExecutors + " ";
+
+                targetCommand += "-e " + comp.getId() + "=" + reducedExecutors + " ";
                 LOG.info("Reduced executors " + targetCommand + "\n");
                 LOG.info(System.currentTimeMillis() + "\n");
                 LOG.info("running the rebalance using storm's rebalance command \n");
@@ -178,20 +185,21 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("Name of component {}, Component {} ", print.getKey(), print.getValue().getId());
                 }
                 schedule.getComponents().get(comp.getId()).setParallelism(reducedExecutors);
-                try {
-                    writeToFile(juice_log, targetCommand + "\n");
-                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
-                    Runtime.getRuntime().exec(targetCommand);
-                    // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
-                    sloObserver.clearTopologySLOs(schedule.getId());
+            }
+            try {
+                writeToFile(juice_log, targetCommand + "\n");
+                writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                Runtime.getRuntime().exec(targetCommand);
+                // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                sloObserver.clearTopologySLOs(schedule.getId());
 
-                } catch (Exception e) {
-                    LOG.info(e.toString());
-                }
+            } catch (Exception e) {
+                LOG.info(e.toString());
             }
         }
         history.clear();
         briefHistory.clear(); // DO WE NEED TO DO THIS?
+        didWeReduce = true;
     }
 
     private void rebalanceTopology(TopologyDetails targetDetails,
