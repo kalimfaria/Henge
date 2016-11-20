@@ -14,7 +14,7 @@ import java.util.*;
 public class SupervisorInfo {
 
     private final String USER_AGENT = "Mozilla/5.0";
-    String [] supervisors;
+    public String [] supervisors;
     HashMap<String, Info> supervisorsInfo;
     public Queue <HashMap<String, Info>> infoHistory;
     public final int HISTORY_SIZE = 30;
@@ -142,6 +142,29 @@ public class SupervisorInfo {
         return true;
     }
 
+    public boolean areSupervisorsOverUtilizedQuorum() {
+        // if across all of history, in all objects, even one info item says that one supervisor is overloaded, we say
+        // that supervisors are overutilised
+        int [] decisions = new int[infoHistory.size()];
+        int i = 0;
+        for (HashMap <String, Info> history :infoHistory) {
+            for (Map.Entry <String, Info> infoItem : history.entrySet()) {
+                if (infoItem.getValue().recentLoad >= MAXIMUM_LOAD_PER_MACHINE) {
+                    decisions[i] ++;
+                }
+            }
+            i++;
+        }
+        // In 5, choose 3
+        int quorum_size = (supervisors.length + 1) / 2; // to ceil
+        if (quorum_size == 0) quorum_size = 3;
+        for (int decision: decisions)
+            if (decision < quorum_size){ // this should be false
+                return false;
+            }
+        return true;
+    }
+
     public boolean GetSupervisorInfo () {
       try {
           this.GetSupervisors();
@@ -150,7 +173,7 @@ public class SupervisorInfo {
       {
           System.out.println("Error in getting info about supervisor machines : " + e.toString());
       }
-        return areSupervisorsOverUtilized();
+        return areSupervisorsOverUtilizedQuorum();
     }
 
     public class Summaries {

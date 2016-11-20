@@ -312,6 +312,38 @@ public class TestTopology {
     }
 
     @Test
+    public void testSupervisorOverUtilizationQuorum (){
+        SupervisorInfo supervisorInfo = new SupervisorInfo();
+        supervisorInfo.supervisors = new String[3];
+        HashMap<String, SupervisorInfo.Info> infos = new HashMap <>();
+
+        String response = "{\"recentLoad\": \"4.0\"," +
+                "         \"minLoad\": \"1.2\"," +
+                "         \"fiveMinsLoad\": \"1.4\"," +
+                "         \"freeMem\": \"4.0\"," +
+                "         \"usedMemory\":\"4.0\",\n" +
+                "         \"usedMemPercent\": \"4.0\"," +
+                "         \"time\": \"12312434434\"}";
+        Gson gson = new Gson();
+
+        SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
+        String [] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
+        for (int i = 0; i < supervisorInfo.HISTORY_SIZE; i++) {
+            int j = 0;
+            for (String supervisor : supervisors){
+                if (j == 0 || j == 1 ) info.recentLoad = supervisorInfo.MAXIMUM_LOAD_PER_MACHINE;
+                else info.recentLoad = 0.0;
+                infos.put(supervisor, info);
+                info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
+                j++;
+            }
+            supervisorInfo.insertInfo(infos);
+        }
+
+        assertEquals(true, supervisorInfo.areSupervisorsOverUtilizedQuorum());
+    }
+
+    @Test
     public void testSupervisorOverUtilization (){
         SupervisorInfo supervisorInfo = new SupervisorInfo();
         HashMap<String, SupervisorInfo.Info> infos = new HashMap <>();

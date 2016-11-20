@@ -459,7 +459,7 @@ public class Topologies {
 
         //   System.out.println("In function: ReadFiles()");
 
-        final File folder = new File("/proj/Stella/latency-logs/");//new File("/proj/Stella/latency-logs/");
+        final File folder = new File("/proj/Stella/latency-logs1/");//new File("/proj/Stella/latency-logs/");
 
         try {
             for (final File file : folder.listFiles()) {

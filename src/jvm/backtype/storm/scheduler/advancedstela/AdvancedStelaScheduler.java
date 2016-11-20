@@ -53,6 +53,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         LOG.info("numTopologiesThatNeedScheduling {}", numTopologiesThatNeedScheduling);
         runAdvancedStelaComponents(cluster, topologies);
+       // new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         if (globalState.isClusterUtilization() && !didWeReduce) {
             doReduction(topologies);
         } else {
