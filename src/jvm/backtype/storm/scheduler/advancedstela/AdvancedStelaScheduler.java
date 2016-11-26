@@ -56,6 +56,8 @@ public class AdvancedStelaScheduler implements IScheduler {
        // new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         if (globalState.isClusterUtilization() && !didWeReduce) {
             doReduction(topologies);
+            didWeReduce = true;
+            LOG.info("Did first reduce");
         } else {
             if (numTopologiesThatNeedScheduling > 0) {
                 LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
@@ -87,7 +89,8 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                 if (doWeStop && doWeNeedToRevert) {
                     LOG.info("We stopped rebalancing earlier but it " +
-                            "looks like workload has changed doWeStop {} doWeNeedToRevert {}", doWeStop, doWeNeedToRevert);
+                            "looks like workload has changed doWeStop {} doWeNeedToRevert {} time {}", doWeStop, doWeNeedToRevert,
+                            System.currentTimeMillis());
                     LOG.info("Flushing history");
                     history.clear();
                     doWeStop = false;
@@ -168,7 +171,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
             ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
 
-
+            writeToFile(juice_log, "Reduction\n");
             String targetCommand = "/var/nimbus/storm/bin/storm " +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
             for (Component comp : uncongestedComponents) {

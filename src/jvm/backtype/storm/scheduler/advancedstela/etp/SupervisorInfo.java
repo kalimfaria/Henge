@@ -188,11 +188,18 @@ public class SupervisorInfo {
         public Double usedMemory;
         public Double usedMemPercent;
         public Long time;
+        public Double user;
+        public Double system;
+        public Double nice;
+        public Double wait;
+        public Double idle;
+
+
 
         @Override
         public String toString(){
             return new String(recentLoad + " " + minLoad + " " + " " + fiveMinsLoad + " " + freeMem + " " + usedMemory + " " +
-            usedMemPercent + " " + time);
+            usedMemPercent + " " +  user +  " "  + system + " " + nice + " " + wait + " " + idle + " "  + time);
         }
 
     }

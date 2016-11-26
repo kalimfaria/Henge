@@ -41,10 +41,15 @@ public class OperatorSelector {
             }
 
         }
-        Component targetOperator = rankTarget.get(0).component;
-        LOG.info("Picked target operator {}", targetOperator.getId());
-        LOG.info("Picked target operator capacity {}", targetOperator.getCapacity());
-        LOG.info("Picked target operator etp Value {}", rankTarget.get(0).etpValue);
+        Component targetOperator = null;
+        try {
+            targetOperator= rankTarget.get(0).component;
+            LOG.info("Picked target operator {}", targetOperator.getId());
+            LOG.info("Picked target operator capacity {}", targetOperator.getCapacity());
+            LOG.info("Picked target operator etp Value {}", rankTarget.get(0).etpValue);
+        } catch (Exception e) {
+            LOG.info("EXCEPTION: {} time {}", e.toString(), System.currentTimeMillis());
+        }
         return targetOperator;
     }
 }
