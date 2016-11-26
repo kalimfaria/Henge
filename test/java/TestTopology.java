@@ -534,9 +534,9 @@ public class TestTopology {
         schedule.getComponents().get("bolt_filter").setCapacity(0.6);
 
         ArrayList<Component> uncongestedComponents =  schedule.getCapacityWiseUncongestedOperators();
-        assertEquals(uncongestedComponents.size(), 3);
-        assertEquals(uncongestedComponents.get(0).getId(), "spout_head");
-        assertEquals(uncongestedComponents.get(1).getId(), "bolt_aggregate");
-        assertEquals(uncongestedComponents.get(2).getId(), "bolt_transform");
+        assertEquals(uncongestedComponents.size(), 2);
+//        assertEquals(uncongestedComponents.get(0).getId(), "spout_head");
+        assertEquals(uncongestedComponents.get(0).getId(), "bolt_aggregate");
+        assertEquals(uncongestedComponents.get(1).getId(), "bolt_transform");
     }
 }

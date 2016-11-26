@@ -83,8 +83,10 @@ public class LatencyStrategyWithCapacity {
 
         for (int i = 0; i < comp.size(); i++)
         {
-            ResultComponent rComp = new ResultComponent(comp.get(i), 0.0);
-            resultComponent.add(rComp);
+            if (!comp.get(i).getId().contains("spout")) {
+                ResultComponent rComp = new ResultComponent(comp.get(i), 0.0);
+                resultComponent.add(rComp);
+            }
         }
         return resultComponent;
     }

@@ -33,8 +33,9 @@ public class TopologySchedule {
     public ArrayList<Component> getCapacityWiseUncongestedOperators () {
         ArrayList<Component> result = new ArrayList<>();
         for (Map.Entry<String, Component> component:  components.entrySet()) {
-            if (component.getValue().getCapacity() < CAPACITY_CONGESTION_THRESHOLD)
-                result.add(component.getValue());
+            if (!component.getKey().contains("spout"))
+                if (component.getValue().getCapacity() < CAPACITY_CONGESTION_THRESHOLD)
+                    result.add(component.getValue());
         }
         Collections.sort(result);
         return result;

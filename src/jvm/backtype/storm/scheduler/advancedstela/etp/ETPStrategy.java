@@ -84,7 +84,7 @@ public class ETPStrategy {
 
             ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
             for (Component component : topologyETPMap.keySet()) {
-                if (this.congestionMap.containsKey(component)) {
+                if (this.congestionMap.containsKey(component) && !component.getId().contains("spout")) {
                     //only benefiting congested component
                     //Long curTime = System.currentTimeMillis();
                     //if(curTime-component.getLastRebalancedAt()>300000){
