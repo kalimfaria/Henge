@@ -53,82 +53,84 @@ public class AdvancedStelaScheduler implements IScheduler {
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         LOG.info("numTopologiesThatNeedScheduling {}", numTopologiesThatNeedScheduling);
         runAdvancedStelaComponents(cluster, topologies);
-       // new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        if (globalState.isClusterUtilization() && !didWeReduce) {
-            doReduction(topologies);
-            didWeReduce = true;
-            LOG.info("Did first reduce");
-        } else {
-            if (numTopologiesThatNeedScheduling > 0) {
-                LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
-                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
-                LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-
-                ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
-
-                History now = createHistory(topologies);
-
-                boolean doWeNeedToRevert = false;
-                if (history.size() > 0) {
-                    doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
-                }
-
-                if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
-                    LOG.info("Did we do rebalance? Yes");
-                    if (doWeNeedToRevert && !doWeStop) {
-                        History bestHistory = findBestHistory();
-                        revertHistory(bestHistory);
-                        doWeStop = true;
-                        LOG.info("Finished reverting");
-                        LOG.info("Now stopping all rebalance");
-                    }
-                    didWeDoRebalance = false;
-                }
-
-
-                if (doWeStop && doWeNeedToRevert) {
-                    LOG.info("We stopped rebalancing earlier but it " +
-                            "looks like workload has changed doWeStop {} doWeNeedToRevert {} time {}", doWeStop, doWeNeedToRevert,
-                            System.currentTimeMillis());
-                    LOG.info("Flushing history");
-                    history.clear();
-                    doWeStop = false;
-                    didWeReduce = false;
-                    LOG.info("did we stop {} did we reduce {}", doWeStop, didWeReduce);
-                    // if we have stopped rebalancing, and yet system utility falls suddenly.
-                    // now, this could happen because of two reasons. 1) We see poor performance because of increasing latency etc without changing workload
-                    // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
-                    // we go with 2) and flush history so no reversions can happen and start again
-                }
-                if (!doWeStop) {
-                    LOG.info("Length of receivers {}", receiver_topologies.size());
-                    if (receiver_topologies.size() > 0) {
-                        Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
-                        LOG.info("Picked the topology for rebalance");
-
-                        TopologyDetails target = topologies.getById(receiver.getId());
-                        TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
-                        Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
-                        LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
-
-                        if (targetComponent != null) {
-                            LOG.info("topology {} target component", receiver, targetComponent.getId());
-
-                            rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
-                            didWeDoRebalance = true;
-                        }
-                    } else if (receiver_topologies.size() == 0) {
-                        StringBuffer sb = new StringBuffer();
-                        LOG.info("There are no receivers! *Sob* \n");
-                    }
-                }
-                time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
+        // new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+        LOG.info("cluster utilization {}", globalState.isClusterUtilization());
+        if (numTopologiesThatNeedScheduling > 0) {
+            LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
+            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+        } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
+            LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
+            boolean wasReductionSuccessful = false;
+            if (globalState.isClusterUtilization() && !didWeReduce) {
+                LOG.info("going to check utilization");
+                wasReductionSuccessful = doReduction(topologies);
+                LOG.info("Did first reduce {}", wasReductionSuccessful);
             }
+            if (!wasReductionSuccessful) {
+                LOG.info("going to go to rebalance helper");
+                rebalanceHelper(topologies);
+            }
+            time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
         }
-
     }
 
+
+    private void rebalanceHelper(Topologies topologies) {
+        LOG.info("rebalance helper");
+        ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
+        History now = createHistory(topologies);
+        boolean doWeNeedToRevert = false;
+        if (history.size() > 0) {
+            doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
+        }
+
+        if (doWeStop && doWeNeedToRevert) {
+            LOG.info("We stopped rebalancing earlier but it " +
+                            "looks like workload has changed doWeStop {} doWeNeedToRevert {} time {}", doWeStop, doWeNeedToRevert,
+                    System.currentTimeMillis());
+            LOG.info("Flushing history");
+            history.clear();
+            doWeStop = false;
+            didWeReduce = false;
+            LOG.info("did we stop {} did we reduce {}", doWeStop, didWeReduce);
+            // if we have stopped rebalancing, and yet system utility falls suddenly.
+            // now, this could happen because of two reasons. 1) We see poor performance because of increasing latency etc without changing workload
+            // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
+            // we go with 2) and flush history so no reversions can happen and start again
+        }
+        
+        if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
+            LOG.info("Did we do rebalance? Yes");
+            if (doWeNeedToRevert && !doWeStop) {
+                History bestHistory = findBestHistory();
+                revertHistory(bestHistory);
+                doWeStop = true;
+                LOG.info("Finished reverting");
+                LOG.info("Now stopping all rebalance");
+            }
+            didWeDoRebalance = false;
+        }
+
+        if (!doWeStop) {
+            LOG.info("Length of receivers {}", receiver_topologies.size());
+            if (receiver_topologies.size() > 0) {
+                Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+                LOG.info("Picked the topology for rebalance");
+                TopologyDetails target = topologies.getById(receiver.getId());
+                TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
+                Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
+                LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
+                if (targetComponent != null) {
+                    LOG.info("topology {} target component", receiver, targetComponent.getId());
+                    rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
+                    didWeDoRebalance = true;
+                }
+            } else if (receiver_topologies.size() == 0) {
+                StringBuffer sb = new StringBuffer();
+                LOG.info("There are no receivers! *Sob* \n");
+            }
+        }
+    }
 
     private void revertHistory(History bestHistory) {
 
@@ -162,10 +164,11 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void doReduction (Topologies topologies) {
+    private boolean doReduction(Topologies topologies) {
         LOG.info("do reduction");
         ArrayList<Topology> successfulTopologies = sloObserver.getSuccesfulTopologies();
         HashMap<String, TopologySchedule> topologySchedules = globalState.getTopologySchedules();
+        if (successfulTopologies.size() == 0) return false;
 
         for (Topology successfulTopology : successfulTopologies) {
             TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
@@ -184,8 +187,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info("Reduced executors " + targetCommand + "\n");
                 LOG.info(System.currentTimeMillis() + "\n");
                 LOG.info("running the rebalance using storm's rebalance command \n");
-                LOG.info("Component : {}" , comp);
-                for (Map.Entry <String, Component> print:  schedule.getComponents().entrySet()) {
+                LOG.info("Component : {}", comp);
+                for (Map.Entry<String, Component> print : schedule.getComponents().entrySet()) {
                     LOG.info("Name of component {}, Component {} ", print.getKey(), print.getValue().getId());
                 }
                 schedule.getComponents().get(comp.getId()).setParallelism(reducedExecutors);
@@ -204,6 +207,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         history.clear();
         briefHistory.clear(); // DO WE NEED TO DO THIS?
         didWeReduce = true;
+        return true;
     }
 
     private void rebalanceTopology(TopologyDetails targetDetails,
@@ -268,9 +272,9 @@ public class AdvancedStelaScheduler implements IScheduler {
             ArrayList<ResultComponent> component = targetStrategy.topologyETPRankDescending();
 
             if (component != null) {
-                for (ResultComponent comp: component) {
+                for (ResultComponent comp : component) {
                     writeToFile(etpLog, "topology name " + t.getId() + " " +
-                            "congested chosen component: " +  comp.component.getId() + " "  + comp.etpValue + "\n");
+                            "congested chosen component: " + comp.component.getId() + " " + comp.etpValue + "\n");
                 }
             }
         }

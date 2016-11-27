@@ -31,7 +31,7 @@ public class SupervisorInfo {
 
     public void GetSupervisors () throws  Exception {
 
-        String url = "http://zookeepernimbus.storm-cluster.stella.emulab.net:8080/api/v1/supervisor/summary";
+        String url = "http://zookeepernimbus.advanced-stela.stella.emulab.net:8080/api/v1/supervisor/summary";
 
         URL obj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -173,7 +173,7 @@ public class SupervisorInfo {
       {
           System.out.println("Error in getting info about supervisor machines : " + e.toString());
       }
-        return areSupervisorsOverUtilizedQuorum();
+        return areSupervisorsOverUtilized();//areSupervisorsOverUtilizedQuorum();
     }
 
     public class Summaries {
