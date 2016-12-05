@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class Topologies {
     private static final Integer UP_TIME = 60 * 15;
-    private static final Integer REBALANCING_INTERVAL = 60 * 15;// should be 15 mins for faster response
+    private static final Integer REBALANCING_INTERVAL = 60 * 5;
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;
@@ -459,12 +459,11 @@ public class Topologies {
 
         //   System.out.println("In function: ReadFiles()");
 
-        final File folder = new File("/proj/Stella/latency-logs2/");//new File("/proj/Stella/latency-logs/");
+        final File folder = new File("/proj/Stella/latency-logs/");//new File("/proj/Stella/latency-logs/");
 
         try {
             for (final File file : folder.listFiles()) {
                 if (!file.isDirectory()) {
-                    //System.out.println(file.getName());
 
                     FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
 

@@ -62,7 +62,7 @@ public class GlobalState {
 
 
     public void setCapacities(HashMap<String, backtype.storm.scheduler.advancedstela.slo.Topology> Topologies) {
-        String url = "http://zookeepernimbus.advanced-stela.stella.emulab.net:8080/api/v1/topology/";
+        String url = "http://zookeepernimbus.storm-cluster-copy.stella.emulab.net:8080/api/v1/topology/";
         for (Map.Entry<String, Topology> topology : Topologies.entrySet()) {
             ///api/v1/topology/:id
             String topologyURL = url + topology.getKey();

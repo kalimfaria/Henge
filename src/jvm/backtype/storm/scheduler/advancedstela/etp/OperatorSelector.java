@@ -15,15 +15,24 @@ public class OperatorSelector {
         TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetTopo.getId());
 
         ArrayList<ResultComponent> rankTarget = new ArrayList<ResultComponent>();
-        if(targetTopo.getSensitivity() == Sensitivity.JUICE){
+       // ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+       // rankTarget = targetStrategy.topologyETPRankDescending();
+         LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
+         rankTarget = targetStrategy.topologyCapacityDescending();
+       /* if(targetTopo.getSensitivity() == Sensitivity.JUICE){
             LOG.info("Sensitivity equals throughput");
         	ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
         	rankTarget = targetStrategy.topologyETPRankDescending();
+           // LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
+           // rankTarget = targetStrategy.topologyCapacityDescending();
         }
         else if (targetTopo.getSensitivity() == Sensitivity.LATENCY)  {
             LOG.info("Sensitivity equals latency");
         	LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
         	rankTarget = targetStrategy.topologyCapacityDescending();
+        //    ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+        //    rankTarget = targetStrategy.topologyETPRankDescending();
+
         } else if (targetTopo.getSensitivity() == Sensitivity.BOTH) {
             LOG.info("Sensitivity equals both");
             Sensitivity s = targetTopo.whichSLOToSatisfyFirst();
@@ -31,6 +40,8 @@ public class OperatorSelector {
 
             if(s == Sensitivity.JUICE){
                 LOG.info("Sensitivity equals throughput");
+              //  LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
+               // rankTarget = targetStrategy.topologyCapacityDescending();
                 ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
                 rankTarget = targetStrategy.topologyETPRankDescending();
             }
@@ -38,9 +49,11 @@ public class OperatorSelector {
                 LOG.info("Sensitivity equals latency");
                 LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule, targetStatistics, targetTopo);
                 rankTarget = targetStrategy.topologyCapacityDescending();
+             //   ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
+            //    rankTarget = targetStrategy.topologyETPRankDescending();
             }
 
-        }
+        } */
         Component targetOperator = null;
         try {
             targetOperator= rankTarget.get(0).component;

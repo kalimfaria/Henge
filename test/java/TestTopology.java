@@ -539,4 +539,14 @@ public class TestTopology {
         assertEquals(uncongestedComponents.get(0).getId(), "bolt_aggregate");
         assertEquals(uncongestedComponents.get(1).getId(), "bolt_transform");
     }
+
+    @Test
+    public void testTopologyGivenExecs () {
+        Topology topology = new Topology("T1", 1.0, 80.0, 35.0, 4L);
+        assertEquals((int)topology.getExecutorsForRebalancing(),5);
+        topology.setAverageLatency(120.0);
+        assertEquals((int) topology.getExecutorsForRebalancing(), 7);
+        topology.setMeasuredSLOs(0.8);
+        assertEquals((int) topology.getExecutorsForRebalancing(), 3);
+    }
 }

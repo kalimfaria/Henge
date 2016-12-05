@@ -28,7 +28,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private File juice_log;
     private ArrayList<History> history;
     private ArrayList<BriefHistory> briefHistory;
-
+    private int areWeStable;
     private File etpLog;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
@@ -45,6 +45,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         didWeDoRebalance = false;
         doWeStop = false;
         didWeReduce = false;
+        areWeStable = 0;
         briefHistory = new ArrayList<>();
     }
 
@@ -98,12 +99,13 @@ public class AdvancedStelaScheduler implements IScheduler {
             // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
             // we go with 2) and flush history so no reversions can happen and start again
         }
-        
+
         if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
             LOG.info("Did we do rebalance? Yes");
             if (doWeNeedToRevert && !doWeStop) {
                 History bestHistory = findBestHistory();
                 revertHistory(bestHistory);
+                decrementStability();
                 doWeStop = true;
                 LOG.info("Finished reverting");
                 LOG.info("Now stopping all rebalance");
@@ -114,7 +116,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (!doWeStop) {
             LOG.info("Length of receivers {}", receiver_topologies.size());
             if (receiver_topologies.size() > 0) {
-                Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+                // ONE TOPOLOGY THAT IS REBALANCED
+                /*Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
                 LOG.info("Picked the topology for rebalance");
                 TopologyDetails target = topologies.getById(receiver.getId());
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
@@ -123,11 +126,32 @@ public class AdvancedStelaScheduler implements IScheduler {
                 if (targetComponent != null) {
                     LOG.info("topology {} target component", receiver, targetComponent.getId());
                     rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
+                    decrementStability();
+
                     didWeDoRebalance = true;
+                } */
+
+                for (Topology receiver: receiver_topologies) {
+                    LOG.info("Picked the topology for rebalance");
+                    TopologyDetails target = topologies.getById(receiver.getId());
+                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
+                    Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
+                    LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
+                    if (targetComponent != null) {
+                        LOG.info("topology {} target component", receiver, targetComponent.getId());
+                        rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
+                        didWeDoRebalance = true;
+                    }
                 }
+                decrementStability();
+              //  Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+
             } else if (receiver_topologies.size() == 0) {
-                StringBuffer sb = new StringBuffer();
-                LOG.info("There are no receivers! *Sob* \n");
+                LOG.info("There are no receivers!\n");
+                // if this persists for 4 rounds, then truncate history. We be stable yo!
+                LOG.info("Houston,we're stable");
+                incrementStability();
+
             }
         }
     }
@@ -166,6 +190,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private boolean doReduction(Topologies topologies) {
         LOG.info("do reduction");
+        decrementStability();
         ArrayList<Topology> successfulTopologies = sloObserver.getSuccesfulTopologies();
         HashMap<String, TopologySchedule> topologySchedules = globalState.getTopologySchedules();
         if (successfulTopologies.size() == 0) return false;
@@ -218,7 +243,8 @@ public class AdvancedStelaScheduler implements IScheduler {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
-                int one = 2;
+                //int one = 2;
+                int one = targetTopology.getExecutorsForRebalancing();
                 String targetComponent = component.getId();
                 Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                 Integer targetNewParallelism = targetOldParallelism + one;
@@ -274,7 +300,8 @@ public class AdvancedStelaScheduler implements IScheduler {
             if (component != null) {
                 for (ResultComponent comp : component) {
                     writeToFile(etpLog, "topology name " + t.getId() + " " +
-                            "congested chosen component: " + comp.component.getId() + " " + comp.etpValue + "\n");
+                            "congested chosen component: " + comp.component.getId() + " " + comp.etpValue + " " +
+                            System.currentTimeMillis() + "\n");
                 }
             }
         }
@@ -385,5 +412,20 @@ public class AdvancedStelaScheduler implements IScheduler {
             }
         }
         return flippedMap;
+    }
+
+    public void decrementStability() {
+        areWeStable--;
+        if (areWeStable < 0) areWeStable = 0;
+        LOG.info("From decrement stability: {} ", areWeStable);
+    }
+
+    public void incrementStability() {
+        areWeStable++;
+        if (areWeStable == 4) {
+            history.clear();
+            areWeStable = 0;
+        }
+        LOG.info("From increment stability: {} ", areWeStable);
     }
 }
