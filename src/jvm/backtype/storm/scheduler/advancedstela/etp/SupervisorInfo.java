@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.*;
 
 
@@ -20,6 +22,7 @@ public class SupervisorInfo {
     public final int HISTORY_SIZE = 30;
     public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
     private File util_log;
+    private String hostname;
 
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
@@ -27,11 +30,19 @@ public class SupervisorInfo {
         infoHistory = new LinkedList<>();
         supervisorsInfo = new HashMap<String, Info>();
         util_log = new File("/tmp/util.log");
+        hostname = "Unknown";
+        try {
+            InetAddress addr;
+            addr = InetAddress.getLocalHost();
+            hostname = addr.getHostName();
+        } catch (UnknownHostException ex) {
+            System.out.println("Hostname can not be resolved");
+        }
     }
 
     public void GetSupervisors () throws  Exception {
 
-        String url = "http://zookeepernimbus.storm-cluster-copy.stella.emulab.net:8080/api/v1/supervisor/summary";
+        String url = "http://"+hostname+":8080/api/v1/supervisor/summary";
 
         URL obj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();

@@ -8,6 +8,10 @@ import backtype.storm.scheduler.advancedstela.slo.Topology;
 import com.google.gson.Gson;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -16,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -312,10 +317,10 @@ public class TestTopology {
     }
 
     @Test
-    public void testSupervisorOverUtilizationQuorum (){
+    public void testSupervisorOverUtilizationQuorum() {
         SupervisorInfo supervisorInfo = new SupervisorInfo();
         supervisorInfo.supervisors = new String[3];
-        HashMap<String, SupervisorInfo.Info> infos = new HashMap <>();
+        HashMap<String, SupervisorInfo.Info> infos = new HashMap<>();
 
         String response = "{\"recentLoad\": \"4.0\"," +
                 "         \"minLoad\": \"1.2\"," +
@@ -327,11 +332,11 @@ public class TestTopology {
         Gson gson = new Gson();
 
         SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
-        String [] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
+        String[] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
         for (int i = 0; i < supervisorInfo.HISTORY_SIZE; i++) {
             int j = 0;
-            for (String supervisor : supervisors){
-                if (j == 0 || j == 1 ) info.recentLoad = supervisorInfo.MAXIMUM_LOAD_PER_MACHINE;
+            for (String supervisor : supervisors) {
+                if (j == 0 || j == 1) info.recentLoad = supervisorInfo.MAXIMUM_LOAD_PER_MACHINE;
                 else info.recentLoad = 0.0;
                 infos.put(supervisor, info);
                 info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
@@ -344,9 +349,9 @@ public class TestTopology {
     }
 
     @Test
-    public void testSupervisorOverUtilization (){
+    public void testSupervisorOverUtilization() {
         SupervisorInfo supervisorInfo = new SupervisorInfo();
-        HashMap<String, SupervisorInfo.Info> infos = new HashMap <>();
+        HashMap<String, SupervisorInfo.Info> infos = new HashMap<>();
 
         String response = "{\"recentLoad\": \"4.0\"," +
                 "         \"minLoad\": \"1.2\"," +
@@ -357,10 +362,10 @@ public class TestTopology {
                 "         \"time\": \"12312434434\"}";
         Gson gson = new Gson();
         SupervisorInfo.Info info = gson.fromJson(response.toString(), SupervisorInfo.Info.class);
-        String [] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
+        String[] supervisors = {"pc427.emulab.net", "pc553.emulab.net", "pc538.emulab.net"};
         for (int i = 0; i < supervisorInfo.HISTORY_SIZE; i++) {
             int j = 0;
-            for (String supervisor : supervisors){
+            for (String supervisor : supervisors) {
                 if (j == 0) info.recentLoad = supervisorInfo.MAXIMUM_LOAD_PER_MACHINE;
                 else info.recentLoad = 0.0;
                 infos.put(supervisor, info);
@@ -374,7 +379,7 @@ public class TestTopology {
     }
 
     @Test
-    public void testTopologyCapacityFormat () {
+    public void testTopologyCapacityFormat() {
         String response = " {\n" +
                 " \t\"name\": \"WordCount3\",\n" +
                 " \t\"id\": \"WordCount3-1-1402960825\",\n" +
@@ -514,7 +519,7 @@ public class TestTopology {
     }
 
     @Test
-    public void testTopologyCapacityWiseUnCongestedOperators () {
+    public void testTopologyCapacityWiseUnCongestedOperators() {
         TopologySchedule schedule = new TopologySchedule("Topology1", 5);
         schedule.addComponents("spout_head", new Component("spout_head", 10));
         schedule.addComponents("bolt_aggregate", new Component("bolt_aggregate", 10));
@@ -533,7 +538,7 @@ public class TestTopology {
         schedule.getComponents().get("bolt_filter_2").setCapacity(0.5);
         schedule.getComponents().get("bolt_filter").setCapacity(0.6);
 
-        ArrayList<Component> uncongestedComponents =  schedule.getCapacityWiseUncongestedOperators();
+        ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
         assertEquals(uncongestedComponents.size(), 2);
 //        assertEquals(uncongestedComponents.get(0).getId(), "spout_head");
         assertEquals(uncongestedComponents.get(0).getId(), "bolt_aggregate");
@@ -541,12 +546,26 @@ public class TestTopology {
     }
 
     @Test
-    public void testTopologyGivenExecs () {
+    public void testTopologyGivenExecs() {
         Topology topology = new Topology("T1", 1.0, 80.0, 35.0, 4L);
-        assertEquals((int)topology.getExecutorsForRebalancing(),5);
+        assertEquals((int) topology.getExecutorsForRebalancing(), 5);
         topology.setAverageLatency(120.0);
         assertEquals((int) topology.getExecutorsForRebalancing(), 7);
         topology.setMeasuredSLOs(0.8);
         assertEquals((int) topology.getExecutorsForRebalancing(), 3);
+    }
+
+    @Test
+    public void testHostname() {
+        String hostname = "Unknown";
+        try {
+            InetAddress addr;
+            addr = InetAddress.getLocalHost();
+            hostname = addr.getHostName();
+            System.err.println(hostname);
+            assertNotEquals(hostname, "Unknown");
+        } catch (UnknownHostException ex) {
+            System.out.println("Hostname can not be resolved");
+        }
     }
 }

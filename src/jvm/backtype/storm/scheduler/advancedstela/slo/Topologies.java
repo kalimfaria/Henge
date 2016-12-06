@@ -9,6 +9,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.*;
@@ -28,6 +30,7 @@ public class Topologies {
     private HashMap<String, Long> lastRebalancedAt;
     private File flatline_log;
     private File same_top;
+    private String folderName;
 
     public Topologies(Map conf) {
         config = conf;
@@ -36,6 +39,24 @@ public class Topologies {
         lastRebalancedAt = new HashMap<String, Long>();
         flatline_log = new File("/tmp/flat_line.log");
         same_top = new File("/tmp/same_top.log");
+
+        String hostname = "Unknown";
+        try {
+            InetAddress addr;
+            addr = InetAddress.getLocalHost();
+            hostname = addr.getHostName();
+        } catch (UnknownHostException ex) {
+            System.out.println("Hostname can not be resolved");
+        }
+
+        if (hostname.equals("zookeepernimbus.storm-cluster-copy2.stella.emulab.net"))
+            folderName = "/proj/Stella/latency-logs3/";
+        else if (hostname.equals("zookeepernimbus.storm-cluster.stella.emulab.net"))
+            folderName = "/proj/Stella/latency-logs1/";
+        else if (hostname.equals("zookeepernimbus.storm-cluster-copy.stella.emulab.net"))
+            folderName = "/proj/Stella/latency-logs2/";
+        else if (hostname.equals("zookeepernimbus.advanced-stela.stella.emulab.net"))
+            folderName = "/proj/Stella/latency-logs/";
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
@@ -456,11 +477,7 @@ public class Topologies {
         HashMap<HashMap<String, String>, ArrayList<Double>> op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
         HashMap<String, String> op_temp = new HashMap<String, String>();
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
-
-        //   System.out.println("In function: ReadFiles()");
-
-        final File folder = new File("/proj/Stella/latency-logs/");//new File("/proj/Stella/latency-logs/");
-
+        final File folder = new File(folderName);
         try {
             for (final File file : folder.listFiles()) {
                 if (!file.isDirectory()) {
@@ -471,7 +488,6 @@ public class Topologies {
                     while (lock == null) {
                         lock = channel.tryLock();
                     }
-
 
                     BufferedReader br = null;
                     String line = "";

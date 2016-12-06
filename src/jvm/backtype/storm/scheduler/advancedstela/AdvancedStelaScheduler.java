@@ -117,7 +117,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("Length of receivers {}", receiver_topologies.size());
             if (receiver_topologies.size() > 0) {
                 // ONE TOPOLOGY THAT IS REBALANCED
-                /*Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+                Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
                 LOG.info("Picked the topology for rebalance");
                 TopologyDetails target = topologies.getById(receiver.getId());
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
@@ -129,9 +129,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                     decrementStability();
 
                     didWeDoRebalance = true;
-                } */
-
-                for (Topology receiver: receiver_topologies) {
+                }
+// ALL DEM TOPOLOGIES ARE REBALANCED ALL TOGETHER
+             /*   for (Topology receiver: receiver_topologies) {
                     LOG.info("Picked the topology for rebalance");
                     TopologyDetails target = topologies.getById(receiver.getId());
                     TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
@@ -143,9 +143,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                         didWeDoRebalance = true;
                     }
                 }
-                decrementStability();
-              //  Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
-
+                decrementStability(); */
             } else if (receiver_topologies.size() == 0) {
                 LOG.info("There are no receivers!\n");
                 // if this persists for 4 rounds, then truncate history. We be stable yo!
