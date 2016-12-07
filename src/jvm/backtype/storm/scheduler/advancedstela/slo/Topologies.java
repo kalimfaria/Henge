@@ -58,7 +58,7 @@ public class Topologies {
         else if (hostname.equals("zookeepernimbus.advanced-stela.stella.emulab.net"))
             folderName = "/proj/Stella/latency-logs/";
         else if (hostname.equals("zookeepernimbus.stelaadvanced.stella.emulab.net"))
-            folderName = "/proj/Stella/logs0/";
+            folderName = "/proj/Stella/logs/";
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
@@ -280,6 +280,8 @@ public class Topologies {
             }
         }
 
+        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
+        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
         for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
             if (!bolt.getKey().matches("(__).*")) {
                 topology.addBolt(bolt.getKey(), new Component(bolt.getKey(),
