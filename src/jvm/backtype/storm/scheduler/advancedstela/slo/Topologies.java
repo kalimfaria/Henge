@@ -57,6 +57,8 @@ public class Topologies {
             folderName = "/proj/Stella/latency-logs2/";
         else if (hostname.equals("zookeepernimbus.advanced-stela.stella.emulab.net"))
             folderName = "/proj/Stella/latency-logs/";
+        else if (hostname.equals("zookeepernimbus.stelaadvanced.stella.emulab.net"))
+            folderName = "/proj/Stella/logs0/";
     }
 
     public HashMap<String, Topology> getStelaTopologies() {
