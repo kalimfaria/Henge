@@ -151,6 +151,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 incrementStability();
 
             }
+        } else {
+            incrementStability();
         }
     }
 
