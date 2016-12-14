@@ -281,8 +281,6 @@ public class Topologies {
         }
 
         for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
-        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
-        for (Map.Entry<String, Bolt> bolt : stormTopology.get_bolts().entrySet()) {
             if (!bolt.getKey().matches("(__).*")) {
                 topology.addBolt(bolt.getKey(), new Component(bolt.getKey(),
                         bolt.getValue().get_common().get_parallelism_hint()));
