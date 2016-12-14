@@ -11,7 +11,7 @@ public class Topology implements Comparable<Topology> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Topology.class);
     private static final Integer SLO_WINDOW = 30;
-    private static final Integer MAX_EXECUTORS = 10;
+    public static final Integer MAX_EXECUTORS = 10;
     static public String sortingStrategy;
     public HashMap<HashMap<String, String>, Double> latencies;
     private Sensitivity sensitivity;
@@ -216,12 +216,12 @@ public class Topology implements Comparable<Topology> {
         return other_utility.compareTo(my_utility);
     }
 
-    public boolean sloViolated() {
+    public boolean sloViolated() { // rounding to nearest 0.95
         if (sensitivity != null) {
             if (sensitivity == Sensitivity.JUICE) {
-                return getMeasuredSLO() < userSpecifiedSLO;
+                return getMeasuredSLO() < userSpecifiedSLO  ;
             } else if (sensitivity == Sensitivity.LATENCY) {
-                return (getAverageLatency() > userSpecifiedLatencySLO);
+                return (getAverageLatency() > userSpecifiedLatencySLO );
             } else if (sensitivity == Sensitivity.BOTH)
                 return (getMeasuredSLO() < userSpecifiedSLO || getAverageLatency() > userSpecifiedLatencySLO);
         }

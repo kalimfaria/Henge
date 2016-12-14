@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import java.lang.reflect.Array;
 import java.util.*;
 
 public class AdvancedStelaScheduler implements IScheduler {
@@ -111,11 +112,12 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info("Picked the topology for rebalance");
                 TopologyDetails target = topologies.getById(receiver.getId());
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
-                Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
+                //Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
+                ArrayList<ResultComponent> targetComponents = selector.selectAllOperators(globalState, globalStatistics, receiver);
                 LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
-                if (targetComponent != null) {
-                    LOG.info("topology {} target component", receiver, targetComponent.getId());
-                    rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
+                if (targetComponents != null) {
+                    LOG.info("topology {} target component", receiver, targetComponents.size());
+                    rebalanceTopology(target, targetSchedule, targetComponents, receiver, now);
                     decrementStability();
                     didWeDoRebalance = true;
                 }
@@ -214,7 +216,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         return true;
     }
 
-    private void rebalanceTopology(TopologyDetails targetDetails,
+    /*private void rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
                                    Component component,
                                    Topology targetTopology,
@@ -254,6 +256,71 @@ public class AdvancedStelaScheduler implements IScheduler {
                         LOG.info("In first exception");
                         //e.printStackTrace();
                     }
+                }
+            } catch (Exception e) {
+                LOG.info(e.toString());
+                LOG.info("In second exception");
+                return;
+            }
+        }
+    }
+ */
+
+    private void rebalanceTopology(TopologyDetails targetDetails,
+                                   TopologySchedule target,
+                                   ArrayList<ResultComponent> components,
+                                   Topology targetTopology,
+                                   History now) {
+        int first_time = 0;
+        LOG.info("In rebalance topology");
+        if (config != null) {
+            try {
+                String targetCommand = "/var/nimbus/storm/bin/storm " +
+                        "rebalance " + targetDetails.getName() + " -w 0 ";
+
+                for (ResultComponent comp:  components) {
+
+                    //int one = 2;
+                    int one = comp.getExecutorsForRebalancing();
+                    String targetComponent = comp.component.getId();
+                    Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
+                    Integer targetNewParallelism = targetOldParallelism + one;
+                    Integer targetTasks = target.getNumTasks(targetComponent);
+                    LOG.info("Num of tasks {} new Parallelism {}", targetTasks, targetNewParallelism);
+                    if (targetNewParallelism > targetTasks && targetOldParallelism < targetTasks) { // so this is the turning point
+                        targetNewParallelism = targetTasks;
+                    }
+                    if (targetTasks >= targetNewParallelism) {
+                        if (first_time == 0) {
+                            first_time = 1;
+                            LOG.info("Saved history");
+                            saveHistory(now); // There is no point in saving history if you don't plan on doing rebalance
+                        }
+                        targetCommand +=  " -e " + targetComponent + "=" + targetNewParallelism;
+                        target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
+                    }
+
+                }
+
+                try {
+                    if (first_time == 1) {
+                        LOG.info("Can perform a rebalance");
+                        writeToFile(juice_log, targetCommand + "\n");
+                        writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                        LOG.info(targetCommand + "\n");
+                        LOG.info(System.currentTimeMillis() + "\n");
+                        LOG.info("running the rebalance using storm's rebalance command \n");
+                        LOG.info("Target old executors count {}", targetDetails.getExecutors().size());
+
+                        briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
+                        Runtime.getRuntime().exec(targetCommand);
+                        // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                        sloObserver.clearTopologySLOs(target.getId());
+                    }
+                } catch (Exception e) {
+                    LOG.info(e.toString());
+                    LOG.info("In first exception");
+                    //e.printStackTrace();
                 }
             } catch (Exception e) {
                 LOG.info(e.toString());

@@ -218,7 +218,7 @@ public class LatencyStrategy {
         //print descending list
         writeToFile(latency_log, "=== Descending List ===\n");
         for(ResultComponent r:resultComponents){
-        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        	writeToFile(latency_log, r.component.getId()+":"+r.capacity +"->");
         }
         writeToFile(latency_log, "\n");
         return resultComponents;
@@ -376,7 +376,7 @@ public class LatencyStrategy {
         Collections.sort(resultComponents);
         writeToFile(latency_log, "=== Ascending List ===\n");
         for(ResultComponent r:resultComponents){
-        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        	writeToFile(latency_log, r.component.getId()+":"+r.capacity +"->");
         }
         writeToFile(latency_log, "\n");
         return resultComponents;

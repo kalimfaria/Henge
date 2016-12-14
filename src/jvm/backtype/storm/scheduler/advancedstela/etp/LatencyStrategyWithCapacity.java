@@ -84,7 +84,7 @@ public class LatencyStrategyWithCapacity {
         for (int i = 0; i < comp.size(); i++)
         {
             if (!comp.get(i).getId().contains("spout")) {
-                ResultComponent rComp = new ResultComponent(comp.get(i), 0.0);
+                ResultComponent rComp = new ResultComponent(comp.get(i), comp.get(i).getCapacity());
                 resultComponent.add(rComp);
             }
         }
@@ -262,7 +262,7 @@ public class LatencyStrategyWithCapacity {
         //print descending list
         writeToFile(latency_log, "=== Descending List ===\n");
         for(ResultComponent r:resultComponents){
-        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        	writeToFile(latency_log, r.component.getId()+":"+r.capacity +"->");
         }
         writeToFile(latency_log, "\n");
         return resultComponents;
@@ -420,7 +420,7 @@ public class LatencyStrategyWithCapacity {
         Collections.sort(resultComponents);
         writeToFile(latency_log, "=== Ascending List ===\n");
         for(ResultComponent r:resultComponents){
-        	writeToFile(latency_log, r.component.getId()+":"+r.etpValue+"->");
+        	writeToFile(latency_log, r.component.getId()+":"+r.capacity +"->");
         }
         writeToFile(latency_log, "\n");
         return resultComponents;

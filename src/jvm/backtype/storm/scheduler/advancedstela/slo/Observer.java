@@ -408,7 +408,7 @@ public class Observer {
             }
             topology.setMeasuredSLOs(calculatedSLO);
             long time_now = System.currentTimeMillis();
-            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getAverageLatency() + "," + topology.getCurrentUtility() + "," +  topology.getTopologyUtility() + ","  + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
+            writeToFile(juice_log, topologyId + "," + calculatedSLO + "," + topology.getMeasuredSLO()  + "," + topology.getAverageLatency() + "," + topology.getCurrentUtility() + "," +  topology.getTopologyUtility() + ","  + topology.getTailLatency() + "," + spouts_transferred + "," + sink_executed + "," + time_now + "\n");
 
         }
 
