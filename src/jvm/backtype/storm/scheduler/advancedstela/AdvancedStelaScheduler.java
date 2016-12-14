@@ -54,23 +54,13 @@ public class AdvancedStelaScheduler implements IScheduler {
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         LOG.info("numTopologiesThatNeedScheduling {}", numTopologiesThatNeedScheduling);
         runAdvancedStelaComponents(cluster, topologies);
-        // new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         LOG.info("cluster utilization {}", globalState.isClusterUtilization());
         if (numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-            boolean wasReductionSuccessful = false;
-            if (globalState.isClusterUtilization() && !didWeReduce) {
-                LOG.info("going to check utilization");
-                wasReductionSuccessful = doReduction(topologies);
-                LOG.info("Did first reduce {}", wasReductionSuccessful);
-            }
-            if (!wasReductionSuccessful) {
-                LOG.info("going to go to rebalance helper");
-                rebalanceHelper(topologies);
-            }
+            rebalanceHelper(topologies);
             time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
         }
     }
@@ -78,46 +68,46 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void rebalanceHelper(Topologies topologies) {
         LOG.info("rebalance helper");
-        ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
         History now = createHistory(topologies);
-        boolean doWeNeedToRevert = false;
+        boolean didUtilityFall = false;
         if (history.size() > 0) {
-            doWeNeedToRevert = history.get(history.size() - 1).doWeNeedToRevert(now);
+            didUtilityFall = history.get(history.size() - 1).doWeNeedToRevert(now);
         }
-
-        if (doWeStop && doWeNeedToRevert) {
-            LOG.info("We stopped rebalancing earlier but it " +
-                            "looks like workload has changed doWeStop {} doWeNeedToRevert {} time {}", doWeStop, doWeNeedToRevert,
-                    System.currentTimeMillis());
-            LOG.info("Flushing history");
-            history.clear();
-            doWeStop = false;
-            didWeReduce = false;
-            LOG.info("did we stop {} did we reduce {}", doWeStop, didWeReduce);
-            // if we have stopped rebalancing, and yet system utility falls suddenly.
-            // now, this could happen because of two reasons. 1) We see poor performance because of increasing latency etc without changing workload
-            // 2) the workload changes. So we set a threshold of 10% again. allow it to fall and then flush history and do rebalance
-            // we go with 2) and flush history so no reversions can happen and start again
-        }
-
-        if (didWeDoRebalance) { // if there was a rebalance, then check if it was a bad idea
-            LOG.info("Did we do rebalance? Yes");
-            if (doWeNeedToRevert && !doWeStop) {
-                History bestHistory = findBestHistory();
-                revertHistory(bestHistory);
+        if (didUtilityFall) {
+            if (!doWeStop && didWeDoRebalance) {
+                /// NOW CHECK CPU UTIL
+                boolean wasReductionSuccessful = false;
+                if (globalState.isClusterUtilization() && !didWeReduce) {
+                    LOG.info("going to check utilization");
+                    wasReductionSuccessful = doReduction(topologies);
+                }
+                if (!wasReductionSuccessful) { // we did not do a reduction
+                    History bestHistory = findBestHistory();
+                    revertHistory(bestHistory);
+                    doWeStop = true;
+                }
+                // not in convergence state // ADD IF - CHECK UTIL - DO REDUCE IF NEEDED ELSE DO REDUCE AND STOP -- do revert and then stop
                 decrementStability();
-                doWeStop = true;
-                LOG.info("Finished reverting");
-                LOG.info("Now stopping all rebalance");
+                didWeDoRebalance = false;
+                return; // break out
+            } else if (doWeStop) {
+                // in convergence state
+                // get out of convergence state and do rebalance now
+                doWeStop = false;
+                history.clear();
+                briefHistory.clear();
+                didWeDoRebalance = false;
+                didWeReduce = false;
             }
-            didWeDoRebalance = false;
         }
 
         if (!doWeStop) {
+            ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
+            Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
             LOG.info("Length of receivers {}", receiver_topologies.size());
-            if (receiver_topologies.size() > 0) {
+            if (receiver != null) {
                 // ONE TOPOLOGY THAT IS REBALANCED
-                Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+
                 LOG.info("Picked the topology for rebalance");
                 TopologyDetails target = topologies.getById(receiver.getId());
                 TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
@@ -127,32 +117,14 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("topology {} target component", receiver, targetComponent.getId());
                     rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
                     decrementStability();
-
                     didWeDoRebalance = true;
                 }
-// ALL DEM TOPOLOGIES ARE REBALANCED ALL TOGETHER
-             /*   for (Topology receiver: receiver_topologies) {
-                    LOG.info("Picked the topology for rebalance");
-                    TopologyDetails target = topologies.getById(receiver.getId());
-                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
-                    Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
-                    LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
-                    if (targetComponent != null) {
-                        LOG.info("topology {} target component", receiver, targetComponent.getId());
-                        rebalanceTopology(target, targetSchedule, targetComponent, receiver, now);
-                        didWeDoRebalance = true;
-                    }
-                }
-                decrementStability(); */
-            } else if (receiver_topologies.size() == 0) {
+            } else if (receiver == null || receiver_topologies.size() == 0) {
                 LOG.info("There are no receivers!\n");
                 // if this persists for 4 rounds, then truncate history. We be stable yo!
                 LOG.info("Houston,we're stable");
                 incrementStability();
-
             }
-        } else {
-            incrementStability();
         }
     }
 
@@ -195,14 +167,18 @@ public class AdvancedStelaScheduler implements IScheduler {
         HashMap<String, TopologySchedule> topologySchedules = globalState.getTopologySchedules();
         if (successfulTopologies.size() == 0) return false;
 
+        boolean reduction = false;
+
         for (Topology successfulTopology : successfulTopologies) {
             TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
             ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
-
             writeToFile(juice_log, "Reduction\n");
             String targetCommand = "/var/nimbus/storm/bin/storm " +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
+
+
             for (Component comp : uncongestedComponents) {
+                reduction = true;
                 LOG.info("Parallelism: {} ", comp.getParallelism());
                 int reducedExecutors = (int) (comp.getParallelism() * 0.2);
                 LOG.info("Before reducing executors to 1 " + reducedExecutors + "\n");
@@ -229,6 +205,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info(e.toString());
             }
         }
+
+        if (!reduction) return false;
+
         history.clear();
         briefHistory.clear(); // DO WE NEED TO DO THIS?
         didWeReduce = true;
@@ -289,22 +268,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         globalState.collect(cluster, topologies);
         globalState.setCapacities(sloObserver.getAllTopologies());
         globalStatistics.collect();
-
-        for (TopologyDetails t : topologies.getTopologies()) {
-            TopologySchedule targetSchedule = globalState.getTopologySchedules().get(t.getId());
-            TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(t.getId());
-
-            ETPStrategy targetStrategy = new ETPStrategy(targetSchedule, targetStatistics);
-            ArrayList<ResultComponent> component = targetStrategy.topologyETPRankDescending();
-
-            if (component != null) {
-                for (ResultComponent comp : component) {
-                    writeToFile(etpLog, "topology name " + t.getId() + " " +
-                            "congested chosen component: " + comp.component.getId() + " " + comp.etpValue + " " +
-                            System.currentTimeMillis() + "\n");
-                }
-            }
-        }
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
@@ -424,7 +387,10 @@ public class AdvancedStelaScheduler implements IScheduler {
         areWeStable++;
         if (areWeStable == 4) {
             history.clear();
+            briefHistory.clear();
             areWeStable = 0;
+            didWeReduce = false;
+            doWeStop = true;
         }
         LOG.info("From increment stability: {} ", areWeStable);
     }

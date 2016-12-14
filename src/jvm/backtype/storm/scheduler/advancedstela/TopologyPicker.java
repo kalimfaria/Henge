@@ -31,6 +31,7 @@ public class TopologyPicker {
         }
 
         removeTopologiesThatDoNotShowImprovementWithRebalancing(receiver_topologies, history);
+        if (receiver_topologies.size() == 0) return null;
         return receiver_topologies.get(0);
     }
 
