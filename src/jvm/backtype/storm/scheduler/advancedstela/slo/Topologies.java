@@ -3,6 +3,7 @@ package backtype.storm.scheduler.advancedstela.slo;
 import backtype.storm.Config;
 import backtype.storm.generated.*;
 import backtype.storm.utils.NimbusClient;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
 import org.json.simple.parser.JSONParser;
@@ -388,69 +389,36 @@ public class Topologies {
     public void getLatencies() {
 
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = ReadFiles();
-
-        //    System.out.println("In function: getLatencies()");
-        Double average_latency = 0.0, tail_latency = Double.MIN_VALUE; // measure
-        int k = 0;
         for (String topology : stelaTopologies.keySet()) {
             Topology topology_ = stelaTopologies.get(topology);
             if (data.containsKey(topology)) {
+                DescriptiveStatistics latencies = new DescriptiveStatistics();
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
                 for (HashMap<String, String> op_pairs : top_data.keySet()) {
-                    //              System.out.println("In getLatencies:");
+                    System.out.println("In getLatencies:");
 
                     Set sources = op_pairs.keySet();
                     ArrayList<Double> times = top_data.get(op_pairs);
 
-        /*            Iterator it = sources.iterator();
-                    while (it.hasNext()) {
-                        String spout_ = (String)it.next();
-
-        //                System.out.println("Source: " + spout_ );//+ " Sink: " + pairs.get(it.next())
-        //                System.out.println("Sink: " + op_pairs.get(spout_) );
-                    }
-
-                    for (Double t : times)
-                    {
-                        System.out.println("Time: " + t);//+ " Sink: " + pairs.get(it.next())
-                    }
-        */
-                    //    SummaryStatistics latencies = new SummaryStatistics();
                     Double final_time = 0.0;
                     for (int i = 0; i < times.size(); i++) {
-
-                        k++;
                         final_time += times.get(i);
-                        //        latencies.addValue(times.get(i));
-                        if (tail_latency < times.get(i)) tail_latency = times.get(i);
+                        latencies.addValue(times.get(i));
                     }
 
-                    //  double standardDeviation = latencies.getStandardDeviation();
-                    // double mean = latencies.getMean();
-
-                    //latencies.clear();
-
-                   /* for (int i = 0; i < times.size(); i++) {
-
-                        if ((times.get(i) - mean) <= 2 * standardDeviation)
-                            latencies.addValue(times.get(i));
-                    }*/
 
                     topology_.latencies.put(op_pairs, final_time / times.size()); //latencies.getMean()
-                    average_latency += final_time;//latencies.getSum(); //
 
-
-                    //       System.out.println("Average Latency: " + average_latency);
-                    //       System.out.println("k: " + k);
                 }
-                //   System.out.println("Set value of average latency: " + average_latency / (double) k);
-                topology_.setAverageLatency(average_latency / (double) k);
+                LOG.info("Topology: " + topology + " average latency: " + latencies.getMean()
+                        + " tail latency: " + latencies.getPercentile(99)
+                        + " 75th percentile" + latencies.getPercentile(75) +
+                        " 50th percentile" + latencies.getPercentile(50) + ". \n");
 
-                topology_.setTailLatency(tail_latency);
-
-                average_latency = 0.0;
-                tail_latency = Double.MIN_VALUE;
-                k = 0;
+                topology_.setAverageLatency(latencies.getMean());
+                topology_.set99PercentileLatency(latencies.getPercentile(99));
+                topology_.set75PercentileLatency(latencies.getPercentile(75));
+                topology_.set50PercentileLatency(latencies.getPercentile(50));
             } else {
                 writeToFile(same_top, "No latency data for topology: " + topology + " \n");
             }
@@ -465,8 +433,10 @@ public class Topologies {
                 for (String spouts : op_pairs.keySet()) {
                     writeToFile(same_top, "Topology: " + topology + " spout: " + spouts + " sinks: " + op_pairs.get(spouts) + " latency: " + latency + ". \n");
                 }
-
-                writeToFile(same_top, "Topology: " + topology + " average latency: " + stelaTopologies.get(topology).getAverageLatency() + " tail latency: " + stelaTopologies.get(topology).getTailLatency() + ". \n");
+                writeToFile(same_top, "Topology: " + topology + " average latency: " + stelaTopologies.get(topology).getAverageLatency()
+                        + " tail latency: " + stelaTopologies.get(topology).get99PercentileLatency()
+                        + " 75th percentile" + stelaTopologies.get(topology).get75PercentileLatency() +
+                         " 50th percentile" + stelaTopologies.get(topology).get50PercentileLatency() + ". \n");
             }
         }
     }

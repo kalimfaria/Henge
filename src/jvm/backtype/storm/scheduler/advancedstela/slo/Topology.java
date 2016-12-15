@@ -24,7 +24,7 @@ public class Topology implements Comparable<Topology> {
     private HashMap<String, Component> spouts;
     private HashMap<String, Component> bolts;
     private Double averageLatency;
-    private Double tailLatency;
+    private Double ninetyNineLatency, seventyFiveLatency, fiftyLatency;
     private Long numWorkers;
 
     public Topology(String topologyId, Double slo, Double latency_slo, Double utility, Long numWorkers) {
@@ -36,8 +36,7 @@ public class Topology implements Comparable<Topology> {
         measuredLatency = new LinkedList<Double>();
 
         latencies = new HashMap<HashMap<String, String>, Double>();
-        tailLatency = Double.MAX_VALUE;
-        averageLatency = 0.0;
+        fiftyLatency = seventyFiveLatency = ninetyNineLatency = averageLatency = 0.0;
         sortingStrategy = "ascending-current-utility";
         this.numWorkers = numWorkers;
 
@@ -68,12 +67,29 @@ public class Topology implements Comparable<Topology> {
         return sensitivity;
     }
 
-    public Double getTailLatency() {
-        return tailLatency;
+    public Double get99PercentileLatency() {
+        return ninetyNineLatency;
     }
 
-    public void setTailLatency(Double latency) {
-        tailLatency = latency;
+    public void set99PercentileLatency(Double latency) {
+        ninetyNineLatency = latency;
+    }
+
+
+    public Double get75PercentileLatency() {
+        return seventyFiveLatency;
+    }
+
+    public void set75PercentileLatency(Double latency) {
+        seventyFiveLatency = latency;
+    }
+
+    public Double get50PercentileLatency() {
+        return fiftyLatency;
+    }
+
+    public void set50PercentileLatency(Double latency) {
+        fiftyLatency = latency;
     }
 
     public Double getAverageLatency() {

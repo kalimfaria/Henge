@@ -290,7 +290,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                     if (targetNewParallelism > targetTasks && targetOldParallelism < targetTasks) { // so this is the turning point
                         targetNewParallelism = targetTasks;
                     }
-                    if (targetTasks >= targetNewParallelism) {
+                    if (targetOldParallelism < targetNewParallelism) {
+                        LOG.info("targetOldParallelism < targetNewParallelism for operator {}", targetComponent);
                         if (first_time == 0) {
                             first_time = 1;
                             LOG.info("Saved history");
