@@ -28,7 +28,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestTopology {
 
-   /* Topology t1;
+    Topology t1;
     Topology t2;
     Topology t3;
 
@@ -567,11 +567,21 @@ public class TestTopology {
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
         }
-    } */
+    }
 
     @Test
     public void basicJavaQuestion () {
         ArrayList <Integer> potatoes = new ArrayList<>();
         System.out.println(potatoes.get(0));
+    }
+
+    @Test
+    public void howLongDoesBusyWorkTake () {
+        System.out.println(System.currentTimeMillis());
+        double calc = 0.0;
+        for(double i = 0; i < 10000; i++) {
+            calc+=i/3.0*4.5+1.3;
+        }
+        System.out.println(System.currentTimeMillis());
     }
 }
