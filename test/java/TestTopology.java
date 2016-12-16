@@ -569,11 +569,6 @@ public class TestTopology {
         }
     }
 
-    @Test
-    public void basicJavaQuestion () {
-        ArrayList <Integer> potatoes = new ArrayList<>();
-        System.out.println(potatoes.get(0));
-    }
 
     @Test
     public void howLongDoesBusyWorkTake () {

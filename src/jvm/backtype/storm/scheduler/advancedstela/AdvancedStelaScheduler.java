@@ -15,10 +15,11 @@ import java.io.IOException;
 
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.concurrent.SynchronousQueue;
 
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
-    Long time;
+    Long time, upForMoreThan;
     boolean didWeDoRebalance, doWeStop, didWeReduce;
     @SuppressWarnings("rawtypes")
     private Map config;
@@ -35,14 +36,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
         etpLog = new File("/tmp/etp.log");
-
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
         globalStatistics = new GlobalStatistics(conf);
         selector = new OperatorSelector();
         history = new ArrayList<>();
-        time = System.currentTimeMillis();
+        upForMoreThan = time = System.currentTimeMillis();
         didWeDoRebalance = false;
         doWeStop = false;
         didWeReduce = false;
@@ -59,7 +59,9 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (numTopologiesThatNeedScheduling > 0) {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (numTopologiesThatNeedScheduling == 0 && (System.currentTimeMillis() - time) / 1000 > 5 * 60) {
+        } else if (numTopologiesThatNeedScheduling == 0
+                && (System.currentTimeMillis() - time) / 1000 > 5 * 60
+                && (System.currentTimeMillis() - upForMoreThan)/1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
             rebalanceHelper(topologies);
             time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
