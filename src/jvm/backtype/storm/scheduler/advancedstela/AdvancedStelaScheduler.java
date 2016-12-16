@@ -287,7 +287,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     Integer targetNewParallelism = targetOldParallelism + one;
                     Integer targetTasks = target.getNumTasks(targetComponent);
                     LOG.info("Num of tasks {} new Parallelism {}", targetTasks, targetNewParallelism);
-                    if (targetNewParallelism > targetTasks && targetOldParallelism < targetTasks) { // so this is the turning point
+                    if (targetNewParallelism > targetTasks) { // so this is the turning point
                         targetNewParallelism = targetTasks;
                     }
                     if (targetOldParallelism < targetNewParallelism) {
