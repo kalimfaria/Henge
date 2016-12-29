@@ -188,7 +188,7 @@ public class SupervisorInfo {
     }
 
     public class Summaries {
-        SupervisorSummary [] supervisors;
+        public SupervisorSummary [] supervisors;
     }
 
     public class Info {

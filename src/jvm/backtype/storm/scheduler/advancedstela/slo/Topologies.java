@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 public class Topologies {
     public static final Integer UP_TIME = 60 * 15;
-    private static final Integer REBALANCING_INTERVAL = 60 * 10;
+    private static final Integer REBALANCING_INTERVAL = 60 * 2;
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;
@@ -387,8 +387,8 @@ public class Topologies {
     }
 
     public void getLatencies() {
-
-        HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = ReadFiles();
+        Latencies latencies_fetcher = new Latencies();
+        HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = latencies_fetcher.getLatencies(); //  ReadFiles();
         for (String topology : stelaTopologies.keySet()) {
             Topology topology_ = stelaTopologies.get(topology);
             if (data.containsKey(topology)) {

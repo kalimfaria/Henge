@@ -333,8 +333,8 @@ public class GlobalState {
                           (let [stats (.get_stats e)
                                 stats (if stats
                                         (-> stats
-                                            (aggregate-bolt-stats true)
-                                            (aggregate-bolt-streams)
+                                            (aggregate-sink-stats true)
+                                            (aggregate-sink-streams)
                                             swap-map-order
                                             (get "600")))
                                 uptime (nil-to-zero (.get_uptime_secs e))

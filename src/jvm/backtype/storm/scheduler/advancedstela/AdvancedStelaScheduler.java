@@ -3,6 +3,7 @@ package backtype.storm.scheduler.advancedstela;
 import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.Topologies;
 import backtype.storm.scheduler.advancedstela.etp.*;
+import backtype.storm.scheduler.advancedstela.slo.Latencies;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import org.slf4j.Logger;
