@@ -9,12 +9,15 @@ import com.google.gson.Gson;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,7 +31,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestTopology {
 
-    Topology t1;
+   /* Topology t1;
     Topology t2;
     Topology t3;
 
@@ -578,5 +581,79 @@ public class TestTopology {
             calc+=i/3.0*4.5+1.3;
         }
         System.out.println(System.currentTimeMillis());
+    }
+*/
+    @Test
+    public void testingFileRead () {
+        String file = "temp.txt";
+        try {
+            FileChannel channel = new RandomAccessFile(file , "rw").getChannel();
+            FileLock lock = channel.tryLock();
+            //FileLock lock = channel.tryLock(0L, Long.MAX_VALUE, true);
+            while (lock == null) {
+                //    channel.tryLock(0L, Long.MAX_VALUE, true);
+                channel.tryLock();
+            }
+            //FileWriter fileWriter = new FileWriter(file, true);
+            FileWriter fileWriter = new FileWriter(file, false);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append("pooh");
+            bufferWriter.close();
+            fileWriter.close();
+            lock.release();
+            channel.close();
+
+
+            channel = new RandomAccessFile(file , "rw").getChannel();
+            lock = channel.tryLock();
+            //FileLock lock = channel.tryLock(0L, Long.MAX_VALUE, true);
+            while (lock == null) {
+                //    channel.tryLock(0L, Long.MAX_VALUE, true);
+                channel.tryLock();
+            }
+            //FileWriter fileWriter = new FileWriter(file, true);
+            fileWriter = new FileWriter(file, true);
+            bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(" hoop");
+            bufferWriter.append(" green");
+
+            MultithreadingDemo obj=new MultithreadingDemo();
+            Thread tobj = new Thread(obj);
+            tobj.run();
+
+            bufferWriter.append(" this makes no difference");
+
+            bufferWriter.close();
+            fileWriter.close();
+            lock.release();
+            channel.close();
+
+            tobj.run();
+
+            File file1 = new File(file);
+            file1.delete();
+        } catch (IOException ex) {
+            System.out.println(ex.toString());
+
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
+    }
+
+    class MultithreadingDemo implements Runnable{
+        public void run(){
+            String file = "temp.txt";
+            BufferedReader br = null;
+            String line = "";
+            try {
+                br = new BufferedReader(new FileReader(file));
+                line = br.readLine();
+                System.out.println(line);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }

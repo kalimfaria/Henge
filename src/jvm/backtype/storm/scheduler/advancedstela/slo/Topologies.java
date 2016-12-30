@@ -395,18 +395,13 @@ public class Topologies {
                 DescriptiveStatistics latencies = new DescriptiveStatistics();
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
                 for (HashMap<String, String> op_pairs : top_data.keySet()) {
-                    System.out.println("In getLatencies:");
-
                     Set sources = op_pairs.keySet();
                     ArrayList<Double> times = top_data.get(op_pairs);
-
                     Double final_time = 0.0;
                     for (int i = 0; i < times.size(); i++) {
                         final_time += times.get(i);
                         latencies.addValue(times.get(i));
                     }
-
-
                     topology_.latencies.put(op_pairs, final_time / times.size()); //latencies.getMean()
 
                 }
