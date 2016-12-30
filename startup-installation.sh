@@ -9,3 +9,5 @@ sudo apt-get install vim
 sudo apt-get install curl
 sudo apt-get install jq
 sudo apt-get install tmux
+sudo apt-get install python
+sudo apt-get install fabric

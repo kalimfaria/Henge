@@ -61,7 +61,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
             new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
         } else if (numTopologiesThatNeedScheduling == 0
-                && (System.currentTimeMillis() - time) / 1000 > 5 * 60
+                && (System.currentTimeMillis() - time) / 1000 > 60
                 && (System.currentTimeMillis() - upForMoreThan)/1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
             rebalanceHelper(topologies);
@@ -155,6 +155,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(targetCommand + "\n");
                     LOG.info(System.currentTimeMillis() + "\n");
                     Runtime.getRuntime().exec(targetCommand);
+                    Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
                     //sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(topologyName);
                 }
@@ -203,6 +204,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 writeToFile(juice_log, targetCommand + "\n");
                 writeToFile(juice_log, System.currentTimeMillis() + "\n");
                 Runtime.getRuntime().exec(targetCommand);
+                Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
                 // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                 sloObserver.clearTopologySLOs(schedule.getId());
 
@@ -318,6 +320,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                         briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
                         Runtime.getRuntime().exec(targetCommand);
+                        Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
                         // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                         sloObserver.clearTopologySLOs(target.getId());
                     }

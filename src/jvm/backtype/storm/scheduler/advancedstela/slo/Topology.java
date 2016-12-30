@@ -10,7 +10,7 @@ import java.util.Queue;
 public class Topology implements Comparable<Topology> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Topology.class);
-    private static final Integer SLO_WINDOW = 30;
+    private static final Integer SLO_WINDOW = 10;
     public static final Integer MAX_EXECUTORS = 10;
     static public String sortingStrategy;
     public HashMap<HashMap<String, String>, Double> latencies;

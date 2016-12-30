@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TopologySchedule {
-    public static double CAPACITY_CONGESTION_THRESHOLD = 0.3; // all capacities above this value are "congested"
+    public static double CAPACITY_CONGESTION_THRESHOLD = 0.25; // all capacities above this value are "congested"
     private String id;
     private Integer numberOFWorkers;
     private HashMap<ExecutorDetails, Component> executorToComponent;
