@@ -155,7 +155,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info(targetCommand + "\n");
                     LOG.info(System.currentTimeMillis() + "\n");
                     Runtime.getRuntime().exec(targetCommand);
-                    Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
+                    Runtime.getRuntime().exec("fab delete");
                     //sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                     sloObserver.clearTopologySLOs(topologyName);
                 }
