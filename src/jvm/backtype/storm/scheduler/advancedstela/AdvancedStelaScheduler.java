@@ -204,7 +204,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                 writeToFile(juice_log, targetCommand + "\n");
                 writeToFile(juice_log, System.currentTimeMillis() + "\n");
                 Runtime.getRuntime().exec(targetCommand);
-                Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
+                Runtime.getRuntime().exec("fab delete");
                 // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                 sloObserver.clearTopologySLOs(schedule.getId());
 
@@ -320,7 +320,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
                         briefHistory.add(new BriefHistory(targetDetails.getId(), System.currentTimeMillis(), targetTopology.getCurrentUtility()));
                         Runtime.getRuntime().exec(targetCommand);
-                        Runtime.getRuntime().exec("cd /var/nimbus/storm && fab delete");
+                        Runtime.getRuntime().exec("fab delete");
                         // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                         sloObserver.clearTopologySLOs(target.getId());
                     }
