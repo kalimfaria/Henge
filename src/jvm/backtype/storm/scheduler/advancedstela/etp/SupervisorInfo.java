@@ -35,6 +35,9 @@ public class SupervisorInfo {
             InetAddress addr;
             addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
+            String [] broken = hostname.split(".");
+            hostname = broken[0];
+            LOG.info("hostname: {}" , hostname);
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
         }
@@ -76,6 +79,9 @@ public class SupervisorInfo {
         supervisors = new String[summaries.supervisors.length];
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors[i] = summaries.supervisors[i].get_host();
+
+            String [] broken = supervisors[i].split(".");
+            supervisors[i] = broken[0];
             LOG.info("Supervisor " + supervisors[i]);
         }
         return supervisors;
