@@ -31,7 +31,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestTopology {
 
-   /* Topology t1;
+    Topology t1;
     Topology t2;
     Topology t3;
 
@@ -582,7 +582,7 @@ public class TestTopology {
         }
         System.out.println(System.currentTimeMillis());
     }
-*/
+
     @Test
     public void testingFileRead () {
         String file = "temp.txt";
@@ -656,4 +656,12 @@ public class TestTopology {
         }
 
     }
+
+    @Test
+    public void testSplit() {
+        String [] sup = "pc530.emulab.net".split("\\.");
+        System.err.println(sup[0]);
+    }
+
+
 }

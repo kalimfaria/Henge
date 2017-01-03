@@ -29,7 +29,7 @@ public class GlobalState {
     private final String USER_AGENT = "Mozilla/5.0";
 
     private Map config;
-    String hostname;
+    //String hostname;
     private NimbusClient nimbusClient;
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
     private File latency_log;
@@ -57,14 +57,14 @@ public class GlobalState {
         latency_log = new File("/tmp/latency.log");
         capacityLog = new File("/tmp/capacity.log");
         isClusterOverUtilized = false;
-        hostname = "Unknown";
+   /*     hostname = "Unknown";
         try {
             InetAddress addr;
             addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
-        }
+        } */
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -73,7 +73,7 @@ public class GlobalState {
 
     public void setCapacities(HashMap<String, backtype.storm.scheduler.advancedstela.slo.Topology> Topologies) {
 
-        String url = "http://"+hostname+":8080/api/v1/topology/";
+        String url = "http://zookeepernimbus:8080/api/v1/topology/";
         for (Map.Entry<String, Topology> topology : Topologies.entrySet()) {
             ///api/v1/topology/:id
             String topologyURL = url + topology.getKey();

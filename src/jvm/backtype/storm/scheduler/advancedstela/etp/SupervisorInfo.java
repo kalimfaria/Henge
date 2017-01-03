@@ -22,7 +22,7 @@ public class SupervisorInfo {
     public final int HISTORY_SIZE = 30;
     public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
     private File util_log;
-    private String hostname;
+   // private String hostname;
 
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
@@ -30,19 +30,19 @@ public class SupervisorInfo {
         infoHistory = new LinkedList<>();
         supervisorsInfo = new HashMap<String, Info>();
         util_log = new File("/tmp/util.log");
-        hostname = "Unknown";
+       /* hostname = "Unknown";
         try {
             InetAddress addr;
             addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
-        }
+        } */
     }
 
     public void GetSupervisors () throws  Exception {
 
-        String url = "http://"+hostname+":8080/api/v1/supervisor/summary";
+        String url = "http://zookeepernimbus:8080/api/v1/supervisor/summary";
 
         URL obj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -66,6 +66,7 @@ public class SupervisorInfo {
             response.append(inputLine);
         }
         in.close();
+        LOG.info("SupervisorInfo response {}", response.toString());
         supervisors = getSupervisorHosts(response.toString());
 
     }
@@ -76,7 +77,7 @@ public class SupervisorInfo {
         supervisors = new String[summaries.supervisors.length];
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors[i] = summaries.supervisors[i].get_host();
-            LOG.info("Supervisor " + supervisors[i]);
+            LOG.info("SupInfo Supervisor " + supervisors[i]);
         }
         return supervisors;
     }
@@ -85,7 +86,8 @@ public class SupervisorInfo {
     {
         supervisorsInfo = new HashMap<String, Info>();
         for (String supervisor: supervisors){
-            String url = "http://" + supervisor + ":8000/info";
+            String [] sup = supervisor.split("\\.");
+            String url = "http://" + sup[0] + ":8000/info";
             URL obj = new URL(url);
 
             LOG.info(" Supervisor : " + supervisor + " url " + url);

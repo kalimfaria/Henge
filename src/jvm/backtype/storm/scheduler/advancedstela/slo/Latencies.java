@@ -19,16 +19,15 @@ public class Latencies {
     private final String USER_AGENT = "Mozilla/5.0";
 
     private static final Logger LOG = LoggerFactory.getLogger(Latencies.class);
-    private String hostname;
+  //  private String hostname;
     public static String [] supervisors;
 
     public Latencies() {
         LOG.info("trying to fetch latencies");
-        hostname = "Unknown";
         try {
-            InetAddress addr;
+            /*InetAddress addr;
             addr = InetAddress.getLocalHost();
-            hostname = addr.getHostName();
+            hostname = addr.getHostName(); */
             GetSupervisors();
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
@@ -39,7 +38,7 @@ public class Latencies {
     }
 
     private void GetSupervisors () throws  Exception {
-        String url = "http://"+hostname+":8080/api/v1/supervisor/summary";
+        String url = "http://zookeepernimbus:8080/api/v1/supervisor/summary";
 
         URL obj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -63,6 +62,7 @@ public class Latencies {
             response.append(inputLine);
         }
         in.close();
+        LOG.info("Latencies response {}", response.toString());
         supervisors = getSupervisorHosts(response.toString());
     }
 
@@ -72,15 +72,17 @@ public class Latencies {
         supervisors = new String[summaries.supervisors.length];
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors[i] = summaries.supervisors[i].get_host();
-            LOG.info("Supervisor " + supervisors[i]);
+            LOG.info("Latencies Supervisor " + supervisors[i]);
         }
         return supervisors;
     }
 
     public HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> getLatencies ()  {
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
+        LOG.info("All Latencies Supervisor " + supervisors);
         for (String supervisor: supervisors){
-            String url = "http://" + supervisor + ":8000/latencies";
+            String [] sup = supervisor.split("\\.");
+            String url = "http://" + sup[0] + ":8000/latencies";
             URL obj = null;
             try {
                 obj = new URL(url);
