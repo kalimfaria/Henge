@@ -5,7 +5,6 @@ import backtype.storm.generated.*;
 import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import backtype.storm.utils.NimbusClient;
-import com.google.gson.Gson;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
 import org.json.JSONArray;
@@ -15,9 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +59,8 @@ public class GlobalState {
             InetAddress addr;
             addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
+            String [] broken = hostname.split(".");
+            hostname = broken[0];
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
         } */

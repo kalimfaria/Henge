@@ -35,6 +35,9 @@ public class SupervisorInfo {
             InetAddress addr;
             addr = InetAddress.getLocalHost();
             hostname = addr.getHostName();
+            String [] broken = hostname.split(".");
+            hostname = broken[0];
+            LOG.info("hostname: {}" , hostname);
         } catch (UnknownHostException ex) {
             System.out.println("Hostname can not be resolved");
         } */
