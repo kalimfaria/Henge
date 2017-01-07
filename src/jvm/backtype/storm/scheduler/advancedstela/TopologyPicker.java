@@ -7,7 +7,7 @@ import java.util.Iterator;
 
 public class TopologyPicker {
 
-    public Topology pickTopology(ArrayList<Topology> receiver_topologies, ArrayList<BriefHistory> history)
+    public ArrayList<Topology> pickTopology(ArrayList<Topology> receiver_topologies, ArrayList<BriefHistory> history)
     {
         String strategy_name = "WT";
         switch(strategy_name)
@@ -32,7 +32,7 @@ public class TopologyPicker {
 
         removeTopologiesThatDoNotShowImprovementWithRebalancing(receiver_topologies, history);
         if (receiver_topologies.size() == 0) return null;
-        return receiver_topologies.get(0);
+        return receiver_topologies;
     }
 
     public void removeTopologiesThatDoNotShowImprovementWithRebalancing (ArrayList<Topology> receiver_topologies,

@@ -107,29 +107,44 @@ public class AdvancedStelaScheduler implements IScheduler {
 
         if (!doWeStop) {
             ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
-            Topology receiver = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
-            LOG.info("Length of receivers {}", receiver_topologies.size());
-            if (receiver != null) {
-                // ONE TOPOLOGY THAT IS REBALANCED
 
-                LOG.info("Picked the topology for rebalance");
-                TopologyDetails target = topologies.getById(receiver.getId());
-                TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
-                //Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
-                ArrayList<ResultComponent> targetComponents = selector.selectAllOperators(globalState, globalStatistics, receiver);
-                LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
-                if (targetComponents != null) {
-                    LOG.info("topology {} target component", receiver, targetComponents.size());
-                    rebalanceTopology(target, targetSchedule, targetComponents, receiver, now);
-                    decrementStability();
-                    didWeDoRebalance = true;
-                }
-            } else if (receiver == null || receiver_topologies.size() == 0) {
+            if (receiver_topologies.size() == 0) {
                 LOG.info("There are no receivers!\n");
                 // if this persists for 4 rounds, then truncate history. We be stable yo!
                 LOG.info("Houston,we're stable");
                 incrementStability();
+                return;
             }
+
+            boolean wasRebalanceSuccessful = false;
+            int topologyNum = 0;
+            ArrayList<Topology> sorted_receivers = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
+            LOG.info("Length of receivers {}", receiver_topologies.size());
+
+            while (!wasRebalanceSuccessful && topologyNum <= receiver_topologies.size()) {
+                Topology receiver = sorted_receivers.get(topologyNum);
+                if (receiver != null) {
+                    LOG.info("topologyNum {} ", topologyNum);
+                    topologyNum ++;
+                    // ONE TOPOLOGY THAT IS REBALANCED
+                    LOG.info("Picked the topology for rebalance");
+                    TopologyDetails target = topologies.getById(receiver.getId());
+                    TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
+                    //Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
+                    ArrayList<ResultComponent> targetComponents = selector.selectAllOperators(globalState, globalStatistics, receiver);
+                    LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
+                    if (targetComponents != null) {
+                        LOG.info("topology {} target component", receiver, targetComponents.size());
+                        wasRebalanceSuccessful = rebalanceTopology(target, targetSchedule, targetComponents, receiver, now);
+                        LOG.info("topologyNum {} wasRebalanceSuccessful {} ", topologyNum, wasRebalanceSuccessful);
+
+                    }
+                } else  {
+                    LOG.info("receivers are null");
+                }
+            }
+            decrementStability();
+            didWeDoRebalance = true;
         }
     }
 
@@ -271,7 +286,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
  */
 
-    private void rebalanceTopology(TopologyDetails targetDetails,
+    private boolean rebalanceTopology(TopologyDetails targetDetails,
                                    TopologySchedule target,
                                    ArrayList<ResultComponent> components,
                                    Topology targetTopology,
@@ -284,7 +299,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         "rebalance " + targetDetails.getName() + " -w 0 ";
 
                 for (ResultComponent comp:  components) {
-
                     //int one = 2;
                     int one = comp.getExecutorsForRebalancing();
                     String targetComponent = comp.component.getId();
@@ -323,18 +337,21 @@ public class AdvancedStelaScheduler implements IScheduler {
                         Runtime.getRuntime().exec("fab delete");
                         // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
                         sloObserver.clearTopologySLOs(target.getId());
+                        return true;
                     }
                 } catch (Exception e) {
                     LOG.info(e.toString());
                     LOG.info("In first exception");
                     //e.printStackTrace();
+                    return false;
                 }
             } catch (Exception e) {
                 LOG.info(e.toString());
                 LOG.info("In second exception");
-                return;
+                return false;
             }
         }
+        return false;
     }
 
     private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {

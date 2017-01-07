@@ -9,3 +9,4 @@ sudo apt-get install tmux
 cd /var/nimbus
 sudo cp ~/libsigar-amd64-linux.so .
 sudo cp ~/sysinfo-1.0-SNAPSHOT.one-jar.jar .
+sudo mkdir /var/latencies
