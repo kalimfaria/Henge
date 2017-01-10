@@ -42,6 +42,7 @@ public class TestTopology {
         t3 = new Topology("T3", 1.0, 50.0, 35.0, 5L); // both
     }
 
+
     @Test
     public void testSensitivityType() {
         Sensitivity s1 = t1.getSensitivity();
@@ -151,8 +152,8 @@ public class TestTopology {
         list.add(t2);
 
         TopologyPicker picker = new TopologyPicker();
-        Topology topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
-        assertEquals(topology.getId(), "T3");
+        ArrayList<Topology> topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
+        assertEquals(topology.get(0).getId(), "T3");
 
     }
 
@@ -174,8 +175,8 @@ public class TestTopology {
         list.add(t2);
 
         TopologyPicker picker = new TopologyPicker();
-        Topology topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
-        assertEquals(topology.getId(), "T3");
+        ArrayList<Topology> topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
+        assertEquals(topology.get(0).getId(), "T3");
 
     }
 
@@ -198,8 +199,8 @@ public class TestTopology {
         BriefHistory history = new BriefHistory("T3", System.currentTimeMillis(), 25.625);
         ArrayList<BriefHistory> briefHistory = new ArrayList<BriefHistory>();
         briefHistory.add(history);
-        Topology topology = picker.pickTopology(list, briefHistory);
-        assertEquals(topology.getId(), "T2");
+        ArrayList<Topology> topology  = picker.pickTopology(list, briefHistory);
+        assertEquals(topology.get(0).getId(), "T2");
     }
 
     @Test
@@ -225,8 +226,8 @@ public class TestTopology {
         list.add(t4);
 
         TopologyPicker picker = new TopologyPicker();
-        Topology topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
-        assertEquals(topology.getId(), "T3");
+        ArrayList<Topology> topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
+        assertEquals(topology.get(0).getId(), "T3");
 
         t4 = new Topology("T4", 1.0, 50.0, 35.0, 5L); // both
         t4.setAverageLatency(100.0);
@@ -241,7 +242,7 @@ public class TestTopology {
 
         picker = new TopologyPicker();
         topology = picker.pickTopology(list, new ArrayList<BriefHistory>());
-        assertEquals(topology.getId(), "T4");
+        assertEquals(topology.get(0).getId(), "T4");
     }
 
     @Test
@@ -660,7 +661,13 @@ public class TestTopology {
     @Test
     public void testSplit() {
         String [] sup = "pc530.emulab.net".split("\\.");
-        System.err.println(sup[0]);
+        System.out.println(sup[0]);
+    }
+
+    @Test
+    public void emptyStringTest() {
+        String [] sup = new String[10];
+        assertEquals(sup[0], null);
     }
 
 

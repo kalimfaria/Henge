@@ -16,10 +16,10 @@ import java.util.*;
 public class SupervisorInfo {
 
     private final String USER_AGENT = "Mozilla/5.0";
-    public String [] supervisors;
+    public ArrayList<String> supervisors;
     HashMap<String, Info> supervisorsInfo;
     public Queue <HashMap<String, Info>> infoHistory;
-    public final int HISTORY_SIZE = 30;
+    public final int HISTORY_SIZE = 10;
     public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
     private File util_log;
    // private String hostname;
@@ -30,21 +30,10 @@ public class SupervisorInfo {
         infoHistory = new LinkedList<>();
         supervisorsInfo = new HashMap<String, Info>();
         util_log = new File("/tmp/util.log");
-       /* hostname = "Unknown";
-        try {
-            InetAddress addr;
-            addr = InetAddress.getLocalHost();
-            hostname = addr.getHostName();
-            String [] broken = hostname.split(".");
-            hostname = broken[0];
-            LOG.info("hostname: {}" , hostname);
-        } catch (UnknownHostException ex) {
-            System.out.println("Hostname can not be resolved");
-        } */
+        supervisors = new ArrayList<>();
     }
 
     public void GetSupervisors () throws  Exception {
-
         String url = "http://zookeepernimbus:8080/api/v1/supervisor/summary";
 
         URL obj = new URL(url);
@@ -74,13 +63,13 @@ public class SupervisorInfo {
 
     }
 
-    public String [] getSupervisorHosts (String input) {
+    public ArrayList getSupervisorHosts (String input) {
         Gson gson = new Gson();
         Summaries summaries = gson.fromJson(input, Summaries.class);
-        supervisors = new String[summaries.supervisors.length];
+        supervisors = new ArrayList<>();
         for (int i = 0; i < summaries.supervisors.length; i++) {
-            supervisors[i] = summaries.supervisors[i].get_host();
-            LOG.info("SupInfo Supervisor " + supervisors[i]);
+            supervisors.add(summaries.supervisors[i].get_host());
+            LOG.info("SupInfo Supervisor " + summaries.supervisors[i].get_host());
         }
         return supervisors;
     }
@@ -88,37 +77,82 @@ public class SupervisorInfo {
     public void GetInfo () throws  Exception
     {
         supervisorsInfo = new HashMap<String, Info>();
-        for (String supervisor: supervisors){
-            String [] sup = supervisor.split("\\.");
-            String url = "http://" + sup[0] + ":8000/info";
-            URL obj = new URL(url);
+        if (supervisors.size() == 0) {
+            String nodeName = "node";
+            Integer counter = 1;
+            int responseCode = 200;
+            while (responseCode == 200) {
+                try {
+                    String url = "http://" + nodeName + counter.toString() + ":8000/info";
+                    URL obj = new URL(url);
 
-            LOG.info(" Supervisor : " + supervisor + " url " + url);
-            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+                    LOG.info(" Supervisor : " + nodeName + counter.toString() + " url " + url);
+                    HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
-            // optional default is GET
-            con.setRequestMethod("GET");
+                    // optional default is GET
+                    con.setRequestMethod("GET");
 
-            //add request header
-            con.setRequestProperty("User-Agent", USER_AGENT);
+                    //add request header
+                    con.setRequestProperty("User-Agent", USER_AGENT);
 
-            int responseCode = con.getResponseCode();
-            LOG.info("\nSending 'GET' request to URL : " + url);
-            LOG.info("Response Code : " + responseCode);
+                    responseCode = con.getResponseCode();
+                    LOG.info("\nSending 'GET' request to URL : " + url);
+                    LOG.info("Response Code : " + responseCode);
+                    if (responseCode == 200) {
+                        BufferedReader in = new BufferedReader(
+                                new InputStreamReader(con.getInputStream()));
+                        String inputLine;
+                        StringBuffer response = new StringBuffer();
 
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
+                        while ((inputLine = in.readLine()) != null) {
+                            response.append(inputLine);
+                        }
+                        in.close();
+                        // parse the object and make it in the form of Info
+                        Gson gson = new Gson();
+                        Info info = gson.fromJson(response.toString(), Info.class);
+                        supervisorsInfo.put(nodeName + counter.toString(), info);
+                        supervisors.add(nodeName + counter.toString());
+                    }
+                    counter++;
+                } catch (UnknownHostException e) {
+                    LOG.info("Received UnknownHostException and now breaking loop: " + e.toString());
+                    responseCode = 300;
+                }
             }
-            in.close();
-            // parse the object and make it in the form of Info
-            Gson gson = new Gson();
-            Info info  = gson.fromJson(response.toString(), Info.class);
-            supervisorsInfo.put(supervisor, info);
+        } else {
+            LOG.info("Supervisors: {}", supervisors);
+            for (String supervisor : supervisors) {
+                String url = "http://" + supervisor + ":8000/info";
+                URL obj = new URL(url);
+
+                LOG.info(" Supervisor : " + supervisor + " url " + url);
+                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+                // optional default is GET
+                con.setRequestMethod("GET");
+
+                //add request header
+                con.setRequestProperty("User-Agent", USER_AGENT);
+
+                int responseCode = con.getResponseCode();
+                LOG.info("\nSending 'GET' request to URL : " + url);
+                LOG.info("Response Code : " + responseCode);
+
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(con.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                // parse the object and make it in the form of Info
+                Gson gson = new Gson();
+                Info info = gson.fromJson(response.toString(), Info.class);
+                supervisorsInfo.put(supervisor, info);
+            }
         }
         insertInfo(supervisorsInfo);
     }
@@ -172,8 +206,10 @@ public class SupervisorInfo {
             i++;
         }
         // In 5, choose 3
-        int quorum_size = (supervisors.length + 1) / 2; // to ceil
+        LOG.info("Decisions {}", decisions);
+        int quorum_size = (supervisors.size() + 1) / 2; // to ceil
         if (quorum_size == 0) quorum_size = 3;
+        LOG.info("Supervisors.length {}, quorum size {}", supervisors.size(), quorum_size );
         for (int decision: decisions)
             if (decision < quorum_size){ // this should be false
                 return false;
@@ -183,7 +219,7 @@ public class SupervisorInfo {
 
     public boolean GetSupervisorInfo () {
       try {
-          this.GetSupervisors();
+         // this.GetSupervisors();
           this.GetInfo();
       } catch (Exception e)
       {

@@ -41,6 +41,7 @@ public class GlobalState {
     }
 
     public boolean isClusterUtilization() {
+        LOG.info("Cluster utilization {} ", isClusterOverUtilized);
         return isClusterOverUtilized;
     }
 

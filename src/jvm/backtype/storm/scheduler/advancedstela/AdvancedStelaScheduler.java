@@ -72,6 +72,7 @@ public class AdvancedStelaScheduler implements IScheduler {
 
     private void rebalanceHelper(Topologies topologies) {
         LOG.info("rebalance helper");
+        LOG.info("history size {}", history.size());
         History now = createHistory(topologies);
         boolean didUtilityFall = false;
         if (history.size() > 0) {
@@ -81,8 +82,9 @@ public class AdvancedStelaScheduler implements IScheduler {
             if (!doWeStop && didWeDoRebalance) {
                 /// NOW CHECK CPU UTIL
                 boolean wasReductionSuccessful = false;
+                LOG.info("going to check utilization");
                 if (globalState.isClusterUtilization() && !didWeReduce) {
-                    LOG.info("going to check utilization");
+
                     wasReductionSuccessful = doReduction(topologies);
                 }
                 if (!wasReductionSuccessful) { // we did not do a reduction
@@ -104,10 +106,16 @@ public class AdvancedStelaScheduler implements IScheduler {
                 didWeReduce = false;
             }
         }
+        LOG.info("doWeStop {} didWeDoRebalanace {} didWeReduce {}", doWeStop, didWeDoRebalance, didWeReduce);
+
+        ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
+        LOG.info("Size of receiver topologies: {}, doWeStop: {}, history.size : {} ", receiver_topologies.size(), doWeStop, history.size());
+        /*if (receiver_topologies.size() > 0 && doWeStop && history.size() == 0) {
+            LOG.info("Turned doWeStop to false");
+            doWeStop = false;
+        }*/
 
         if (!doWeStop) {
-            ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
-
             if (receiver_topologies.size() == 0) {
                 LOG.info("There are no receivers!\n");
                 // if this persists for 4 rounds, then truncate history. We be stable yo!
