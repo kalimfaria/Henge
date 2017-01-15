@@ -5,6 +5,7 @@ import backtype.storm.scheduler.advancedstela.etp.SupervisorInfo;
 import backtype.storm.scheduler.advancedstela.etp.TopologySchedule;
 import backtype.storm.scheduler.advancedstela.slo.Sensitivity;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
+import backtype.storm.tuple.Values;
 import com.google.gson.Gson;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -291,13 +292,13 @@ public class TestTopology {
                 "         }\n" +
                 "         ]}";
         SupervisorInfo supervisorInfo = new SupervisorInfo();
-        String[] supervisors = supervisorInfo.getSupervisorHosts(response);
+        ArrayList<String> supervisors = supervisorInfo.getSupervisorHosts(response);
 
-        assertEquals(supervisors[0], "pc427.emulab.net");
-        assertEquals(supervisors[1], "pc557.emulab.net");
-        assertEquals(supervisors[2], "pc436.emulab.net");
-        assertEquals(supervisors[3], "pc538.emulab.net");
-        assertEquals(supervisors[4], "pc553.emulab.net");
+        assertEquals(supervisors.get(0), "pc427.emulab.net");
+        assertEquals(supervisors.get(1), "pc557.emulab.net");
+        assertEquals(supervisors.get(2), "pc436.emulab.net");
+        assertEquals(supervisors.get(3), "pc538.emulab.net");
+        assertEquals(supervisors.get(4), "pc553.emulab.net");
     }
 
     @Test
@@ -323,7 +324,10 @@ public class TestTopology {
     @Test
     public void testSupervisorOverUtilizationQuorum() {
         SupervisorInfo supervisorInfo = new SupervisorInfo();
-        supervisorInfo.supervisors = new String[3];
+        supervisorInfo.supervisors = new ArrayList<>();
+        supervisorInfo.supervisors.add("1");
+        supervisorInfo.supervisors.add("2");
+        supervisorInfo.supervisors.add("3");
         HashMap<String, SupervisorInfo.Info> infos = new HashMap<>();
 
         String response = "{\"recentLoad\": \"4.0\"," +
@@ -356,7 +360,10 @@ public class TestTopology {
     public void testSupervisorOverUtilization() {
         SupervisorInfo supervisorInfo = new SupervisorInfo();
         HashMap<String, SupervisorInfo.Info> infos = new HashMap<>();
-
+        supervisorInfo.supervisors = new ArrayList<>();
+        supervisorInfo.supervisors.add("1");
+        supervisorInfo.supervisors.add("2");
+        supervisorInfo.supervisors.add("3");
         String response = "{\"recentLoad\": \"4.0\"," +
                 "         \"minLoad\": \"1.2\"," +
                 "         \"fiveMinsLoad\": \"1.4\"," +
@@ -670,5 +677,18 @@ public class TestTopology {
         assertEquals(sup[0], null);
     }
 
+    @Test
+    public void testTimeRange() {
+        int time = 0, time_4 = 4, time_8 = 8;
+        int current_time = 0;
+        while (current_time < 10){
+            if (time > current_time - time_4 || time  < current_time - time_8){
+                System.out.println("Rate 1!, current_time: " + current_time);
+            } else {
+                System.out.println("Rate 2!, current_time: " + current_time);
+            }
+            current_time ++;
+        }
+    }
 
 }

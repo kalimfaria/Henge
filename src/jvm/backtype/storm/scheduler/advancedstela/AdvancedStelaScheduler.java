@@ -66,6 +66,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
             rebalanceHelper(topologies);
             time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
+
         }
     }
 
@@ -78,22 +79,24 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (history.size() > 0) {
             didUtilityFall = history.get(history.size() - 1).doWeNeedToRevert(now);
         }
+        LOG.info("didUtilityFall {}", didUtilityFall);
         if (didUtilityFall) {
             if (!doWeStop && didWeDoRebalance) {
                 /// NOW CHECK CPU UTIL
                 boolean wasReductionSuccessful = false;
                 LOG.info("going to check utilization");
                 if (globalState.isClusterUtilization() && !didWeReduce) {
-
                     wasReductionSuccessful = doReduction(topologies);
                 }
                 if (!wasReductionSuccessful) { // we did not do a reduction
-                    History bestHistory = findBestHistory();
-                    revertHistory(bestHistory);
-                    doWeStop = true;
+                    History bestHistory = findBestHistory(now);
+                    boolean wasReversionSuccessful = revertHistory(bestHistory);
+                    if (wasReversionSuccessful) {
+                        doWeStop = true;
+                        decrementStability();
+                    }
                 }
                 // not in convergence state // ADD IF - CHECK UTIL - DO REDUCE IF NEEDED ELSE DO REDUCE AND STOP -- do revert and then stop
-                decrementStability();
                 didWeDoRebalance = false;
                 return; // break out
             } else if (doWeStop) {
@@ -106,14 +109,16 @@ public class AdvancedStelaScheduler implements IScheduler {
                 didWeReduce = false;
             }
         }
-        LOG.info("doWeStop {} didWeDoRebalanace {} didWeReduce {}", doWeStop, didWeDoRebalance, didWeReduce);
+        LOG.info("doWeStop {} didWeDoRebalance {} didWeReduce {}", doWeStop, didWeDoRebalance, didWeReduce);
 
         ArrayList<Topology> receiver_topologies = sloObserver.getFailingTopologies();
         LOG.info("Size of receiver topologies: {}, doWeStop: {}, history.size : {} ", receiver_topologies.size(), doWeStop, history.size());
-        /*if (receiver_topologies.size() > 0 && doWeStop && history.size() == 0) {
-            LOG.info("Turned doWeStop to false");
-            doWeStop = false;
-        }*/
+        if (receiver_topologies.size() == 0 && doWeStop && history.size() == 0) {
+            saveHistory(now);
+            LOG.info("Saving history so that we have something to compare to later to");
+            writeToFile(juice_log, "TriggeredInstability\n");
+         //   doWeStop = false;
+        }
 
         if (!doWeStop) {
             if (receiver_topologies.size() == 0) {
@@ -129,7 +134,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             ArrayList<Topology> sorted_receivers = new TopologyPicker().pickTopology(receiver_topologies, briefHistory);
             LOG.info("Length of receivers {}", receiver_topologies.size());
 
-            while (!wasRebalanceSuccessful && topologyNum <= receiver_topologies.size()) {
+            while (!wasRebalanceSuccessful && topologyNum < receiver_topologies.size()) {
                 Topology receiver = sorted_receivers.get(topologyNum);
                 if (receiver != null) {
                     LOG.info("topologyNum {} ", topologyNum);
@@ -145,7 +150,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         LOG.info("topology {} target component", receiver, targetComponents.size());
                         wasRebalanceSuccessful = rebalanceTopology(target, targetSchedule, targetComponents, receiver, now);
                         LOG.info("topologyNum {} wasRebalanceSuccessful {} ", topologyNum, wasRebalanceSuccessful);
-
                     }
                 } else  {
                     LOG.info("receivers are null");
@@ -156,10 +160,11 @@ public class AdvancedStelaScheduler implements IScheduler {
         }
     }
 
-    private void revertHistory(History bestHistory) {
-
-        if (config != null) {
+    private boolean revertHistory(History bestHistory) {
+        if (config != null && bestHistory != null) {
             try {
+                boolean areWeDone = false;
+
                 HashMap<String, TopologyDetails> topologySchedules = bestHistory.getTopologiesSchedule();
                 for (Map.Entry<String, TopologyDetails> schedule : topologySchedules.entrySet()) {
                     String topologyName = schedule.getKey();
@@ -168,34 +173,40 @@ public class AdvancedStelaScheduler implements IScheduler {
                     writeToFile(juice_log, "Reverting\n");
                     String targetCommand = "/var/nimbus/storm/bin/storm " +
                             "rebalance " + topologyName + " -w 0 ";
-
-                    Map<String, Integer> componentToExecutor = flipExecsMap(details.getExecutorToComponent());
+                    Map<String, Integer> componentToExecutor = new Helpers().flipExecsMap(details.getExecutorToComponent());
+                    boolean localAreWeDone = false;
                     for (Map.Entry<String, Integer> entry : componentToExecutor.entrySet()) {
                         targetCommand += " -e " + entry.getKey() + "=" + entry.getValue();
+                        areWeDone = true;
+                        localAreWeDone = true;
                     }
-                    writeToFile(juice_log, targetCommand + "\n");
-                    writeToFile(juice_log, System.currentTimeMillis() + "\n");
-                    LOG.info(targetCommand + "\n");
-                    LOG.info(System.currentTimeMillis() + "\n");
-                    Runtime.getRuntime().exec(targetCommand);
-                    Runtime.getRuntime().exec("fab delete");
-                    //sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
-                    sloObserver.clearTopologySLOs(topologyName);
+                    if (localAreWeDone) {
+                        writeToFile(juice_log, targetCommand + "\n");
+                        writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                        LOG.info(targetCommand + "\n");
+                        LOG.info(System.currentTimeMillis() + "\n");
+                        Runtime.getRuntime().exec(targetCommand);
+                        Runtime.getRuntime().exec("fab delete");
+                        //sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                        sloObserver.clearTopologySLOs(topologyName);
+                    }
                 }
+                return areWeDone;
             } catch (Exception e) {
                 LOG.info(e.toString());
                 LOG.info("Revert history in only exception");
+                return false;
             }
+         } else {
+            return false;
         }
     }
 
     private boolean doReduction(Topologies topologies) {
         LOG.info("do reduction");
-        decrementStability();
         ArrayList<Topology> successfulTopologies = sloObserver.getSuccesfulTopologies();
         HashMap<String, TopologySchedule> topologySchedules = globalState.getTopologySchedules();
         if (successfulTopologies.size() == 0) return false;
-
         boolean reduction = false;
 
         for (Topology successfulTopology : successfulTopologies) {
@@ -205,14 +216,12 @@ public class AdvancedStelaScheduler implements IScheduler {
             String targetCommand = "/var/nimbus/storm/bin/storm " +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
 
-
             for (Component comp : uncongestedComponents) {
                 reduction = true;
                 LOG.info("Parallelism: {} ", comp.getParallelism());
                 int reducedExecutors = (int) (comp.getParallelism() * 0.2);
                 LOG.info("Before reducing executors to 1 " + reducedExecutors + "\n");
                 if (reducedExecutors <= 0) reducedExecutors = 1;
-
                 targetCommand += "-e " + comp.getId() + "=" + reducedExecutors + " ";
                 LOG.info("Reduced executors " + targetCommand + "\n");
                 LOG.info(System.currentTimeMillis() + "\n");
@@ -235,9 +244,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                 LOG.info(e.toString());
             }
         }
-
         if (!reduction) return false;
 
+        decrementStability();
         history.clear();
         briefHistory.clear(); // DO WE NEED TO DO THIS?
         didWeReduce = true;
@@ -307,16 +316,16 @@ public class AdvancedStelaScheduler implements IScheduler {
                         "rebalance " + targetDetails.getName() + " -w 0 ";
 
                 for (ResultComponent comp:  components) {
-                    //int one = 2;
                     int one = comp.getExecutorsForRebalancing();
                     String targetComponent = comp.component.getId();
                     Integer targetOldParallelism = target.getComponents().get(targetComponent).getParallelism();
                     Integer targetNewParallelism = targetOldParallelism + one;
                     Integer targetTasks = target.getNumTasks(targetComponent);
-                    LOG.info("Num of tasks {} new Parallelism {}", targetTasks, targetNewParallelism);
+                    LOG.info("Num of tasks {} new Parallelism {} oldParallelism 1 {}", targetTasks, targetNewParallelism, targetOldParallelism);
                     if (targetNewParallelism > targetTasks) { // so this is the turning point
                         targetNewParallelism = targetTasks;
                     }
+                    LOG.info("Num of tasks {} new Parallelism {} oldParallelism 2 {}", targetTasks, targetNewParallelism, targetOldParallelism);
                     if (targetOldParallelism < targetNewParallelism) {
                         LOG.info("targetOldParallelism < targetNewParallelism for operator {}", targetComponent);
                         if (first_time == 0) {
@@ -327,7 +336,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                         targetCommand +=  " -e " + targetComponent + "=" + targetNewParallelism;
                         target.getComponents().get(targetComponent).setParallelism(targetNewParallelism);
                     }
-
                 }
 
                 try {
@@ -382,11 +390,16 @@ public class AdvancedStelaScheduler implements IScheduler {
     }
 
 
-    public History findBestHistory() {
+    public History findBestHistory(History now) {
         Collections.sort(history);
         LOG.info("Finding best histories");
         if (history.size() > 0) {
             History currentBest = history.get(history.size() - 1);
+            if (currentBest.equals(now)) {
+                LOG.info("currentBest.equals(now) NOT");
+                return null;
+            }
+            LOG.info("currentBest.equals(now)");
             return currentBest; // getting the last one
         }
         return null;
@@ -462,18 +475,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }
-    }
-
-    public Map<String, Integer> flipExecsMap(Map<ExecutorDetails, String> ExecutorsToComponents) {
-        HashMap<String, Integer> flippedMap = new HashMap<>();
-        for (Map.Entry<ExecutorDetails, String> entry : ExecutorsToComponents.entrySet()) {
-            if (flippedMap.containsKey(entry.getValue())) {
-                flippedMap.put(entry.getValue(), (flippedMap.get(entry.getValue()) + 1));
-            } else {
-                flippedMap.put(entry.getValue(), 1);
-            }
-        }
-        return flippedMap;
     }
 
     public void decrementStability() {
