@@ -49,9 +49,14 @@ public class TopologyPicker {
                                                                         ArrayList<BriefHistory> history)
     // if any rebalance in the last hour did not lead to more than 5% improvement in utility, the topology will be removed
     {
+        LOG.info ("In removeTopologiesThatDoNotShowImprovementWithRebalancing");
         Long currentTime = System.currentTimeMillis();
+        Long hour = 60L * 60L * 1000L;
+        LOG.info ("current Time {} hour {}", currentTime, hour);
         for (BriefHistory briefHistory : history) {
-            if (currentTime <= (briefHistory.getTime() + 60 * 1000)) { // rebalance was performed in the last hour
+            LOG.info ("briefHistory {} ", briefHistory.toString());
+            LOG.info("currentTime <= (briefHistory.getTime() + hour)", currentTime <= (briefHistory.getTime() + hour));
+            if (currentTime <= (briefHistory.getTime() + hour)) { // rebalance was performed in the last hour
                 for (Iterator<Topology> iterator = receiver_topologies.iterator(); iterator.hasNext(); ) {
                     Topology t = iterator.next();
                     LOG.info("iterating over {} in receiver ", t.getId() );
@@ -60,7 +65,7 @@ public class TopologyPicker {
                         double oldUtility = briefHistory.getUtility();
                         double requiredUtility = t.getTopologyUtility();
                         LOG.info("current {} old {} required {} top {} ",currentUtility , oldUtility  ,requiredUtility, t.getId() );
-                        if ((currentUtility - oldUtility) / requiredUtility < 0.05) // if improvement is less than 5%
+                        if ((currentUtility - oldUtility) / requiredUtility < 0.1) // if improvement is less than 5%
                         {
                             LOG.info("Not choosing " + t.getId() + "\n");
                             writeToFile(juice_log, "Not choosing " + t.getId() + "\n");

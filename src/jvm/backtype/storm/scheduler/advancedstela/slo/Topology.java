@@ -11,7 +11,8 @@ public class Topology implements Comparable<Topology> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Topology.class);
     private static final Integer SLO_WINDOW = 10;
-    public static final Integer MAX_EXECUTORS = 10;
+    public static final Integer MULTIPLIER = 10;
+    public static final Integer MAX_EXECUTORS = 100;
     static public String sortingStrategy;
     public HashMap<HashMap<String, String>, Double> latencies;
     private Sensitivity sensitivity;
@@ -299,9 +300,9 @@ public class Topology implements Comparable<Topology> {
         if (curr_util > util) return 0;
         Double prop = ((util - curr_util)/util);
         System.out.println("Prop " + prop);
-        Double execs = Math.ceil(prop * (MAX_EXECUTORS * 1.0));
+        Double execs = Math.ceil(prop * (MULTIPLIER * 1.0));
         System.out.println("Execs " + execs);
-        Integer executors = execs.intValue();
+        Integer executors = Math.min(MAX_EXECUTORS, execs.intValue());
         System.out.println("Executors " + executors);
         if (executors == 0) return 1;
         return executors;

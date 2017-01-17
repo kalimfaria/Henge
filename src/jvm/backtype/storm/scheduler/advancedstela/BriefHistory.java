@@ -26,4 +26,9 @@ public class BriefHistory {
     public Double getUtility() {
         return utility;
     }
+
+    @Override
+    public String toString () {
+        return new String("Brief History: " + time + " " + topology + " " + utility);
+    }
 }

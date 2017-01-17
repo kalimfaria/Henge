@@ -25,9 +25,9 @@ public class ResultComponent implements Comparable<ResultComponent>{
         if (cap > curr_cap) return 0;
         Double prop = ((curr_cap - cap)/cap);
         LOG.info("Proportion " + prop);
-        Double execs = Math.ceil(prop * (Topology.MAX_EXECUTORS * 1.0));
+        Double execs = Math.ceil(prop * (Topology.MULTIPLIER * 1.0));
         LOG.info("Execs " + execs);
-        Integer executors = execs.intValue();
+        Integer executors = Math.min(Topology.MAX_EXECUTORS, execs.intValue());
         if (executors == 0) return 1;
         LOG.info("Executors " + executors);
         return executors;
