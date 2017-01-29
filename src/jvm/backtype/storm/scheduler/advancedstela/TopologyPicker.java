@@ -65,7 +65,7 @@ public class TopologyPicker {
                         double oldUtility = briefHistory.getUtility();
                         double requiredUtility = t.getTopologyUtility();
                         LOG.info("current {} old {} required {} top {} ",currentUtility , oldUtility  ,requiredUtility, t.getId() );
-                        if ((currentUtility - oldUtility) / requiredUtility < 0.1) // if improvement is less than 5%
+                        if ((currentUtility - oldUtility) / oldUtility < 0.05) // if improvement is less than 5%
                         {
                             LOG.info("Not choosing " + t.getId() + "\n");
                             writeToFile(juice_log, "Not choosing " + t.getId() + "\n");
