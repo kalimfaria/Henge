@@ -19,8 +19,8 @@ public class History implements Comparable {
     public boolean doWeNeedToRevert(History current) {
         LOG.info("In do we need to revert.");
         Double currentUtility = current.getSystemUtility();
-        LOG.info("Current performance {} Old performance {}, currentUtility * 1.1 {}", currentUtility, this.systemUtility, currentUtility * 1.1);
-        if (this.systemUtility > currentUtility * 1.1) { // place a threshold here
+        LOG.info("Current performance {} Old performance {}, currentUtility * 1.05 {}", currentUtility, this.systemUtility, currentUtility * 1.1);
+        if (this.systemUtility > currentUtility * 1.05) { // place a threshold here
             return true;
         }
         return false;

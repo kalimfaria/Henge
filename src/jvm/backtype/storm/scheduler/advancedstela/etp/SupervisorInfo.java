@@ -20,7 +20,7 @@ public class SupervisorInfo {
     HashMap<String, Info> supervisorsInfo;
     public Queue <HashMap<String, Info>> infoHistory;
     public final int HISTORY_SIZE = 10;
-    public final double MAXIMUM_LOAD_PER_MACHINE = 4.0;
+    public final double MAXIMUM_LOAD_PER_MACHINE = 3.0;
     private File util_log;
    // private String hostname;
 
