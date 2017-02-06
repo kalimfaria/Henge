@@ -129,7 +129,7 @@ public class GlobalState {
         }
     }
 
-    public void collect(Cluster cluster, Topologies topologies) {
+    public boolean collect(Cluster cluster, Topologies topologies) {
         SupervisorInfo info = new SupervisorInfo();
         setClusterUtilization(info.GetSupervisorInfo());
         if (config != null) {
@@ -137,14 +137,19 @@ public class GlobalState {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
             } catch (TTransportException e) {
                 e.printStackTrace();
-                return;
+                return false;
             }
         }
-        populateNodeToExecutorMapping(cluster);
+        int clusterSize  = info.getSupervisorSize();
+        int supervisorSize = populateNodeToExecutorMapping(cluster);
         populateAssignmentForTopologies(cluster, topologies);
+        LOG.info("Cluster size {} supervisor Size {}", clusterSize, supervisorSize);
+        if (supervisorSize < clusterSize) return false;
+        return true;
+
     }
 
-    private void populateNodeToExecutorMapping(Cluster cluster) {
+    private int populateNodeToExecutorMapping(Cluster cluster) {
         for (Map.Entry<String, SupervisorDetails> entry : cluster.getSupervisors().entrySet()) {
             String supervisorId = entry.getKey();
             SupervisorDetails supervisorDetails = cluster.getSupervisors().get(supervisorId);
@@ -169,6 +174,7 @@ public class GlobalState {
                 }
             }
         }
+        return cluster.getSupervisors().size();
     }
 
     private void populateAssignmentForTopologies(Cluster cluster, Topologies topologies) {

@@ -55,18 +55,31 @@ public class AdvancedStelaScheduler implements IScheduler {
         logUnassignedExecutors(cluster.needsSchedulingTopologies(topologies), cluster);
         int numTopologiesThatNeedScheduling = cluster.needsSchedulingTopologies(topologies).size();
         LOG.info("numTopologiesThatNeedScheduling {}", numTopologiesThatNeedScheduling);
-        runAdvancedStelaComponents(cluster, topologies);
+        boolean failures = runAdvancedStelaComponents(cluster, topologies);
+        LOG.info("Failures {}" , failures);
         LOG.info("cluster utilization {}", globalState.isClusterUtilization());
-        if (numTopologiesThatNeedScheduling > 0) {
-            LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
-            new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-        } else if (numTopologiesThatNeedScheduling == 0
-                && (System.currentTimeMillis() - time) / 1000 > 60
-                && (System.currentTimeMillis() - upForMoreThan)/1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
-            LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-            rebalanceHelper(topologies);
-            time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
+        if (!failures) {  // false means failures
+            LOG.info("Failures!!! Clearing state");
+            briefHistory.clear();
+            history.clear();
+            didWeDoRebalance = false;
+            doWeStop = false;
+            didWeReduce = false;
+            areWeStable = 0;
+            LOG.info("State reset.");
+        }
+        else {
+            if (numTopologiesThatNeedScheduling > 0) {
+                LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
+                new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+            } else if (numTopologiesThatNeedScheduling == 0
+                    && (System.currentTimeMillis() - time) / 1000 > 60
+                    && (System.currentTimeMillis() - upForMoreThan) / 1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
+                LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
+                rebalanceHelper(topologies);
+                time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
 
+            }
         }
     }
 
@@ -370,11 +383,12 @@ public class AdvancedStelaScheduler implements IScheduler {
         return false;
     }
 
-    private void runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
+    private boolean runAdvancedStelaComponents(Cluster cluster, Topologies topologies) {
         sloObserver.run();
-        globalState.collect(cluster, topologies);
+        boolean failures = globalState.collect(cluster, topologies);
         globalState.setCapacities(sloObserver.getAllTopologies());
         globalStatistics.collect();
+        return failures;
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {

@@ -228,9 +228,17 @@ public class SupervisorInfo {
         return areSupervisorsOverUtilizedQuorum();
     }
 
+    public int getSupervisorSize() {
+        LOG.info("Supervisor size {}", supervisors.size());
+        return supervisors.size();
+
+    }
+
     public class Summaries {
         public SupervisorSummary [] supervisors;
     }
+
+
 
     public class Info {
         public Double recentLoad;
