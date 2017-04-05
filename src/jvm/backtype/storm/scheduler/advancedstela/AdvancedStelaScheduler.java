@@ -66,20 +66,26 @@ public class AdvancedStelaScheduler implements IScheduler {
             doWeStop = false;
             didWeReduce = false;
             areWeStable = 0;
+            upForMoreThan = System.currentTimeMillis();
+            // reset value to 5 only
+            backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME = 60 * 5;
             LOG.info("State reset.");
+
+
         }
         else {
             if (numTopologiesThatNeedScheduling > 0) {
                 LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
                 new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
-            } else if (numTopologiesThatNeedScheduling == 0
+            } /*else if (numTopologiesThatNeedScheduling == 0
                     && (System.currentTimeMillis() - time) / 1000 > 60
                     && (System.currentTimeMillis() - upForMoreThan) / 1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
+
                 LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-                rebalanceHelper(topologies);
+               rebalanceHelper(topologies);
                 time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
 
-            }
+            } */
         }
     }
 

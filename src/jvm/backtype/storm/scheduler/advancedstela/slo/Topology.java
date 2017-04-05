@@ -76,6 +76,9 @@ public class Topology implements Comparable<Topology> {
         ninetyNineLatency = latency;
     }
 
+    public void max99PercentileLatency() {
+        ninetyNineLatency = Double.MAX_VALUE;
+    }
 
     public Double get75PercentileLatency() {
         return seventyFiveLatency;
@@ -85,12 +88,20 @@ public class Topology implements Comparable<Topology> {
         seventyFiveLatency = latency;
     }
 
+    public void max75PercentileLatency() {
+        seventyFiveLatency = Double.MAX_VALUE;
+    }
+
     public Double get50PercentileLatency() {
         return fiftyLatency;
     }
 
     public void set50PercentileLatency(Double latency) {
         fiftyLatency = latency;
+    }
+
+    public void max50PercentileLatency() {
+        fiftyLatency = Double.MAX_VALUE;
     }
 
     public Double getAverageLatency() {

@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 
 public class Topologies {
-    public static final Integer UP_TIME = 60 * 15;
+    public static  Integer UP_TIME = 60 * 15;
     private static final Integer REBALANCING_INTERVAL = 60 * 1;//2;
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
@@ -391,6 +391,8 @@ public class Topologies {
         HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> data = latencies_fetcher.getLatencies(); //  ReadFiles();
         for (String topology : stelaTopologies.keySet()) {
             Topology topology_ = stelaTopologies.get(topology);
+
+
             if (data.containsKey(topology)) {
                 DescriptiveStatistics latencies = new DescriptiveStatistics();
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
@@ -415,6 +417,11 @@ public class Topologies {
                 topology_.set75PercentileLatency(latencies.getPercentile(75));
                 topology_.set50PercentileLatency(latencies.getPercentile(50));
             } else {
+                LOG.info("No latency data for topology so adding MAX");
+                topology_.setAverageLatency(Double.MAX_VALUE);
+                topology_.set99PercentileLatency(Double.MAX_VALUE);
+                topology_.set75PercentileLatency(Double.MAX_VALUE);
+                topology_.set50PercentileLatency(Double.MAX_VALUE);
                 writeToFile(same_top, "No latency data for topology: " + topology + " \n");
             }
         }
