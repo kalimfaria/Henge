@@ -46,8 +46,8 @@ public class SupervisorInfo {
         con.setRequestProperty("User-Agent", USER_AGENT);
 
         int responseCode = con.getResponseCode();
-        LOG.info("\nSending 'GET' request to URL : " + url);
-        LOG.info("Response Code : " + responseCode);
+      //  LOG.info("\nSending 'GET' request to URL : " + url);
+      //  LOG.info("Response Code : " + responseCode);
 
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(con.getInputStream()));
@@ -58,7 +58,7 @@ public class SupervisorInfo {
             response.append(inputLine);
         }
         in.close();
-        LOG.info("SupervisorInfo response {}", response.toString());
+       // LOG.info("SupervisorInfo response {}", response.toString());
         supervisors = getSupervisorHosts(response.toString());
 
     }
@@ -69,7 +69,7 @@ public class SupervisorInfo {
         supervisors = new ArrayList<>();
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors.add(summaries.supervisors[i].get_host());
-            LOG.info("SupInfo Supervisor " + summaries.supervisors[i].get_host());
+          //  LOG.info("SupInfo Supervisor " + summaries.supervisors[i].get_host());
         }
         return supervisors;
     }
@@ -86,7 +86,7 @@ public class SupervisorInfo {
                     String url = "http://" + nodeName + counter.toString() + ":8000/info";
                     URL obj = new URL(url);
 
-                    LOG.info(" Supervisor : " + nodeName + counter.toString() + " url " + url);
+                 //   LOG.info(" Supervisor : " + nodeName + counter.toString() + " url " + url);
                     HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
                     // optional default is GET
@@ -96,8 +96,8 @@ public class SupervisorInfo {
                     con.setRequestProperty("User-Agent", USER_AGENT);
 
                     responseCode = con.getResponseCode();
-                    LOG.info("\nSending 'GET' request to URL : " + url);
-                    LOG.info("Response Code : " + responseCode);
+                 //   LOG.info("\nSending 'GET' request to URL : " + url);
+                 //   LOG.info("Response Code : " + responseCode);
                     if (responseCode == 200) {
                         BufferedReader in = new BufferedReader(
                                 new InputStreamReader(con.getInputStream()));
@@ -116,17 +116,18 @@ public class SupervisorInfo {
                     }
                     counter++;
                 } catch (UnknownHostException e) {
-                    LOG.info("Received UnknownHostException and now breaking loop: " + e.toString());
+                 //   LOG.info("Received UnknownHostException and now breaking loop: " + e.toString());
+                    e.printStackTrace();
                     responseCode = 300;
                 }
             }
         } else {
-            LOG.info("Supervisors: {}", supervisors);
+           // LOG.info("Supervisors: {}", supervisors);
             for (String supervisor : supervisors) {
                 String url = "http://" + supervisor + ":8000/info";
                 URL obj = new URL(url);
 
-                LOG.info(" Supervisor : " + supervisor + " url " + url);
+               // LOG.info(" Supervisor : " + supervisor + " url " + url);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
                 // optional default is GET
@@ -136,8 +137,8 @@ public class SupervisorInfo {
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
                 int responseCode = con.getResponseCode();
-                LOG.info("\nSending 'GET' request to URL : " + url);
-                LOG.info("Response Code : " + responseCode);
+            //    LOG.info("\nSending 'GET' request to URL : " + url);
+            //    LOG.info("Response Code : " + responseCode);
 
                 BufferedReader in = new BufferedReader(
                         new InputStreamReader(con.getInputStream()));
@@ -206,10 +207,10 @@ public class SupervisorInfo {
             i++;
         }
         // In 5, choose 3
-        LOG.info("Decisions {}", decisions);
+        //LOG.info("Decisions {}", decisions);
         int quorum_size = (supervisors.size() + 1) / 2; // to ceil
         if (quorum_size == 0) quorum_size = 3;
-        LOG.info("Supervisors.length {}, quorum size {}", supervisors.size(), quorum_size );
+        //LOG.info("Supervisors.length {}, quorum size {}", supervisors.size(), quorum_size );
         for (int decision: decisions)
             if (decision < quorum_size){ // this should be false
                 return false;
@@ -223,7 +224,8 @@ public class SupervisorInfo {
           this.GetInfo();
       } catch (Exception e)
       {
-          System.out.println("Error in getting info about supervisor machines : " + e.toString());
+          e.printStackTrace();;
+        //  System.out.println("Error in getting info about supervisor machines : " + e.toString());
       }
         return areSupervisorsOverUtilizedQuorum();
     }
@@ -263,7 +265,8 @@ public class SupervisorInfo {
             bufferWriter.close();
             fileWriter.close();
         } catch (IOException ex) {
-            LOG.info("error! writing to file {}", ex);
+            ex.printStackTrace();;
+            //LOG.info("error! writing to file {}", ex);
         }
     }
 }

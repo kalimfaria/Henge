@@ -29,8 +29,8 @@ public class Topologies {
     private HashMap<String, Topology> stelaTopologies;
     private HashMap<String, Long> topologiesUptime;
     private HashMap<String, Long> lastRebalancedAt;
-    private File flatline_log;
-    private File same_top;
+   // private File flatline_log;
+   // private File same_top;
     private String folderName;
 
     public Topologies(Map conf) {
@@ -38,8 +38,8 @@ public class Topologies {
         stelaTopologies = new HashMap<String, Topology>();
         topologiesUptime = new HashMap<String, Long>();
         lastRebalancedAt = new HashMap<String, Long>();
-        flatline_log = new File("/tmp/flat_line.log");
-        same_top = new File("/tmp/same_top.log");
+     //   flatline_log = new File("/tmp/flat_line.log");
+     //   same_top = new File("/tmp/same_top.log");
 
         String hostname = "Unknown";
         try {
@@ -70,7 +70,7 @@ public class Topologies {
 
     public ArrayList<Topology> getFailingTopologies() { // when trying to add topologies to either of these
 
-        writeToFile(same_top, "In topologies:  getFailingTopologies\n");
+      //  writeToFile(same_top, "In topologies:  getFailingTopologies\n");
 
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
@@ -85,8 +85,8 @@ public class Topologies {
 
 
             if ((System.currentTimeMillis() / 1000 >= lastRebalancedAtTime + REBALANCING_INTERVAL) && upForMoreThan(topology.getId())) {
-                LOG.info("The topology can be successful or failed \n");
-                LOG.info("Topology name: " + topology.getId() + "\n");
+              //  LOG.info("The topology can be successful or failed \n");
+              //  LOG.info("Topology name: " + topology.getId() + "\n");
                 boolean violated = topology.sloViolated();
 
                 if (violated) {
@@ -114,7 +114,7 @@ public class Topologies {
     }
 
     public ArrayList<Topology> getSuccessfulTopologies() { // when trying to add topologies to either of these
-        writeToFile(same_top, "In topologies:  getSuccessfulTopologies\n");
+      //  writeToFile(same_top, "In topologies:  getSuccessfulTopologies\n");
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
         for (Topology topology : stelaTopologies.values()) {
             long lastRebalancedAtTime = 0;
@@ -150,11 +150,11 @@ public class Topologies {
                 log.append("TOPOLOGY INFO \n");
                 for (TopologySummary topologySummary : topologies) {
 
-                    log.append(topologySummary.get_id() + "\n");
-                    log.append("Topology Uptime: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
-                    log.append("Topology Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
-                    log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
-                    log.append("Topology Num Workers: " + topologySummary.get_num_workers() + "\n");
+                  //  log.append(topologySummary.get_id() + "\n");
+                  //  log.append("Topology Uptime: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
+                   // log.append("Topology Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
+                   // log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
+                  //  log.append("Topology Num Workers: " + topologySummary.get_num_workers() + "\n");
 
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
@@ -186,8 +186,8 @@ public class Topologies {
 
                 getLatencies();
 
-                log.append("********* END CLUSTER INFO **********\n");
-                writeToFile(flatline_log, log.toString());
+             //   log.append("********* END CLUSTER INFO **********\n");
+              //  writeToFile(flatline_log, log.toString());
 
             } catch (NotAliveException e) {
                 e.printStackTrace();
@@ -214,9 +214,9 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologySLO = (Double) conf.get(Config.TOPOLOGY_SLO);
-            writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology SLO: " + topologySLO + "\n");
+          //  writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig\n");
+          //  writeToFile(same_top, "Topology name: " + id + "\n");
+          //  writeToFile(same_top, "Topology SLO: " + topologySLO + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -237,9 +237,9 @@ public class Topologies {
         try {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
             workers = (Long) conf.get(Config.TOPOLOGY_WORKERS);
-            writeToFile(same_top, "In the function:  getNumWorkersFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology workers: " + workers + "\n");
+        //    writeToFile(same_top, "In the function:  getNumWorkersFromConfig\n");
+         //   writeToFile(same_top, "Topology name: " + id + "\n");
+        //    writeToFile(same_top, "Topology workers: " + workers + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -259,9 +259,9 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologyLatencySLO = (Double) conf.get(Config.TOPOLOGY_LATENCY_SLO);
-            writeToFile(same_top, "In the function: getUserSpecifiedLatencySLOFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology Latency SLO: " + topologyLatencySLO + "\n");
+        //    writeToFile(same_top, "In the function: getUserSpecifiedLatencySLOFromConfig\n");
+        //    writeToFile(same_top, "Topology name: " + id + "\n");
+         //   writeToFile(same_top, "Topology Latency SLO: " + topologyLatencySLO + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -298,9 +298,9 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologyUtility = (Double) conf.get(Config.TOPOLOGY_UTILITY);
-            writeToFile(same_top, "In the function: getUserSpecifiedUtilityFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology utility: " + topologyUtility + "\n");
+          //  writeToFile(same_top, "In the function: getUserSpecifiedUtilityFromConfig\n");
+          //  writeToFile(same_top, "Topology name: " + id + "\n");
+          //  writeToFile(same_top, "Topology utility: " + topologyUtility + "\n");
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -415,17 +415,17 @@ public class Topologies {
                 topology_.set75PercentileLatency(latencies.getPercentile(75));
                 topology_.set50PercentileLatency(latencies.getPercentile(50));
             } else {
-                writeToFile(same_top, "No latency data for topology: " + topology + " \n");
+               // writeToFile(same_top, "No latency data for topology: " + topology + " \n");
             }
         }
 
-        writeToFile(same_top, "Let's get some latency data \n");
+        //writeToFile(same_top, "Let's get some latency data \n");
 
-        for (String topology : stelaTopologies.keySet()) {
+        /* for (String topology : stelaTopologies.keySet()) {
             HashMap<HashMap<String, String>, Double> top_data = stelaTopologies.get(topology).latencies;
             for (HashMap<String, String> op_pairs : top_data.keySet()) {
                 Double latency = top_data.get(op_pairs);
-                for (String spouts : op_pairs.keySet()) {
+               for (String spouts : op_pairs.keySet()) {
                     writeToFile(same_top, "Topology: " + topology + " spout: " + spouts + " sinks: " + op_pairs.get(spouts) + " latency: " + latency + ". \n");
                 }
                 writeToFile(same_top, "Topology: " + topology + " average latency: " + stelaTopologies.get(topology).getAverageLatency()
@@ -433,7 +433,7 @@ public class Topologies {
                         + " 75th percentile" + stelaTopologies.get(topology).get75PercentileLatency() +
                          " 50th percentile" + stelaTopologies.get(topology).get50PercentileLatency() + ". \n");
             }
-        }
+        } */
     }
 
 

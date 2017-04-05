@@ -16,7 +16,7 @@ public class ExecutorPair {
     public ExecutorPair(ExecutorSummary target, ExecutorSummary summary) {
         targetExecutorSummary = target;
         victimExecutorSummary = summary;
-        flatline_log = new File("/tmp/flat_line.log");
+      //  flatline_log = new File("/tmp/flat_line.log");
     }
 
     public ExecutorSummary getTargetExecutorSummary() {
@@ -29,12 +29,12 @@ public class ExecutorPair {
 
     public boolean bothPopulated() {
 
-        writeToFile(flatline_log, "Is target executor summary not null? : " +  ( targetExecutorSummary != null ));
-        writeToFile(flatline_log, "Is target victim summary not null? : " +  ( victimExecutorSummary != null ));
+      //  writeToFile(flatline_log, "Is target executor summary not null? : " +  ( targetExecutorSummary != null ));
+      //  writeToFile(flatline_log, "Is target victim summary not null? : " +  ( victimExecutorSummary != null ));
         return targetExecutorSummary != null && victimExecutorSummary != null;
     }
 
-    public void writeToFile(File file, String data) {
+   /* public void writeToFile(File file, String data) {
         try {
             FileWriter fileWriter = new FileWriter(file, true);
             BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
@@ -45,5 +45,5 @@ public class ExecutorPair {
         } catch (IOException ex) {
 
         }
-    }
+    } */
 }

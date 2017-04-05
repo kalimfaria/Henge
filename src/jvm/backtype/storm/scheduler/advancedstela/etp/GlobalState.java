@@ -29,7 +29,7 @@ public class GlobalState {
     //String hostname;
     private NimbusClient nimbusClient;
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
-    private File latency_log;
+    //private File latency_log;
     /* Topology schedules which store the schedule state of the topology. */
     private HashMap<String, TopologySchedule> topologySchedules;
     private boolean isClusterOverUtilized;
@@ -41,7 +41,7 @@ public class GlobalState {
     }
 
     public boolean isClusterUtilization() {
-        LOG.info("Cluster utilization {} ", isClusterOverUtilized);
+      //  LOG.info("Cluster utilization {} ", isClusterOverUtilized);
         return isClusterOverUtilized;
     }
 
@@ -52,7 +52,7 @@ public class GlobalState {
         config = conf;
         topologySchedules = new HashMap<String, TopologySchedule>();
         supervisorToNode = new HashMap<String, Node>();
-        latency_log = new File("/tmp/latency.log");
+      //  latency_log = new File("/tmp/latency.log");
         capacityLog = new File("/tmp/capacity.log");
         isClusterOverUtilized = false;
    /*     hostname = "Unknown";
@@ -77,7 +77,7 @@ public class GlobalState {
         for (Map.Entry<String, Topology> topology : Topologies.entrySet()) {
             ///api/v1/topology/:id
             String topologyURL = url + topology.getKey();
-            LOG.info("topologyURL {}", topologyURL);
+          //  LOG.info("topologyURL {}", topologyURL);
             try {
                 URL obj = new URL(topologyURL);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -89,8 +89,8 @@ public class GlobalState {
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
                 int responseCode = con.getResponseCode();
-                LOG.info("\nSending 'GET' request to URL : " + url);
-                LOG.info("Response Code : " + responseCode);
+              ///  LOG.info("\nSending 'GET' request to URL : " + url);
+              ///  LOG.info("Response Code : " + responseCode);
 
                 BufferedReader in = new BufferedReader(
                         new InputStreamReader(con.getInputStream()));
@@ -119,7 +119,7 @@ public class GlobalState {
                 }
 
                 for (Map.Entry<String, Component> component: etpComponents.entrySet()) {
-                    LOG.info("Topology {} Component {} Capacity {}", topology.getKey(), component.getKey(), component.getValue().getCapacity());
+                  //  LOG.info("Topology {} Component {} Capacity {}", topology.getKey(), component.getKey(), component.getValue().getCapacity());
                     writeToFile(capacityLog, topology.getKey() + " " + component.getKey() + " " + component.getValue().getCapacity() + " " + System.currentTimeMillis() + "\n");
                 }
 
@@ -161,11 +161,10 @@ public class GlobalState {
                         node.slotsToExecutors.get(executor.getValue()).add(executor.getKey());
                         node.executors.add(executor.getKey());
                     } else {
-                        LOG.error("ERROR: should have node {} should have worker: {}", executor.getValue().getNodeId(),
-                                executor.getValue());
+                       // LOG.error("ERROR: should have node {} should have worker: {}", executor.getValue().getNodeId(),                         executor.getValue());
                     }
                 } else {
-                    LOG.error("ERROR: should have node {}", executor.getValue().getNodeId());
+                    // LOG.error("ERROR: should have node {}", executor.getValue().getNodeId());
                 }
             }
         }
@@ -192,11 +191,12 @@ public class GlobalState {
                     constructTopologyGraph(topology, topologySchedule);
                     topologySchedules.put(id, topologySchedule);
                 } catch (Exception e) {
-                    LOG.info("exception while trying to add spouts and bolts : {}", e.toString());
-                    LOG.info("Logging the topology information that we just got");
-                    for (ExecutorSummary execSummary : topologyInfo.get_executors()) {
-                        LOG.info("Component {} host {} port {}", execSummary.get_component_id(), execSummary.get_host(), execSummary.get_port());
-                    }
+                   // LOG.info("exception while trying to add spouts and bolts : {}", e.toString());
+                   // LOG.info("Logging the topology information that we just got");
+                    //for (ExecutorSummary execSummary : topologyInfo.get_executors()) {
+                     //   LOG.info("Component {} host {} port {}", execSummary.get_component_id(), execSummary.get_host(), execSummary.get_port());
+                    //}
+                    e.printStackTrace();
                 }
             }
         } catch (TException e) {
@@ -363,7 +363,7 @@ public class GlobalState {
                     if (temporaryCompleteLatency.containsKey(componentId))
                         component.setCompleteLatency(temporaryCompleteLatency.get(componentId) / (double) component.getParallelism());
 
-                    writeToFile(latency_log, topologySchedule.getId() + "," + componentId + "," + component.getCompleteLatency() + "," + component.getExecuteLatency() + "," + component.getProcessLatency() + "," + System.currentTimeMillis() + "\n");
+                   /// writeToFile(latency_log, topologySchedule.getId() + "," + componentId + "," + component.getCompleteLatency() + "," + component.getExecuteLatency() + "," + component.getProcessLatency() + "," + System.currentTimeMillis() + "\n");
                 }
             }
         } catch (AuthorizationException e) {

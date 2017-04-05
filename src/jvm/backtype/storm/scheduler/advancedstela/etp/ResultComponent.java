@@ -24,12 +24,12 @@ public class ResultComponent implements Comparable<ResultComponent>{
         Double curr_cap = capacity;
         if (cap > curr_cap) return 0;
         Double prop = ((curr_cap - cap)/cap);
-        LOG.info("Proportion " + prop);
+     //   LOG.info("Proportion " + prop);
         Double execs = Math.ceil(prop * (Topology.MULTIPLIER * 1.0));
-        LOG.info("Execs " + execs);
+    //    LOG.info("Execs " + execs);
         Integer executors = Math.min(Topology.MAX_EXECUTORS, execs.intValue());
         if (executors == 0) return 1;
-        LOG.info("Executors " + executors);
+      //  LOG.info("Executors " + executors);
         return executors;
     }
 }

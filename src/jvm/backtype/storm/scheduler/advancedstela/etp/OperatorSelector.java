@@ -10,7 +10,7 @@ public class OperatorSelector {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalState.class);
 
     public Component selectOperator(GlobalState globalState, GlobalStatistics globalStatistics, Topology targetTopo) {
-        LOG.info("In Operator Selector");
+       // LOG.info("In Operator Selector");
         TopologySchedule targetSchedule = globalState.getTopologySchedules().get(targetTopo.getId());
         TopologyStatistics targetStatistics = globalStatistics.getTopologyStatistics().get(targetTopo.getId());
 

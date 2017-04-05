@@ -65,7 +65,7 @@ public class ETPStrategy {
             }
 
             if (totalThroughput == 0.0) {
-                LOG.info("Nothing to do as throughput is 0.");
+              //  LOG.info("Nothing to do as throughput is 0.");
             }
 
             HashMap<String, Double> sinksMap = new HashMap<String, Double>();
@@ -79,7 +79,7 @@ public class ETPStrategy {
             for (Component component : topologySchedule.getComponents().values()) {
                 Double score = etpCalculation(component, sinksMap);
                 topologyETPMap.put(component, score);
-                writeToFile(etpLog, topologySchedule.getId() + " " + component.getId() + " " + score + " " + System.currentTimeMillis() + "\n");
+              //  writeToFile(etpLog, topologySchedule.getId() + " " + component.getId() + " " + score + " " + System.currentTimeMillis() + "\n");
             }
 
             ArrayList<ResultComponent> resultComponents = new ArrayList<ResultComponent>();
@@ -110,7 +110,7 @@ public class ETPStrategy {
         }
 
         if (totalThroughput == 0.0) {
-            LOG.info("Nothing to do as throughput is 0.");
+           // LOG.info("Nothing to do as throughput is 0.");
             new TreeMap<>();
         }
 
@@ -158,12 +158,12 @@ public class ETPStrategy {
                 }
             }
 
-            writeToFile(etpLog, "component: " + self.getId() + " in: " + in + " 1.2 * out " + 1.2 * out + "\n");
+            //writeToFile(etpLog, "component: " + self.getId() + " in: " + in + " 1.2 * out " + 1.2 * out + "\n");
             if (in > 1.2 * out) {
                 Double io = in - out;
                 congestionMap.put(self, io);
             }
-            writeToFile(etpLog, "component: " + self.getId() + " congestionMap value: " + congestionMap.get(self) + "\n");
+           // writeToFile(etpLog, "component: " + self.getId() + " congestionMap value: " + congestionMap.get(self) + "\n");
         }
     }
 
@@ -224,7 +224,7 @@ public class ETPStrategy {
         return sum / (rates.size() * 1.0);
     }
 
-    public void writeToFile(File file, String data) {
+  /*  public void writeToFile(File file, String data) {
         try {
             FileWriter fileWriter = new FileWriter(file, true);
             BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
@@ -235,6 +235,6 @@ public class ETPStrategy {
         } catch (IOException ex) {
             LOG.info("error! writing to file {}", ex);
         }
-    }
+    } */
 
 }

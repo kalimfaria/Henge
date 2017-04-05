@@ -23,7 +23,7 @@ public class Latencies {
     public static ArrayList<String> supervisors;
 
     public Latencies() {
-        LOG.info("trying to fetch latencies");
+      //  LOG.info("trying to fetch latencies");
         supervisors = new ArrayList<>();
     }
 
@@ -40,8 +40,8 @@ public class Latencies {
         con.setRequestProperty("User-Agent", USER_AGENT);
 
         int responseCode = con.getResponseCode();
-        LOG.info("\nSending 'GET' request to URL : " + url);
-        LOG.info("Response Code : " + responseCode);
+      //  LOG.info("\nSending 'GET' request to URL : " + url);
+      //  LOG.info("Response Code : " + responseCode);
 
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(con.getInputStream()));
@@ -52,7 +52,7 @@ public class Latencies {
             response.append(inputLine);
         }
         in.close();
-        LOG.info("Latencies supervisors response {}", response.toString());
+       // LOG.info("Latencies supervisors response {}", response.toString());
         supervisors = getSupervisorHosts(response.toString());
     }
 
@@ -62,7 +62,7 @@ public class Latencies {
         supervisors = new ArrayList<String>();
         for (int i = 0; i < summaries.supervisors.length; i++) {
             supervisors.add(summaries.supervisors[i].get_host());
-            LOG.info("Latencies Supervisor " + summaries.supervisors[i].get_host());
+         //   LOG.info("Latencies Supervisor " + summaries.supervisors[i].get_host());
         }
         return supervisors;
     }
@@ -75,11 +75,11 @@ public class Latencies {
             int responseCode = 200;
             while (responseCode == 200) {
                 String url = "http://" + nodeName + counter.toString() + ":8000/latencies";
-                LOG.info("All Latencies Supervisor " + (nodeName + counter.toString()));
+             //   LOG.info("All Latencies Supervisor " + (nodeName + counter.toString()));
                 URL obj = null;
                 try {
                     obj = new URL(url);
-                    LOG.info(" Latencies url " + url);
+                 //   LOG.info(" Latencies url " + url);
 
                     HttpURLConnection con = (HttpURLConnection) obj.openConnection();
                     // optional default is GET
@@ -87,8 +87,8 @@ public class Latencies {
                     //add request header
                     con.setRequestProperty("User-Agent", USER_AGENT);
                     responseCode = con.getResponseCode();
-                    LOG.info("\nSending 'GET' request to URL : " + url);
-                    LOG.info("Response Code : " + responseCode);
+                //    LOG.info("\nSending 'GET' request to URL : " + url);
+                //    LOG.info("Response Code : " + responseCode);
                     if (responseCode == 200) {
                         BufferedReader in = new BufferedReader(
                                 new InputStreamReader(con.getInputStream()));
@@ -100,10 +100,10 @@ public class Latencies {
                         }
                         in.close();
                         Gson gson = new Gson();
-                        LOG.info("Latencies Response: {}", response.toString());
+                       // LOG.info("Latencies Response: {}", response.toString());
                         Info[] infos = gson.fromJson(response.toString(), Info[].class);
                         for (Info info : infos) {
-                            LOG.info("Info object " + info.toString());
+                         //   LOG.info("Info object " + info.toString());
                             HashMap<HashMap<String, String>, ArrayList<Double>> temp = new HashMap<HashMap<String, String>, ArrayList<Double>>();
                             if (top_op_latency.containsKey(info.topology)) {
                                 temp = top_op_latency.get(info.topology);
@@ -122,8 +122,9 @@ public class Latencies {
                     }
 
                 } catch (UnknownHostException e) {
-                    LOG.info("Received UnknownHostException and now breaking loop: " + e.toString());
+                  //  LOG.info("Received UnknownHostException and now breaking loop: " + e.toString());
                     responseCode = 300;
+                    e.printStackTrace();
                 }
                 catch (Exception e) {
                     e.printStackTrace();
@@ -131,13 +132,13 @@ public class Latencies {
                 counter ++;
             }
         } else {
-            LOG.info("All Latencies Supervisor " + supervisors);
+          //  LOG.info("All Latencies Supervisor " + supervisors);
         for (String supervisor: supervisors) {
             String url = "http://" + supervisor + ":8000/latencies";
             URL obj = null;
             try {
                 obj = new URL(url);
-                LOG.info(" Supervisor : " + supervisor + " url " + url);
+              //  LOG.info(" Supervisor : " + supervisor + " url " + url);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
                 // optional default is GET
@@ -147,8 +148,8 @@ public class Latencies {
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
                 int responseCode = con.getResponseCode();
-                LOG.info("\nSending 'GET' request to URL : " + url);
-                LOG.info("Response Code : " + responseCode);
+              //  LOG.info("\nSending 'GET' request to URL : " + url);
+              //  LOG.info("Response Code : " + responseCode);
 
                 BufferedReader in = new BufferedReader(
                         new InputStreamReader(con.getInputStream()));
@@ -160,10 +161,10 @@ public class Latencies {
                 }
                 in.close();
                 Gson gson = new Gson();
-                LOG.info("Latencies Response: {}", response.toString());
+               // LOG.info("Latencies Response: {}", response.toString());
                 Info[] infos = gson.fromJson(response.toString(), Info[].class);
                 for (Info info : infos) {
-                    LOG.info("Info object " + info.toString());
+                 //   LOG.info("Info object " + info.toString());
                     HashMap<HashMap<String, String>, ArrayList<Double>> temp = new HashMap<HashMap<String, String>, ArrayList<Double>>();
                     if (top_op_latency.containsKey(info.topology)) {
                         temp = top_op_latency.get(info.topology);
@@ -184,7 +185,7 @@ public class Latencies {
         }
             // parse the object and make it in the form of Info
         }
-       LOG.info("Logging latencies");
+       /*LOG.info("Logging latencies");
         for (String topology: top_op_latency.keySet()) {
             HashMap<HashMap<String, String>, ArrayList<Double>> temp = top_op_latency.get(topology);
             for (HashMap <String, String> spout_bolt : temp.keySet()) {
@@ -195,7 +196,7 @@ public class Latencies {
                 ArrayList <Double> latencies = temp.get(spout_bolt);
                 LOG.info("Latencies: " + latencies);
             }
-        }
+        } */
         return top_op_latency;
     }
 

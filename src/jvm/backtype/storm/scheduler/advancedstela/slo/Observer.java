@@ -32,7 +32,7 @@ public class Observer {
     private Topologies topologies;
     private NimbusClient nimbusClient;
     private File juice_log;
-    private File flatline_log, outlier_log, same_top;
+   // private File flatline_log, outlier_log, same_top;
 
     HashMap <String, Integer> hostToWorkerSlots;
     HashMap <String, Integer> hostToUsedWorkerSlots;
@@ -41,9 +41,9 @@ public class Observer {
         config = conf;
         topologies = new Topologies(config);
         juice_log = new File("/tmp/output.log");
-        outlier_log = new File("/tmp/outlier.log");
-        flatline_log = new File("/tmp/flat_line.log");
-        same_top = new File("/tmp/same_top.log");
+     //   outlier_log = new File("/tmp/outlier.log");
+       // flatline_log = new File("/tmp/flat_line.log");
+       // same_top = new File("/tmp/same_top.log");
         hostToUsedWorkerSlots = new HashMap<String, Integer>();
         hostToWorkerSlots = new HashMap<String, Integer>();
     }
@@ -70,7 +70,7 @@ public class Observer {
         Topology topology = topologies.getStelaTopologies().get(id);
         if (topology == null)
         {
-            writeToFile(same_top, id + " is null (asked for by advancedstela for rescheduling)" + "\n");
+           // writeToFile(same_top, id + " is null (asked for by advancedstela for rescheduling)" + "\n");
             return null;
         }
         else
@@ -83,8 +83,8 @@ public class Observer {
     }
 
     public void run() {
-        writeToFile(same_top, "In Observer * \n");
-        writeToFile(same_top, "In Run\n");
+    //    writeToFile(same_top, "In Observer * \n");
+    //    writeToFile(same_top, "In Run\n");
 
 
         if (config != null) {
@@ -93,17 +93,17 @@ public class Observer {
 
                 topologies.constructTopologyGraphs();
                 HashMap<String, Topology> allTopologies = topologies.getStelaTopologies();
-                writeToFile(flatline_log, "********* CLUSTER INFO: **********\n" + "NUMBER OF TOPOLOGIES: " + nimbusClient.getClient().getClusterInfo().get_topologies().size() + "\n"
-                        + "NUMBER OF SUPERVISORS: " + nimbusClient.getClient().getClusterInfo().get_supervisors_size() + "\n"
-                        + "NIMBUS UPTIME: " + nimbusClient.getClient().getClusterInfo().get_nimbus_uptime_secs() + "\n");
+            //    writeToFile(flatline_log, "********* CLUSTER INFO: **********\n" + "NUMBER OF TOPOLOGIES: " + nimbusClient.getClient().getClusterInfo().get_topologies().size() + "\n"
+            //            + "NUMBER OF SUPERVISORS: " + nimbusClient.getClient().getClusterInfo().get_supervisors_size() + "\n"
+             //           + "NIMBUS UPTIME: " + nimbusClient.getClient().getClusterInfo().get_nimbus_uptime_secs() + "\n");
                 Iterator<SupervisorSummary> supervisorSummaryIterator = nimbusClient.getClient().getClusterInfo().get_supervisors_iterator();
                 while (supervisorSummaryIterator.hasNext()) {
                     SupervisorSummary ss = supervisorSummaryIterator.next();
-                    writeToFile(flatline_log, "SUPERVISOR ID: " + ss.get_supervisor_id() + "\n"
-                            + "SUPERVISOR HOST: " + ss.get_host() + "\n"
-                            + "SUPERVISOR USED WORKERS" + ss.get_num_used_workers() + "\n"
-                            + "SUPERVISOR GET NUMBER OF TOTAL WORKERS" + ss.get_num_workers() + "\n"
-                            + "SUPERVISOR GET UPTIME SECS" + ss.get_uptime_secs() + "\n");
+               //     writeToFile(flatline_log, "SUPERVISOR ID: " + ss.get_supervisor_id() + "\n"
+               //             + "SUPERVISOR HOST: " + ss.get_host() + "\n"
+               //             + "SUPERVISOR USED WORKERS" + ss.get_num_used_workers() + "\n"
+               //             + "SUPERVISOR GET NUMBER OF TOTAL WORKERS" + ss.get_num_workers() + "\n"
+               //             + "SUPERVISOR GET UPTIME SECS" + ss.get_uptime_secs() + "\n");
                     hostToWorkerSlots.put(ss.get_host(), ss.get_num_workers());
                     hostToUsedWorkerSlots.put(ss.get_host(), ss.get_num_used_workers()); // populating for use when comparing with less occupied machines :)
                 }
@@ -230,7 +230,7 @@ public class Observer {
                                 temporaryExecuted.get(componentId).get(streamId.get_componentId()) +
                                         executedStatValues.get(streamId).intValue());
 
-                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "\n");
+                    //    writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "\n");
                     }
 
                     Map<GlobalStreamId, Long> executedStatValues_10Mins = executed.get(TEN_MINS);
@@ -249,7 +249,7 @@ public class Observer {
                                 temporaryExecuted_10Mins.get(componentId).get(streamId.get_componentId()) +
                                         executedStatValues_10Mins.get(streamId).intValue());
 
-                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "," +  executedStatValues_10Mins.get(streamId).intValue() + "\n");
+                      //  writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "," +  executedStatValues_10Mins.get(streamId).intValue() + "\n");
                     }
 
 
@@ -318,7 +318,7 @@ public class Observer {
                     } else {
                         value = ((double) executed) / (double) currentTransferred;
                     }
-                    writeToFile(outlier_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+               //     writeToFile(outlier_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
@@ -354,7 +354,7 @@ public class Observer {
                             stelaComponent.addSpoutTransfer(source,
                                     value * bolt.getSpoutTransfer().get(source));
 
-                            writeToFile(outlier_log, topologyId + "," + bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+                      //      writeToFile(outlier_log, topologyId + "," + bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                         }
                         children.put(stelaComponent.getId(), stelaComponent);

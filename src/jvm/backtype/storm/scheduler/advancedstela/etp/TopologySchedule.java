@@ -106,7 +106,7 @@ public class TopologySchedule {
                 end = e.getEndTask();
         }
 
-        LOG.info("Component {} Start {} End {} Range {}", component, start, end, (end-start+1));
+//        LOG.info("Component {} Start {} End {} Range {}", component, start, end, (end-start+1));
         return end-start+1;// offset because tasks start with 1 :)
     }
 }
