@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 public class Topologies {
     public static  Integer UP_TIME = 60 * 15;
-    private static final Integer REBALANCING_INTERVAL = 60 * 1;//2;
+    private static final Integer REBALANCING_INTERVAL = 60 * 5;//2;
     private static final Logger LOG = LoggerFactory.getLogger(Topologies.class);
     private Map config;
     private NimbusClient nimbusClient;

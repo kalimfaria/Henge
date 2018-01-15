@@ -33,6 +33,7 @@ public class AdvancedStelaScheduler implements IScheduler {
     private ArrayList<BriefHistory> briefHistory;
     private int areWeStable;
     private File etpLog;
+    private String stormCommand = "/var/redis/nimbus/bin/storm ";
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -77,12 +78,13 @@ public class AdvancedStelaScheduler implements IScheduler {
             if (numTopologiesThatNeedScheduling > 0) {
                 LOG.info("STORM IS GOING TO PERFORM THE REBALANCING");
                 new backtype.storm.scheduler.EvenScheduler().schedule(topologies, cluster);
+                doWeStop = false;
             } else if (numTopologiesThatNeedScheduling == 0
                     && (System.currentTimeMillis() - time) / 1000 > 60
                     && (System.currentTimeMillis() - upForMoreThan) / 1000 > backtype.storm.scheduler.advancedstela.slo.Topologies.UP_TIME) {
 
                 LOG.info("((victims.isEmpty() && targets.isEmpty()) && numTopologiesThatNeedScheduling == 0 && numTopologies > 0)");
-               rebalanceHelper(topologies);
+                rebalanceHelper(topologies);
                 time = System.currentTimeMillis(); //-- this forces rebalance to occur every 5 mins instead -_-
 
             } 
@@ -168,6 +170,9 @@ public class AdvancedStelaScheduler implements IScheduler {
                     if (targetComponents != null) {
                         LOG.info("topology {} target component", receiver, targetComponents.size());
                         wasRebalanceSuccessful = rebalanceTopology(target, targetSchedule, targetComponents, receiver, now);
+                        if (wasRebalanceSuccessful) {
+                            sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
+                        }
                         LOG.info("topologyNum {} wasRebalanceSuccessful {} ", topologyNum, wasRebalanceSuccessful);
                     }
                 } else  {
@@ -190,7 +195,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     TopologyDetails details = schedule.getValue();
                     LOG.info("Reverting :) topology name {}", topologyName);
                     writeToFile(juice_log, "Reverting\n");
-                    String targetCommand = "/var/nimbus/storm/bin/storm " +
+                    String targetCommand = stormCommand +
                             "rebalance " + topologyName + " -w 0 ";
                     Map<String, Integer> componentToExecutor = new Helpers().flipExecsMap(details.getExecutorToComponent());
                     boolean localAreWeDone = false;
@@ -232,7 +237,7 @@ public class AdvancedStelaScheduler implements IScheduler {
             TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
             ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
             writeToFile(juice_log, "Reduction\n");
-            String targetCommand = "/var/nimbus/storm/bin/storm " +
+            String targetCommand = stormCommand +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
 
             for (Component comp : uncongestedComponents) {
@@ -331,7 +336,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         LOG.info("In rebalance topology");
         if (config != null) {
             try {
-                String targetCommand = "/var/nimbus/storm/bin/storm " +
+                String targetCommand = stormCommand +
                         "rebalance " + targetDetails.getName() + " -w 0 ";
 
                 for (ResultComponent comp:  components) {
