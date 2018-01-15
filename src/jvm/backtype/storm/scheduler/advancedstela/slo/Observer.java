@@ -2,6 +2,7 @@ package backtype.storm.scheduler.advancedstela.slo;
 
 import backtype.storm.Config;
 import backtype.storm.generated.*;
+import backtype.storm.scheduler.advancedstela.Helpers;
 import backtype.storm.utils.NimbusClient;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -22,18 +23,13 @@ public class Observer {
     private static final Logger LOG = LoggerFactory.getLogger(Observer.class);
     private static final String ALL_TIME = ":all-time";
     private static final String TEN_MINS = "600";
-    private static final String METRICS = "__metrics";
-    private static final String SYSTEM = "__system";
     private static final String DEFAULT = "default";
-    private static final String FAILED = "failed";
-    private static final String ACKED = "acked";
 
     private Map config;
     private Topologies topologies;
     private NimbusClient nimbusClient;
     private File juice_log;
-    private File flatline_log, outlier_log, same_top;
-
+    private Helpers helper;
     HashMap <String, Integer> hostToWorkerSlots;
     HashMap <String, Integer> hostToUsedWorkerSlots;
 
@@ -41,22 +37,12 @@ public class Observer {
         config = conf;
         topologies = new Topologies(config);
         juice_log = new File("/tmp/output.log");
-        outlier_log = new File("/tmp/outlier.log");
-        flatline_log = new File("/tmp/flat_line.log");
-        same_top = new File("/tmp/same_top.log");
+        helper = new Helpers();
+
         hostToUsedWorkerSlots = new HashMap<String, Integer>();
         hostToWorkerSlots = new HashMap<String, Integer>();
     }
 
-    public HashMap getHostToWorkerSlotMapping()
-    {
-        return hostToWorkerSlots;
-    }
-
-    public HashMap getHostToUsedWorkerSlotMapping()
-    {
-        return hostToUsedWorkerSlots;
-    }
 
     public ArrayList<Topology> getFailingTopologies() {
         return topologies.getFailingTopologies();
@@ -66,25 +52,12 @@ public class Observer {
         return topologies.getSuccessfulTopologies();
     }
 
-    public Topology getTopologyById(String id) {
-        Topology topology = topologies.getStelaTopologies().get(id);
-        if (topology == null)
-        {
-            writeToFile(same_top, id + " is null (asked for by advancedstela for rescheduling)" + "\n");
-            return null;
-        }
-        else
-            return topology;
-    }
-
 
     public HashMap<String,Topology> getAllTopologies() {
         return topologies.getStelaTopologies();
     }
 
     public void run() {
-        writeToFile(same_top, "In Observer * \n");
-        writeToFile(same_top, "In Run\n");
 
 
         if (config != null) {
@@ -93,17 +66,11 @@ public class Observer {
 
                 topologies.constructTopologyGraphs();
                 HashMap<String, Topology> allTopologies = topologies.getStelaTopologies();
-                writeToFile(flatline_log, "********* CLUSTER INFO: **********\n" + "NUMBER OF TOPOLOGIES: " + nimbusClient.getClient().getClusterInfo().get_topologies().size() + "\n"
-                        + "NUMBER OF SUPERVISORS: " + nimbusClient.getClient().getClusterInfo().get_supervisors_size() + "\n"
-                        + "NIMBUS UPTIME: " + nimbusClient.getClient().getClusterInfo().get_nimbus_uptime_secs() + "\n");
+
                 Iterator<SupervisorSummary> supervisorSummaryIterator = nimbusClient.getClient().getClusterInfo().get_supervisors_iterator();
                 while (supervisorSummaryIterator.hasNext()) {
                     SupervisorSummary ss = supervisorSummaryIterator.next();
-                    writeToFile(flatline_log, "SUPERVISOR ID: " + ss.get_supervisor_id() + "\n"
-                            + "SUPERVISOR HOST: " + ss.get_host() + "\n"
-                            + "SUPERVISOR USED WORKERS" + ss.get_num_used_workers() + "\n"
-                            + "SUPERVISOR GET NUMBER OF TOTAL WORKERS" + ss.get_num_workers() + "\n"
-                            + "SUPERVISOR GET UPTIME SECS" + ss.get_uptime_secs() + "\n");
+
                     hostToWorkerSlots.put(ss.get_host(), ss.get_num_workers());
                     hostToUsedWorkerSlots.put(ss.get_host(), ss.get_num_used_workers()); // populating for use when comparing with less occupied machines :)
                 }
@@ -241,7 +208,6 @@ public class Observer {
                         LOG.info("temporary executed: component {} topology {} val {}", componentId, topologyId,
                                 temporaryExecuted.get(componentId));
 
-                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "\n");
                     }
 
                     Map<GlobalStreamId, Long> executedStatValues_10Mins = executed.get(TEN_MINS);
@@ -260,7 +226,6 @@ public class Observer {
                                 temporaryExecuted_10Mins.get(componentId).get(streamId.get_componentId()) +
                                         executedStatValues_10Mins.get(streamId).intValue());
 
-                        writeToFile(outlier_log, topologyId + "," + componentId + "," + executedStatValues.get(streamId).intValue() + "," +  executedStatValues_10Mins.get(streamId).intValue() + "\n");
                     }
                 }
             }
@@ -331,7 +296,6 @@ public class Observer {
                     } else {
                         value = ((double) executed) / (double) currentTransferred;
                     }
-                    writeToFile(outlier_log, topologyId + "," + spout.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
 
                     component.addSpoutTransfer(spout.getId(), value);
                     parents.put(child, component);
@@ -365,7 +329,7 @@ public class Observer {
                             stelaComponent.addSpoutTransfer(source,
                                     value * bolt.getSpoutTransfer().get(source));
 
-                            writeToFile(outlier_log, topologyId + "," + bolt.getId() + "," + currentTransferred + "," + executed + "," + value + "\n");
+
 
                         }
                         children.put(stelaComponent.getId(), stelaComponent);
@@ -419,7 +383,7 @@ public class Observer {
             }
             topology.setMeasuredSLOs(calculatedSLO);
             long time_now = System.currentTimeMillis();
-            writeToFile(juice_log, topologyId + "," +
+            helper.writeToFile(juice_log, topologyId + "," +
                     calculatedSLO + "," +
                     topology.getMeasuredSLO()  + "," +
                     topology.getAverageLatency() + "," +
@@ -440,17 +404,6 @@ public class Observer {
         topologies.remove(topologyId);
     }
 
-    public void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWriter = new FileWriter(file, true);
-            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
-            bufferWriter.append(data);
-            bufferWriter.close();
-            fileWriter.close();
-        } catch (IOException ex) {
-            LOG.info(ex.toString());
-        }
-    }
 
     public void updateLastRebalancedTime(String topologyId, Long time) {
         topologies.updateLastRebalancedTime(topologyId, time);

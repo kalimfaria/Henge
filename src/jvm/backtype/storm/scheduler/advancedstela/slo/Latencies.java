@@ -1,6 +1,5 @@
 package backtype.storm.scheduler.advancedstela.slo;
 
-import backtype.storm.scheduler.advancedstela.etp.SupervisorInfo;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,52 +18,11 @@ public class Latencies {
     private final String USER_AGENT = "Mozilla/5.0";
 
     private static final Logger LOG = LoggerFactory.getLogger(Latencies.class);
-  //  private String hostname;
     public static ArrayList<String> supervisors;
 
     public Latencies() {
         LOG.info("trying to fetch latencies");
         supervisors = new ArrayList<>();
-    }
-
-    private void GetSupervisors () throws  Exception {
-        String url = "http://zookeepernimbus:8080/api/v1/supervisor/summary";
-
-        URL obj = new URL(url);
-        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-        // optional default is GET
-        con.setRequestMethod("GET");
-
-        //add request header
-        con.setRequestProperty("User-Agent", USER_AGENT);
-
-        int responseCode = con.getResponseCode();
-        LOG.info("\nSending 'GET' request to URL : " + url);
-        LOG.info("Response Code : " + responseCode);
-
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(con.getInputStream()));
-        String inputLine;
-        StringBuffer response = new StringBuffer();
-
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-        LOG.info("Latencies supervisors response {}", response.toString());
-        supervisors = getSupervisorHosts(response.toString());
-    }
-
-    public ArrayList getSupervisorHosts (String input) {
-        Gson gson = new Gson();
-        SupervisorInfo.Summaries summaries = gson.fromJson(input, SupervisorInfo.Summaries.class);
-        supervisors = new ArrayList<String>();
-        for (int i = 0; i < summaries.supervisors.length; i++) {
-            supervisors.add(summaries.supervisors[i].get_host());
-            LOG.info("Latencies Supervisor " + summaries.supervisors[i].get_host());
-        }
-        return supervisors;
     }
 
     public HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> getLatencies ()  {

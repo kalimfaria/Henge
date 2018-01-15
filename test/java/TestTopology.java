@@ -531,7 +531,7 @@ public class TestTopology {
 
     @Test
     public void testTopologyCapacityWiseUnCongestedOperators() {
-        TopologySchedule schedule = new TopologySchedule("Topology1", 5);
+        TopologySchedule schedule = new TopologySchedule("Topology1");
         schedule.addComponents("spout_head", new Component("spout_head", 10));
         schedule.addComponents("bolt_aggregate", new Component("bolt_aggregate", 10));
         schedule.addComponents("bolt_transform", new Component("bolt_transform", 10));

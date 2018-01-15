@@ -25,9 +25,6 @@ public class TopologyPicker {
             case "WT": {
                 Topology.sortingStrategy = "descending-specified-ascending-current-utility";
                 Collections.sort(receiver_topologies);
-               /* Topology.sortingStrategy = "ascending-current-utility";
-                Collections.sort(receiver_topologies); */
-
                 for (Topology t : receiver_topologies) {
                     System.out.println(t.getId() + " " + t.getCurrentUtility() + " " + t.getTopologyUtility());
                 }

@@ -3,20 +3,14 @@ package backtype.storm.scheduler.advancedstela;
 import backtype.storm.scheduler.*;
 import backtype.storm.scheduler.Topologies;
 import backtype.storm.scheduler.advancedstela.etp.*;
-import backtype.storm.scheduler.advancedstela.slo.Latencies;
 import backtype.storm.scheduler.advancedstela.slo.Observer;
 import backtype.storm.scheduler.advancedstela.slo.Topology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-
-import java.lang.reflect.Array;
 import java.util.*;
-import java.util.concurrent.SynchronousQueue;
+
 
 public class AdvancedStelaScheduler implements IScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(AdvancedStelaScheduler.class);
@@ -27,13 +21,13 @@ public class AdvancedStelaScheduler implements IScheduler {
     private Observer sloObserver;
     private GlobalState globalState;
     private GlobalStatistics globalStatistics;
-    private OperatorSelector selector;
     private File juice_log;
     private ArrayList<History> history;
     private ArrayList<BriefHistory> briefHistory;
     private int areWeStable;
     private File etpLog;
     private String stormCommand = "/var/redis/nimbus/bin/storm ";
+    Helpers helper;
 
     public void prepare(@SuppressWarnings("rawtypes") Map conf) {
         juice_log = new File("/tmp/output.log");
@@ -42,7 +36,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
         globalStatistics = new GlobalStatistics(conf);
-        selector = new OperatorSelector();
         history = new ArrayList<>();
         upForMoreThan = time = System.currentTimeMillis();
         didWeDoRebalance = false;
@@ -50,6 +43,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         didWeReduce = false;
         areWeStable = 0;
         briefHistory = new ArrayList<>();
+        helper = new Helpers();
     }
 
     public void schedule(Topologies topologies, Cluster cluster) {
@@ -137,7 +131,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         if (receiver_topologies.size() == 0 && doWeStop && history.size() == 0) {
             saveHistory(now);
             LOG.info("Saving history so that we have something to compare to later to");
-            writeToFile(juice_log, "TriggeredInstability\n");
+            helper.writeToFile(juice_log, "TriggeredInstability\n");
          //   doWeStop = false;
         }
 
@@ -165,7 +159,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     TopologyDetails target = topologies.getById(receiver.getId());
                     TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
                     //Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
-                    ArrayList<ResultComponent> targetComponents = selector.selectAllOperators(globalState, globalStatistics, receiver);
+                    ArrayList<ResultComponent> targetComponents = sortOperators(receiver);
                     LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
                     if (targetComponents != null) {
                         LOG.info("topology {} target component", receiver, targetComponents.size());
@@ -194,7 +188,7 @@ public class AdvancedStelaScheduler implements IScheduler {
                     String topologyName = schedule.getKey();
                     TopologyDetails details = schedule.getValue();
                     LOG.info("Reverting :) topology name {}", topologyName);
-                    writeToFile(juice_log, "Reverting\n");
+                    helper.writeToFile(juice_log, "Reverting\n");
                     String targetCommand = stormCommand +
                             "rebalance " + topologyName + " -w 0 ";
                     Map<String, Integer> componentToExecutor = new Helpers().flipExecsMap(details.getExecutorToComponent());
@@ -205,8 +199,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                         localAreWeDone = true;
                     }
                     if (localAreWeDone) {
-                        writeToFile(juice_log, targetCommand + "\n");
-                        writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                        helper.writeToFile(juice_log, targetCommand + "\n");
+                        helper.writeToFile(juice_log, System.currentTimeMillis() + "\n");
                         LOG.info(targetCommand + "\n");
                         LOG.info(System.currentTimeMillis() + "\n");
                         Runtime.getRuntime().exec(targetCommand);
@@ -236,7 +230,7 @@ public class AdvancedStelaScheduler implements IScheduler {
         for (Topology successfulTopology : successfulTopologies) {
             TopologySchedule schedule = topologySchedules.get(successfulTopology.getId());
             ArrayList<Component> uncongestedComponents = schedule.getCapacityWiseUncongestedOperators();
-            writeToFile(juice_log, "Reduction\n");
+            helper.writeToFile(juice_log, "Reduction\n");
             String targetCommand = stormCommand +
                     "rebalance " + topologies.getById(successfulTopology.getId()).getName() + " -w 0 ";
 
@@ -257,8 +251,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 schedule.getComponents().get(comp.getId()).setParallelism(reducedExecutors);
             }
             try {
-                writeToFile(juice_log, targetCommand + "\n");
-                writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                helper.writeToFile(juice_log, targetCommand + "\n");
+                helper.writeToFile(juice_log, System.currentTimeMillis() + "\n");
                 Runtime.getRuntime().exec(targetCommand);
                 Runtime.getRuntime().exec("fab delete");
                 // sloObserver.updateLastRebalancedTime(target.getId(), System.currentTimeMillis() / 1000);
@@ -365,8 +359,8 @@ public class AdvancedStelaScheduler implements IScheduler {
                 try {
                     if (first_time == 1) {
                         LOG.info("Can perform a rebalance");
-                        writeToFile(juice_log, targetCommand + "\n");
-                        writeToFile(juice_log, System.currentTimeMillis() + "\n");
+                        helper.writeToFile(juice_log, targetCommand + "\n");
+                        helper.writeToFile(juice_log, System.currentTimeMillis() + "\n");
                         LOG.info(targetCommand + "\n");
                         LOG.info(System.currentTimeMillis() + "\n");
                         LOG.info("running the rebalance using storm's rebalance command \n");
@@ -400,6 +394,15 @@ public class AdvancedStelaScheduler implements IScheduler {
         globalState.setCapacities(sloObserver.getAllTopologies());
         globalStatistics.collect();
         return failures;
+    }
+
+    private ArrayList<ResultComponent> sortOperators(Topology targetTopo) {
+        LOG.info("In Operator Selector");
+        TopologySchedule targetSchedule = globalState.getTopologySchedules().get(targetTopo.getId());
+        ArrayList<ResultComponent> rankTarget = new ArrayList<ResultComponent>();
+        LatencyStrategyWithCapacity targetStrategy = new LatencyStrategyWithCapacity(targetSchedule);
+        rankTarget = targetStrategy.topologyCapacityDescending();
+        return rankTarget;
     }
 
     private void logUnassignedExecutors(List<TopologyDetails> topologiesScheduled, Cluster cluster) {
@@ -487,18 +490,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                     t.getConf(),
                     t.getExecutorToComponent().size(),
                     t.getExecutors());
-        }
-    }
-
-    public void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWriter = new FileWriter(file, true);
-            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
-            bufferWriter.append(data);
-            bufferWriter.close();
-            fileWriter.close();
-        } catch (IOException ex) {
-            LOG.info("error! writing to file {}", ex);
         }
     }
 

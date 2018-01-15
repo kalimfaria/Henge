@@ -26,9 +26,7 @@ public class TopologyStatistics {
         completeLatencyHistory = new HashMap<String, List<Double>>();
     }
 
-    public Long getStartupTime() {
-        return startupTime;
-    }
+
 
     public void setStartupTime(Long startupTime) {
         this.startupTime = startupTime;

@@ -8,7 +8,6 @@ import java.util.List;
 
 public class Component implements Comparable<Component>{
 
-
     private String id;
     private Integer parallelism;
     private List<String> parents;
@@ -23,7 +22,6 @@ public class Component implements Comparable<Component>{
     private long lastRebalancedAt;
 
     public int compareTo(Component other) {
-        //return (other.getCapacity().compareTo(this.capacity)); //// descending order
         return this.capacity.compareTo(other.getCapacity());
     }
 

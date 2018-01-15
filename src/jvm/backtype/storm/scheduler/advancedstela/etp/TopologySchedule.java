@@ -13,21 +13,10 @@ import java.util.Map;
 public class TopologySchedule {
     public static double CAPACITY_CONGESTION_THRESHOLD = 0.3; // all capacities above this value are "congested"
     private String id;
-    private Integer numberOFWorkers;
     private HashMap<ExecutorDetails, Component> executorToComponent;
     private HashMap<WorkerSlot, ArrayList<ExecutorDetails>> assignment;
     private HashMap<String, Component> components;
     private static final Logger LOG = LoggerFactory.getLogger(TopologySchedule.class);
-
-    public ArrayList<Component> getCapacityWiseCongestedOperators () {
-        ArrayList<Component> result = new ArrayList<>();
-        for (Map.Entry<String, Component> component:  components.entrySet()) {
-            if (component.getValue().getCapacity() > CAPACITY_CONGESTION_THRESHOLD)
-                result.add(component.getValue());
-        }
-
-        return result;
-    }
 
 
     public ArrayList<Component> getCapacityWiseUncongestedOperators () {
@@ -41,9 +30,8 @@ public class TopologySchedule {
         return result;
     }
 
-    public TopologySchedule(String identifier, int workerCount) {
+    public TopologySchedule(String identifier) {
         id = identifier;
-        numberOFWorkers = workerCount;
         components = new HashMap<String, Component>();
         executorToComponent = new HashMap<ExecutorDetails, Component>();
         assignment = new HashMap<WorkerSlot, ArrayList<ExecutorDetails>>();
@@ -51,10 +39,6 @@ public class TopologySchedule {
 
     public String getId() {
         return id;
-    }
-
-    public void setNumberOFWorkers(Integer numberOFWorkers) {
-        numberOFWorkers = numberOFWorkers;
     }
 
     public void addExecutorToComponent(ExecutorDetails details, String componentId) {
@@ -73,17 +57,6 @@ public class TopologySchedule {
         components.put(id, component);
     }
 
-    public Integer getNumberOFWorkers() {
-        return numberOFWorkers;
-    }
-
-    public HashMap<ExecutorDetails, Component> getExecutorToComponent() {
-        return executorToComponent;
-    }
-
-    public HashMap<WorkerSlot, ArrayList<ExecutorDetails>> getAssignment() {
-        return assignment;
-    }
 
     public HashMap<String, Component> getComponents() {
         return components;

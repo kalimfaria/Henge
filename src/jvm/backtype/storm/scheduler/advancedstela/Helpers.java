@@ -2,12 +2,13 @@ package backtype.storm.scheduler.advancedstela;
 
 import backtype.storm.scheduler.ExecutorDetails;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Created by fariakalim on 1/13/17.
- */
 public class Helpers {
 
     public Map<String, Integer> flipExecsMap(Map<ExecutorDetails, String> ExecutorsToComponents) {
@@ -20,6 +21,18 @@ public class Helpers {
             }
         }
         return flippedMap;
+    }
+
+    public void writeToFile(File file, String data) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+            bufferWriter.append(data);
+            bufferWriter.close();
+            fileWriter.close();
+        } catch (IOException ex) {
+            System.out.println("File reading exception: " + ex.toString());
+        }
     }
 
 }

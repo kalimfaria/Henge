@@ -55,16 +55,7 @@ public class GlobalState {
         latency_log = new File("/tmp/latency.log");
         capacityLog = new File("/tmp/capacity.log");
         isClusterOverUtilized = false;
-   /*     hostname = "Unknown";
-        try {
-            InetAddress addr;
-            addr = InetAddress.getLocalHost();
-            hostname = addr.getHostName();
-            String [] broken = hostname.split(".");
-            hostname = broken[0];
-        } catch (UnknownHostException ex) {
-            System.out.println("Hostname can not be resolved");
-        } */
+
     }
 
     public HashMap<String, TopologySchedule> getTopologySchedules() {
@@ -190,7 +181,7 @@ public class GlobalState {
             for (TopologySummary topologySummary : topologies) {
                 String id = topologySummary.get_id();
                 StormTopology topology = nimbusClient.getClient().getTopology(id);
-                TopologySchedule topologySchedule = new TopologySchedule(id, topologySummary.get_num_workers());
+                TopologySchedule topologySchedule = new TopologySchedule(id);
                 TopologyInfo topologyInfo = nimbusClient.getClient().getTopologyInfo(topologySummary.get_id());
 
                 try {

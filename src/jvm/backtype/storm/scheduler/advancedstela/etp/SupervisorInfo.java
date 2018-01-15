@@ -1,13 +1,13 @@
 package backtype.storm.scheduler.advancedstela.etp;
 
 import backtype.storm.generated.SupervisorSummary;
+import backtype.storm.scheduler.advancedstela.Helpers;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.*;
@@ -22,7 +22,7 @@ public class SupervisorInfo {
     public final int HISTORY_SIZE = 10;
     public final double MAXIMUM_LOAD_PER_MACHINE = 3.0;
     private File util_log;
-   // private String hostname;
+    Helpers helper;
 
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorInfo.class);
 
@@ -31,36 +31,7 @@ public class SupervisorInfo {
         supervisorsInfo = new HashMap<String, Info>();
         util_log = new File("/tmp/util.log");
         supervisors = new ArrayList<>();
-    }
-
-    public void GetSupervisors () throws  Exception {
-        String url = "http://zookeepernimbus:8080/api/v1/supervisor/summary";
-
-        URL obj = new URL(url);
-        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-        // optional default is GET
-        con.setRequestMethod("GET");
-
-        //add request header
-        con.setRequestProperty("User-Agent", USER_AGENT);
-
-        int responseCode = con.getResponseCode();
-        LOG.info("\nSending 'GET' request to URL : " + url);
-        LOG.info("Response Code : " + responseCode);
-
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(con.getInputStream()));
-        String inputLine;
-        StringBuffer response = new StringBuffer();
-
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-        LOG.info("SupervisorInfo response {}", response.toString());
-        supervisors = getSupervisorHosts(response.toString());
-
+        helper = new Helpers();
     }
 
     public ArrayList getSupervisorHosts (String input) {
@@ -164,7 +135,7 @@ public class SupervisorInfo {
         }
         infoHistory.add(info);
         for (Map.Entry<String, Info> entry: info.entrySet()) {
-            writeToFile(util_log, entry.getKey() + " " + entry.getValue().toString() + "\n");
+            helper.writeToFile(util_log, entry.getKey() + " " + entry.getValue().toString() + "\n");
 
         }
     }
@@ -219,7 +190,6 @@ public class SupervisorInfo {
 
     public boolean GetSupervisorInfo () {
       try {
-         // this.GetSupervisors();
           this.GetInfo();
       } catch (Exception e)
       {
@@ -263,15 +233,5 @@ public class SupervisorInfo {
         }
 
     }
-    public void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWriter = new FileWriter(file, true);
-            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
-            bufferWriter.append(data);
-            bufferWriter.close();
-            fileWriter.close();
-        } catch (IOException ex) {
-            LOG.info("error! writing to file {}", ex);
-        }
-    }
+
 }

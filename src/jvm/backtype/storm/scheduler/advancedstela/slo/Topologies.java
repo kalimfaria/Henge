@@ -29,8 +29,7 @@ public class Topologies {
     private HashMap<String, Topology> stelaTopologies;
     private HashMap<String, Long> topologiesUptime;
     private HashMap<String, Long> lastRebalancedAt;
-    private File flatline_log;
-    private File same_top;
+
     private String folderName;
 
     public Topologies(Map conf) {
@@ -38,8 +37,7 @@ public class Topologies {
         stelaTopologies = new HashMap<String, Topology>();
         topologiesUptime = new HashMap<String, Long>();
         lastRebalancedAt = new HashMap<String, Long>();
-        flatline_log = new File("/tmp/flat_line.log");
-        same_top = new File("/tmp/same_top.log");
+
 
         String hostname = "Unknown";
         try {
@@ -69,8 +67,6 @@ public class Topologies {
     }
 
     public ArrayList<Topology> getFailingTopologies() { // when trying to add topologies to either of these
-
-        writeToFile(same_top, "In topologies:  getFailingTopologies\n");
 
         // when clearing topology SLO, mark the time
         // when adding topologies back, I can check if that old time is greater than that time + the amount I want to stagger it for
@@ -114,7 +110,7 @@ public class Topologies {
     }
 
     public ArrayList<Topology> getSuccessfulTopologies() { // when trying to add topologies to either of these
-        writeToFile(same_top, "In topologies:  getSuccessfulTopologies\n");
+
         ArrayList<Topology> successfulTopologies = new ArrayList<Topology>();
         for (Topology topology : stelaTopologies.values()) {
             long lastRebalancedAtTime = 0;
@@ -146,15 +142,9 @@ public class Topologies {
                 nimbusClient = new NimbusClient(config, (String) config.get(Config.NIMBUS_HOST));
 
                 List<TopologySummary> topologies = nimbusClient.getClient().getClusterInfo().get_topologies();
-                StringBuffer log = new StringBuffer();
-                log.append("TOPOLOGY INFO \n");
+
                 for (TopologySummary topologySummary : topologies) {
 
-                    log.append(topologySummary.get_id() + "\n");
-                    log.append("Topology Uptime: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_uptime_secs() + "\n");
-                    log.append("Topology Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_status() + "\n");
-                    log.append("Topology Sched Status: " + nimbusClient.getClient().getTopologyInfo(topologySummary.get_id()).get_sched_status() + "\n");
-                    log.append("Topology Num Workers: " + topologySummary.get_num_workers() + "\n");
 
                     String id = topologySummary.get_id();
                     StormTopology stormTopology = nimbusClient.getClient().getTopology(id);
@@ -186,8 +176,6 @@ public class Topologies {
 
                 getLatencies();
 
-                log.append("********* END CLUSTER INFO **********\n");
-                writeToFile(flatline_log, log.toString());
 
             } catch (NotAliveException e) {
                 e.printStackTrace();
@@ -214,9 +202,7 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologySLO = (Double) conf.get(Config.TOPOLOGY_SLO);
-            writeToFile(same_top, "In the function: getUserSpecifiedSLOFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology SLO: " + topologySLO + "\n");
+
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -237,9 +223,7 @@ public class Topologies {
         try {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
             workers = (Long) conf.get(Config.TOPOLOGY_WORKERS);
-            writeToFile(same_top, "In the function:  getNumWorkersFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology workers: " + workers + "\n");
+
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -259,9 +243,7 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologyLatencySLO = (Double) conf.get(Config.TOPOLOGY_LATENCY_SLO);
-            writeToFile(same_top, "In the function: getUserSpecifiedLatencySLOFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology Latency SLO: " + topologyLatencySLO + "\n");
+
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -298,9 +280,7 @@ public class Topologies {
             Map conf = (Map) parser.parse(nimbusClient.getClient().getTopologyConf(id));
 
             topologyUtility = (Double) conf.get(Config.TOPOLOGY_UTILITY);
-            writeToFile(same_top, "In the function: getUserSpecifiedUtilityFromConfig\n");
-            writeToFile(same_top, "Topology name: " + id + "\n");
-            writeToFile(same_top, "Topology utility: " + topologyUtility + "\n");
+
         } catch (ParseException e) {
             e.printStackTrace();
         } catch (AuthorizationException e) {
@@ -397,7 +377,7 @@ public class Topologies {
                 DescriptiveStatistics latencies = new DescriptiveStatistics();
                 HashMap<HashMap<String, String>, ArrayList<Double>> top_data = data.get(topology);
                 for (HashMap<String, String> op_pairs : top_data.keySet()) {
-                    Set sources = op_pairs.keySet();
+
                     ArrayList<Double> times = top_data.get(op_pairs);
                     Double final_time = 0.0;
                     for (int i = 0; i < times.size(); i++) {
@@ -422,153 +402,9 @@ public class Topologies {
                 topology_.set99PercentileLatency(Double.MAX_VALUE);
                 topology_.set75PercentileLatency(Double.MAX_VALUE);
                 topology_.set50PercentileLatency(Double.MAX_VALUE);
-                writeToFile(same_top, "No latency data for topology: " + topology + " \n");
+
             }
         }
 
-        writeToFile(same_top, "Let's get some latency data \n");
-
-        for (String topology : stelaTopologies.keySet()) {
-            HashMap<HashMap<String, String>, Double> top_data = stelaTopologies.get(topology).latencies;
-            for (HashMap<String, String> op_pairs : top_data.keySet()) {
-                Double latency = top_data.get(op_pairs);
-                for (String spouts : op_pairs.keySet()) {
-                    writeToFile(same_top, "Topology: " + topology + " spout: " + spouts + " sinks: " + op_pairs.get(spouts) + " latency: " + latency + ". \n");
-                }
-                writeToFile(same_top, "Topology: " + topology + " average latency: " + stelaTopologies.get(topology).getAverageLatency()
-                        + " tail latency: " + stelaTopologies.get(topology).get99PercentileLatency()
-                        + " 75th percentile" + stelaTopologies.get(topology).get75PercentileLatency() +
-                         " 50th percentile" + stelaTopologies.get(topology).get50PercentileLatency() + ". \n");
-            }
-        }
-    }
-
-
-    public HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> ReadFiles() {
-        String topology = new String();
-        String spout = new String();
-        String sink = new String();
-        Double latency = 0.0;
-
-        HashMap<HashMap<String, String>, ArrayList<Double>> op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
-        HashMap<String, String> op_temp = new HashMap<String, String>();
-        HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>> top_op_latency = new HashMap<String, HashMap<HashMap<String, String>, ArrayList<Double>>>();
-        final File folder = new File(folderName);
-        try {
-            for (final File file : folder.listFiles()) {
-                if (!file.isDirectory()) {
-
-                    FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
-
-                    FileLock lock = channel.tryLock();
-                    while (lock == null) {
-                        lock = channel.tryLock();
-                    }
-
-                    BufferedReader br = null;
-                    String line = "";
-                    String cvsSplitBy = ",";
-
-                    try {
-
-                        br = new BufferedReader(new FileReader(file));
-                        while ((line = br.readLine()) != null) {
-                            // System.out.println(line);
-                            // use comma as separator
-                            String[] split_line = line.split(cvsSplitBy);
-
-                            topology = split_line[0];
-                            spout = split_line[1];
-                            sink = split_line[2];
-                            latency = Double.parseDouble(split_line[3]);
-
-                            if (top_op_latency.containsKey(topology)) {
-                                op_latency = top_op_latency.get(topology);
-                                boolean flag = false;
-                                for (HashMap<String, String> ops : op_latency.keySet()) {
-                                    if (ops.containsKey(spout) && ops.get(spout).equals(sink)) {
-                                        ArrayList<Double> times = op_latency.get(ops);
-                                        times.add(latency);
-                                        flag = true;
-                                        op_latency.put(ops, times); // PUT IT BACK
-                                        top_op_latency.put(topology, op_latency);
-                                    }
-                                }
-                                if (!flag) {
-                                    op_temp = new HashMap<>();
-                                    op_temp.put(spout, sink);
-                                    ArrayList<Double> t = new ArrayList<Double>();
-                                    t.add(latency);
-                                    op_latency.put(op_temp, t); // PUT IT BACK
-                                    top_op_latency.put(topology, op_latency);
-                                }
-                            } else {
-                                op_latency = new HashMap<HashMap<String, String>, ArrayList<Double>>();
-                                op_temp = new HashMap<>();
-                                op_temp.put(spout, sink);
-                                ArrayList<Double> t = new ArrayList<Double>();
-                                t.add(latency);
-                                op_latency.put(op_temp, t);
-                                top_op_latency.put(topology, op_latency);
-                            }
-                        }
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        if (br != null) {
-                            try {
-                                br.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-
-                    lock.release();
-                    channel.close();
-
-                }
-            }
-
-        } catch (Exception ex) {
-            LOG.info(ex.toString());
-        }
-
-    /*    System.out.println("Reading the file :D");
-        for (String ID : top_op_latency.keySet()) {
-            System.out.println("ID: " + ID);
-            HashMap<HashMap<String, String>, ArrayList<Double>> something = top_op_latency.get(ID);
-            for (Map.Entry some : something.entrySet()) {
-                ArrayList<Double> times = (ArrayList<Double>) some.getValue();
-                HashMap<String, String> pairs = (HashMap<String, String>) some.getKey();
-                Set<String> sources = pairs.keySet();
-                Iterator it = sources.iterator();
-                while (it.hasNext()) {
-                    String spout_ = (String) it.next();
-
-                    System.out.println("Source: " + spout_);//+ " Sink: " + pairs.get(it.next())
-                    System.out.println("Sink: " + pairs.get(spout_));
-                }
-                for (Double x : times) {
-                    System.out.println("Time value: " + x);
-                }
-            }
-        }*/
-        return top_op_latency;
-    }
-
-
-    public void writeToFile(File file, String data) {
-        try {
-            FileWriter fileWriter = new FileWriter(file, true);
-            BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
-            bufferWriter.append(data);
-            bufferWriter.close();
-            fileWriter.close();
-        } catch (IOException ex) {
-            LOG.info(ex.toString());
-        }
     }
 }
