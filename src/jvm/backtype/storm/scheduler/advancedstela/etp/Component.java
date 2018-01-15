@@ -10,35 +10,21 @@ public class Component implements Comparable<Component>{
 
     private String id;
     private Integer parallelism;
-    private List<String> parents;
-    private List<String> children;
     private List<ExecutorDetails> executorDetails;
     private List<ExecutorSummary> executorSummaries;
-    private double process_msg_latency;
-    private double execute_msg_latency;
-    private double execute_msg_latency_10mins;
-    private double complete_msg_avg_latency;
     private Double capacity;
-    private long lastRebalancedAt;
 
     public int compareTo(Component other) {
         return this.capacity.compareTo(other.getCapacity());
     }
 
-
     public Component(String identifier, int parallelismHint){ //, double process_msg_latency,  double execute_msg_latency, double complete_msg_avg_latency, double rate) {
         id = identifier;
         parallelism = parallelismHint;
-        parents = new ArrayList<String>();
-        children = new ArrayList<String>();
         executorDetails = new ArrayList<ExecutorDetails>();
         executorSummaries = new ArrayList<ExecutorSummary>();
-        this.process_msg_latency = 0.0;
-        this.execute_msg_latency = 0.0;
-        this.execute_msg_latency_10mins = 0.0;
-        this.complete_msg_avg_latency = 0.0;
         this.capacity = 0.0; // Expectation -> bolts.capacity	String (double value returned in String format)	This value indicates number of messages executed * average execute latency / time window
-        this.lastRebalancedAt = 0L;
+
     }
 
     public String getId() {
@@ -53,40 +39,6 @@ public class Component implements Comparable<Component>{
         parallelism = newParallelism;
     }
 
-    public double getProcessLatency() {
-        return process_msg_latency;
-    }
-
-    public void setProcessLatency(double latency) {
-       process_msg_latency = latency;
-    }
-
-    public double getExecuteLatency() {
-        return execute_msg_latency;
-    }
-
-    public void setExecuteLatency(double latency) {
-        execute_msg_latency = latency;
-
-    }
-
-    public double getExecuteLatency10mins() {
-        return execute_msg_latency_10mins;
-    }
-
-    public void setExecuteLatency10mins(double latency) {
-        execute_msg_latency_10mins = latency;
-
-    }
-
-
-    public double getCompleteLatency() {
-        return complete_msg_avg_latency;
-    }
-
-    public void setCompleteLatency(double latency) {
-        complete_msg_avg_latency = latency;
-    }
 
     public Double getCapacity() {
         return capacity;
@@ -96,37 +48,6 @@ public class Component implements Comparable<Component>{
        this.capacity = capacity;
     }
 
-    public long getLastRebalancedAt() {
-        return lastRebalancedAt;
-    }
-
-    public void setLastRebalancedAt(long time) {
-        lastRebalancedAt = time;
-    }
-
-    public List<String> getParents() {
-        return parents;
-    }
-
-    public List<String> getChildren() {
-        return children;
-    }
-
-    public List<ExecutorDetails> getExecutorDetails() {
-        return executorDetails;
-    }
-
-    public List<ExecutorSummary> getExecutorSummaries() {
-        return executorSummaries;
-    }
-
-    public void addParent(String parentId) {
-        parents.add(parentId);
-    }
-
-    public void addChild(String childId) {
-        children.add(childId);
-    }
 
     public void addExecutor(ExecutorDetails executor) {
         executorDetails.add(executor);

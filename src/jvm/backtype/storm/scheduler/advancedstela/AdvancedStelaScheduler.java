@@ -20,7 +20,6 @@ public class AdvancedStelaScheduler implements IScheduler {
     private Map config;
     private Observer sloObserver;
     private GlobalState globalState;
-    private GlobalStatistics globalStatistics;
     private File juice_log;
     private ArrayList<History> history;
     private ArrayList<BriefHistory> briefHistory;
@@ -35,7 +34,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         config = conf;
         sloObserver = new Observer(conf);
         globalState = new GlobalState(conf);
-        globalStatistics = new GlobalStatistics(conf);
         history = new ArrayList<>();
         upForMoreThan = time = System.currentTimeMillis();
         didWeDoRebalance = false;
@@ -158,7 +156,6 @@ public class AdvancedStelaScheduler implements IScheduler {
                     LOG.info("Picked the topology for rebalance");
                     TopologyDetails target = topologies.getById(receiver.getId());
                     TopologySchedule targetSchedule = globalState.getTopologySchedules().get(receiver.getId());
-                    //Component targetComponent = selector.selectOperator(globalState, globalStatistics, receiver);
                     ArrayList<ResultComponent> targetComponents = sortOperators(receiver);
                     LOG.info("target before rebalanceTwoTopologies {} ", target.getId());
                     if (targetComponents != null) {
@@ -392,7 +389,6 @@ public class AdvancedStelaScheduler implements IScheduler {
         sloObserver.run();
         boolean failures = globalState.collect(cluster, topologies);
         globalState.setCapacities(sloObserver.getAllTopologies());
-        globalStatistics.collect();
         return failures;
     }
 
